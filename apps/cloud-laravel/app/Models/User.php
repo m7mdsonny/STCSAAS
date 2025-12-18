@@ -18,5 +18,6 @@ class User extends Authenticatable
     protected $casts = [
         'last_login' => 'datetime',
         'is_active' => 'boolean',
+        'is_super_admin' => 'boolean',
     ];
 }

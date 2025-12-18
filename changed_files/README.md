@@ -34,6 +34,16 @@ All modified files are mirrored here. Apply them 1:1 into the repo to keep the s
   - **Feature:** Web portal API hooks work against the updated backend without manual URL tweaks.
   - **Deploy:** Rebuild frontend if serving bundled assets from Laravel `public/`.
 
+- `apps/cloud-laravel/database/migrations/2024_01_02_000000_add_is_super_admin_to_users.php`
+  - **Why:** Schema previously lacked the `is_super_admin` flag referenced by auth logic and Tinker workflows, blocking super-admin creation.
+  - **Feature:** Adds a boolean `is_super_admin` column so you can promote users and issue Sanctum tokens that pass super-admin gate checks.
+  - **Deploy:** Run `php artisan migrate` (idempotent: checks column existence).
+
+- `apps/cloud-laravel/app/Http/Controllers/Controller.php` & `app/Models/User.php`
+  - **Why:** Align runtime checks/casts with the new `is_super_admin` column.
+  - **Feature:** Super-admin guard now allows either `role === 'super_admin'` or `is_super_admin = true`; casting ensures boolean semantics.
+  - **Deploy:** No extra step beyond migration.
+
 ## Deployment Steps (Minimal)
 1) Backend: `composer install --no-dev && php artisan migrate && php artisan route:clear && php artisan config:clear`
 2) Frontend (if bundling into Laravel): `npm install && npm run build` then copy `dist/` into `apps/cloud-laravel/public/`
