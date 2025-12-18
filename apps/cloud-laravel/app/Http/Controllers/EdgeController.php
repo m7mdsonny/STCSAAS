@@ -117,7 +117,7 @@ class EdgeController extends Controller
             'edge_id' => 'required|string',
             'version' => 'required|string',
             'online' => 'required|boolean',
-            'organization_id' => 'sometimes|integer|exists:organizations,id',
+            'organization_id' => 'required|integer|exists:organizations,id',
             'license_id' => 'sometimes|integer|exists:licenses,id',
         ]);
 
