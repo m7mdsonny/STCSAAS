@@ -117,15 +117,25 @@ class EdgeController extends Controller
             'edge_id' => 'required|string',
             'version' => 'required|string',
             'online' => 'required|boolean',
-            'organization_id' => 'sometimes|integer|exists:organizations,id',
+            'organization_id' => 'required|integer|exists:organizations,id',
             'license_id' => 'sometimes|integer|exists:licenses,id',
         ]);
+
+        $existingEdge = EdgeServer::where('edge_id', $request->edge_id)->first();
+
+        $organizationId = $request->get('organization_id', $existingEdge?->organization_id);
+
+        if ($organizationId === null) {
+            return response()->json([
+                'message' => 'organization_id is required for new edge registrations',
+            ], 422);
+        }
 
         $edge = EdgeServer::updateOrCreate(
             ['edge_id' => $request->edge_id],
             [
-                'organization_id' => $request->get('organization_id'),
-                'license_id' => $request->get('license_id'),
+                'organization_id' => $organizationId,
+                'license_id' => $request->has('license_id') ? $request->get('license_id') : $existingEdge?->license_id,
                 'version' => $request->version,
                 'online' => $request->boolean('online'),
                 'last_seen_at' => now(),
