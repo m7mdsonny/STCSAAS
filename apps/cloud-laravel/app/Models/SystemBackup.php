@@ -3,15 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
-class BaseModel extends Model
+class SystemBackup extends Model
 {
-    use SoftDeletes;
+    public $timestamps = false;
 
     protected $guarded = [];
+
     protected $casts = [
         'meta' => 'array',
-        'online' => 'boolean',
+        'created_at' => 'datetime',
     ];
 }
