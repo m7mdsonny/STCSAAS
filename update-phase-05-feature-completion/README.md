@@ -57,3 +57,29 @@ This document records the current state of critical features before implementati
 6. Clean repository overlays and remove unused Supabase artifacts after verifying no dependencies.
 
 > This audit is scoped to `update-phase-05-feature-completion` to comply with phase constraints. No application behavior has been modified yet.
+
+## Implementation Notes
+
+The following application changes were applied in this phase to close the audit gaps. Existing runtime files live under `apps/cloud-laravel`; these were updated directly and are documented here per the phase boundary instructions.
+
+### Authentication & Login
+- Hardened login to reject disabled accounts and normalize emails before credential checks.
+- Added regression tests under `apps/cloud-laravel/tests/Feature/AuthLoginTest.php` to cover successful login and blocked accounts.
+
+### Platform Updates / Announcements
+- Added length limits and HTML sanitization for update bodies to prevent oversized or unsafe payloads.
+
+### Backup System
+- Implemented database-aware backup creation when no file is uploaded.
+- Added authenticated download endpoint and executable restore workflow for PostgreSQL/MySQL using native client tools.
+
+### Edge / Event Ingestion
+- Added strict severity whitelist, camera metadata capture, and organization scoping against the authenticated user when ingesting events.
+
+### Touched Files (outside this folder)
+- `apps/cloud-laravel/app/Http/Controllers/AuthController.php`
+- `apps/cloud-laravel/app/Http/Controllers/SystemBackupController.php`
+- `apps/cloud-laravel/app/Http/Controllers/UpdateAnnouncementController.php`
+- `apps/cloud-laravel/app/Http/Controllers/EventController.php`
+- `apps/cloud-laravel/routes/api.php`
+- `apps/cloud-laravel/tests/Feature/AuthLoginTest.php`

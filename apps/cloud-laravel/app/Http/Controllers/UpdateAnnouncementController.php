@@ -31,10 +31,12 @@ class UpdateAnnouncementController extends Controller
         $this->ensureSuperAdmin($request);
         $data = $request->validate([
             'title' => 'required|string|max:255',
-            'body' => 'nullable|string',
+            'body' => 'nullable|string|max:5000',
             'organization_id' => 'nullable|exists:organizations,id',
             'is_published' => 'nullable|boolean',
         ]);
+
+        $data['body'] = $this->sanitizeBody($data['body'] ?? null);
 
         $update = UpdateAnnouncement::create([
             ...$data,
@@ -49,10 +51,14 @@ class UpdateAnnouncementController extends Controller
         $this->ensureSuperAdmin($request);
         $data = $request->validate([
             'title' => 'sometimes|string|max:255',
-            'body' => 'nullable|string',
+            'body' => 'nullable|string|max:5000',
             'organization_id' => 'nullable|exists:organizations,id',
             'is_published' => 'nullable|boolean',
         ]);
+
+        if (array_key_exists('body', $data)) {
+            $data['body'] = $this->sanitizeBody($data['body']);
+        }
 
         if (array_key_exists('is_published', $data)) {
             $data['published_at'] = $data['is_published'] ? now() : null;
@@ -78,5 +84,17 @@ class UpdateAnnouncementController extends Controller
         $update->save();
 
         return response()->json($update);
+    }
+
+    protected function sanitizeBody(?string $body): ?string
+    {
+        if (!$body) {
+            return $body;
+        }
+
+        $allowed = '<p><a><ul><ol><li><strong><em><br><span>'; // basic formatting
+        $clean = strip_tags($body, $allowed);
+
+        return $clean;
     }
 }
