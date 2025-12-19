@@ -21,7 +21,12 @@ interface AuthResponse {
 
 export const authApi = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const { data, error } = await apiClient.post<AuthResponse>('/auth/login', credentials, {
+    const normalizedCredentials = {
+      ...credentials,
+      email: credentials.email.trim().toLowerCase(),
+    };
+
+    const { data, error } = await apiClient.post<AuthResponse>('/auth/login', normalizedCredentials, {
       skipAuthRedirect: true,
     });
     if (error || !data) {
