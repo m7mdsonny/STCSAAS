@@ -6,6 +6,9 @@ new runtime code was introduced to keep the deployed stack stable; the items bel
 those checks on aaPanel without disturbing the existing database.
 
 ## What Was Fixed / Confirmed
+- **Backend authentication guard restored:** Recreated the missing `App\\Http\\Middleware\\Authenticate` middleware and aliased it
+  as `auth` so Sanctum-protected routes return JSON `401` responses instead of redirect-driven `500` errors. This removes the
+  Laravel fallback redirect that was causing login/profile calls to fail in production.
 - **Frontend login stability:** Public landing no longer receives auth redirects, and the web portal always attaches stored Bearer
   tokens only to authenticated endpoints. Login responses now accept tokens even when the API omits inline user payloads by
   normalizing `/auth/login` and `/auth/me` responses (including nested `data.user` shapes) before populating session state, so
@@ -45,6 +48,12 @@ Use the commands below against the running aaPanel deployment (replace `<host>` 
    ```
    Expect HTTP 200. For the web portal, reload the page and confirm authenticated API calls continue with the stored Bearer
    token. Inactive users must receive HTTP 401.
+3. **Unauthorized paths return JSON 401 (no redirects):**
+   ```bash
+   curl -i http://<host>/api/v1/auth/me
+   ```
+   Expect `401 Unauthorized` with a JSON body and **no** `Location` header. After deploying the middleware fix, run
+   `php artisan optimize:clear` once if cached bootstrap config might exist.
 
 ### 2) Backup Create → Download → Restore
 Authenticate as a super admin (or `is_super_admin` account) for all backup routes.
