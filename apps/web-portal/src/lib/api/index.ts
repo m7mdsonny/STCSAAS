@@ -17,6 +17,7 @@ export { notificationsApi } from './notifications';
 export { settingsApi } from './settings';
 export { superAdminApi } from './superAdmin';
 export { landingPageApi } from './landingPage';
+export { brandingApi } from './branding';
 export { aiModulesApi, subscriptionPlansApi } from './aiModules';
 export { advancedAnalyticsApi } from './advancedAnalytics';
 export { modelTrainingApi } from './modelTraining';

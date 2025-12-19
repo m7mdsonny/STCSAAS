@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { settingsApi } from '../lib/api/settings';
 import type { LandingSettings } from '../types/database';
+import { useBranding } from '../contexts/BrandingContext';
 
 const modules = [
   { icon: Flame, title: 'كشف الحريق والدخان', description: 'كشف الحرائق والدخان في الوقت الفعلي مع تنبيهات فورية' },
@@ -64,9 +65,11 @@ const plans = [
 
 export function Landing() {
   const [settings, setSettings] = useState<LandingSettings | null>(null);
+  const [published, setPublished] = useState(true);
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const { branding } = useBranding();
 
   useEffect(() => {
     fetchSettings();
@@ -74,10 +77,12 @@ export function Landing() {
 
   const fetchSettings = async () => {
     try {
-      const data = await settingsApi.getLandingSettings();
-      setSettings(data);
+      const data = await settingsApi.getPublishedLanding();
+      setSettings(data.content);
+      setPublished(data.published);
     } catch (error) {
       console.error('Failed to fetch landing settings:', error);
+      setPublished(false);
     }
   };
 
@@ -101,7 +106,7 @@ export function Landing() {
         <div className="container mx-auto px-4 h-24 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <img
-              src="/stc_solutions_logo.png"
+              src={branding?.logo_url || '/stc_solutions_logo.png'}
               alt="STC Solutions"
               className="h-20 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"
             />
@@ -122,14 +127,18 @@ export function Landing() {
 
       <section className="pt-32 pb-16 px-4">
         <div className="container mx-auto text-center">
+          {!published && (
+            <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 px-4 py-3 inline-flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4" />
+              <span>هذه الصفحة غير منشورة حاليا - يتم عرض المحتوى الافتراضي.</span>
+            </div>
+          )}
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-stc-gold/10 rounded-full text-stc-gold mb-6">
             <Zap className="w-4 h-4" />
             <span className="text-sm">منصة ذكاء اصطناعي متكاملة</span>
           </div>
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
-            منصة تحليل الفيديو
-            <br />
-            <span className="text-stc-gold">بالذكاء الاصطناعي</span>
+            {settings?.hero_title || 'منصة تحليل الفيديو بالذكاء الاصطناعي'}
           </h1>
           <p className="text-xl text-white/70 max-w-2xl mx-auto mb-10">
             {settings?.hero_subtitle || 'حول كاميرات المراقبة الى عيون ذكية تحمي منشاتك وتحلل بياناتك في الوقت الفعلي مع 9 موديولات متخصصة'}
@@ -172,13 +181,27 @@ export function Landing() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {modules.map((module, index) => (
+            {(settings?.features?.length ? settings.features : modules).map((module, index) => {
+              const iconValue = (module as typeof modules[number]).icon as unknown;
+              const isComponentIcon = typeof iconValue === 'function';
+              const iconContent = isComponentIcon ? (
+                <(iconValue as typeof modules[number]['icon']) className="w-10 h-10 text-stc-gold mb-4" />
+              ) : typeof (module as { icon?: string }).icon === 'string' && (module as { icon?: string }).icon ? (
+                <div className="w-10 h-10 text-3xl text-stc-gold mb-4 flex items-center justify-center">
+                  {(module as { icon?: string }).icon}
+                </div>
+              ) : (
+                <Zap className="w-10 h-10 text-stc-gold mb-4" />
+              );
+
+              return (
               <div key={index} className="card p-6 hover:scale-105 transition-transform">
-                <module.icon className="w-10 h-10 text-stc-gold mb-4" />
+                {iconContent}
                 <h3 className="text-lg font-semibold text-white mb-2">{module.title}</h3>
                 <p className="text-white/60 text-sm">{module.description}</p>
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       </section>
@@ -422,7 +445,7 @@ export function Landing() {
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <img
-              src="/stc_solutions_logo.png"
+              src={branding?.logo_dark_url || branding?.logo_url || '/stc_solutions_logo.png'}
               alt="STC Solutions"
               className="h-16 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"
             />

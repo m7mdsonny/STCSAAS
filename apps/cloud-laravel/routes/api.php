@@ -25,6 +25,7 @@ use App\Http\Controllers\AiCommandController;
 Route::prefix('v1')->group(function () {
     Route::get('/public/landing', [PublicContentController::class, 'landing']);
     Route::get('/public/updates', [UpdateAnnouncementController::class, 'publicIndex']);
+    Route::get('/branding', [BrandingController::class, 'showPublic']);
 
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/register', [AuthController::class, 'register']);

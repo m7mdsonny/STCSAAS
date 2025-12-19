@@ -67,6 +67,16 @@ export const superAdminApi = {
     return response.data;
   },
 
+  uploadBrandingAsset: async (file: File): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    const { data, error } = await apiClient.post<{ url: string }>('/api/v1/settings/upload-logo', formData);
+    if (error || !data) {
+      throw new Error(error || 'Failed to upload asset');
+    }
+    return data;
+  },
+
   getSuperAdmins: async (): Promise<SuperAdmin[]> => {
     const response = await apiClient.get('/api/v1/super-admin/admins');
     return response.data;

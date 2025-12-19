@@ -23,8 +23,20 @@ html {
 }
 
 body {
-  @apply bg-stc-bg-dark text-white;
+  background-color: var(--stc-bg-dark);
+  color: #fff;
 }
+
+.text-stc-gold { color: var(--stc-gold) !important; }
+.bg-stc-gold { background-color: var(--stc-gold) !important; }
+.bg-stc-navy { background-color: var(--stc-navy) !important; }
+.bg-stc-navy-light { background-color: var(--stc-navy-light) !important; }
+.bg-stc-bg-dark { background-color: var(--stc-bg-dark) !important; }
+.border-stc-gold { border-color: var(--stc-gold) !important; }
+.border-stc-navy { border-color: var(--stc-navy) !important; }
+.text-stc-navy { color: var(--stc-navy) !important; }
+.text-stc-navy-light { color: var(--stc-navy-light) !important; }
+.bg-stc-gold-light { background-color: var(--stc-gold-light) !important; }
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -45,15 +57,28 @@ body {
 
 @layer components {
   .btn-primary {
-    @apply bg-stc-gold text-stc-navy font-semibold px-6 py-3 rounded-lg
-           hover:bg-stc-gold-light transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-stc-gold focus:ring-offset-2 focus:ring-offset-stc-bg-dark;
+    @apply text-stc-navy font-semibold px-6 py-3 rounded-lg
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-offset-2;
+    background-color: var(--stc-gold);
+    color: var(--stc-navy);
+    border-color: var(--stc-gold);
+    box-shadow: none;
+    --tw-ring-color: var(--stc-gold);
+    --tw-ring-offset-color: var(--stc-bg-dark);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--stc-gold-light);
   }
 
   .btn-secondary {
-    @apply bg-stc-navy-light text-white font-medium px-6 py-3 rounded-lg
-           border border-stc-gold/30 hover:border-stc-gold transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-stc-gold;
+    @apply text-white font-medium px-6 py-3 rounded-lg
+           border transition-all duration-200
+           focus:outline-none focus:ring-2;
+    background-color: var(--stc-navy-light);
+    border-color: var(--stc-gold);
+    --tw-ring-color: var(--stc-gold);
   }
 
   .btn-danger {

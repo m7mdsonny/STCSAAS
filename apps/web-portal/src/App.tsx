@@ -31,6 +31,7 @@ import { EdgeServers } from './pages/admin/EdgeServers';
 import { Resellers } from './pages/admin/Resellers';
 import { SystemMonitor } from './pages/admin/SystemMonitor';
 import { Loader2 } from 'lucide-react';
+import { BrandingProvider } from './contexts/BrandingContext';
 
 function PrivateRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, loading, isSuperAdmin } = useAuth();
@@ -138,9 +139,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <BrandingProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrandingProvider>
     </BrowserRouter>
   );
 }

@@ -1,6 +1,11 @@
 import { apiClient } from '../apiClient';
 import type { LandingSettings, SubscriptionPlan, Reseller } from '../../types/database';
 
+export interface LandingSettingsResponse {
+  content: LandingSettings;
+  published: boolean;
+}
+
 interface SystemSettings {
   site_name: string;
   site_logo_url: string | null;
@@ -29,18 +34,31 @@ interface SmsSettings {
 }
 
 export const settingsApi = {
-  async getLandingSettings(): Promise<LandingSettings> {
-    const { data, error } = await apiClient.get<LandingSettings>('/settings/landing');
+  async getLandingSettings(): Promise<LandingSettingsResponse> {
+    const { data, error } = await apiClient.get<LandingSettingsResponse>('/settings/landing');
     if (error || !data) {
       throw new Error(error || 'Failed to fetch landing settings');
     }
     return data;
   },
 
-  async updateLandingSettings(settings: Partial<LandingSettings>): Promise<LandingSettings> {
-    const { data, error } = await apiClient.put<LandingSettings>('/settings/landing', settings);
+  async updateLandingSettings(payload: Partial<LandingSettings> & { published?: boolean }): Promise<LandingSettingsResponse> {
+    const { data, error } = await apiClient.put<LandingSettingsResponse>('/settings/landing', {
+      content: payload,
+      published: payload.published,
+    });
     if (error || !data) {
       throw new Error(error || 'Failed to update landing settings');
+    }
+    return data;
+  },
+
+  async getPublishedLanding(): Promise<LandingSettingsResponse> {
+    const { data, error } = await apiClient.get<LandingSettingsResponse>('/public/landing', undefined, {
+      skipAuthRedirect: true,
+    });
+    if (error || !data) {
+      throw new Error(error || 'Failed to fetch published landing content');
     }
     return data;
   },
