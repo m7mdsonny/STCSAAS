@@ -38,6 +38,9 @@ class ApiClient {
   }
 
   getToken(): string | null {
+    if (!this.token) {
+      this.token = localStorage.getItem('auth_token');
+    }
     return this.token;
   }
 
@@ -67,8 +70,9 @@ class ApiClient {
       ...fetchOptions.headers,
     };
 
-    if (this.token) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${this.token}`;
+    const activeToken = this.getToken();
+    if (activeToken) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${activeToken}`;
     }
 
     try {
@@ -89,7 +93,7 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        if (response.status === 401) {
+        if (response.status === 401 && activeToken) {
           this.setToken(null);
           if (!skipAuthRedirect) {
             window.location.href = '/login';
