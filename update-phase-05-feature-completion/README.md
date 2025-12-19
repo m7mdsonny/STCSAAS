@@ -92,6 +92,17 @@ The following application changes were applied in this phase to close the audit 
 
 ## Verification Steps
 
+### Phase 05 Frontend Stability (Landing + Login)
+- **Root Cause:** The web portal treated any `401` response as an authenticated session failure and forced a redirect to `/login`, even for anonymous/public calls (branding, landing settings). Because tokens were not re-hydrated before requests, anonymous visitors were bounced to the login screen and authenticated users could lose headers after refresh.
+- **Fix:**
+  - The API client now reloads tokens from `localStorage` before every request and only initiates a login redirect on `401` when a token actually exists, keeping public routes public and avoiding silent logouts.
+  - Alexandria font was re-imported globally to restore the expected branding across landing and portal screens.
+- **How to Verify:**
+  1. Open `/` in a clean/incognito session. The landing page should render and remain static without redirecting to `/login`.
+  2. Log in via `/login` with valid credentials. You should land on `/dashboard` and remain authenticated after a full page refresh.
+  3. Inspect network calls post-refresh; all authenticated requests include `Authorization: Bearer <token>` and return `200`.
+  4. Clear `localStorage` and reload `/`; landing stays public. Navigating directly to `/dashboard` while unauthenticated should redirect to `/login`.
+
 ### Login (Web + API)
 1. Ensure the Laravel API server is running with the configured database and Sanctum enabled.
 2. Use the seeded or admin account to obtain a token via API:
