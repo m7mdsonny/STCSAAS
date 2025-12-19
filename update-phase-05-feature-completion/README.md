@@ -1,0 +1,59 @@
+# Phase 05 — Feature Completion Readiness Audit
+
+This document records the current state of critical features before implementation work begins. All observations are taken from the existing codebase as of this phase and highlight where functionality is incomplete, mocked, or non-operational. No production code was changed outside this folder, per the phase boundary instructions.
+
+## Authentication & Login
+- **Risk:** Credentials were reported as not working post-changes. The backend `AuthController` uses `email/password` with Sanctum tokens, but no session-based login is exposed for the web portal (tokens only). Frontend `AuthContext` expects token storage, but there is no validation that stored tokens remain valid, and automatic refresh is absent.
+- **Action Needed:** Validate the seeded users in PostgreSQL, confirm Sanctum token issuance, and ensure the web portal can consume `/auth/login` successfully against the live API host. Add login regression tests.
+
+## Platform Updates / Announcements
+- **Current Implementation:** `UpdateAnnouncementController` provides CRUD with publish toggle; frontend `AdminUpdates.tsx` calls `/updates` and `/updates/{id}/toggle`.
+- **Gap:** No server-side validation of body size or sanitization; public endpoint `/public/updates` is read-only and working by code, but no e2e test exists to confirm publish flow.
+- **Action Needed:** Add integration tests to verify create → publish → public listing, plus input sanitization.
+
+## Backup System
+- **Current API:** `SystemBackupController@store` expects an uploaded `backup` file; it simply stores the file and records a DB row. `restore` only checks existence and returns a placeholder message.
+- **Gaps / Non-functional paths:**
+  - The web portal calls `POST /backups` with **no file payload**, so backups cannot succeed.
+  - No download route is exposed; UI links point directly to `file_path`, which is a storage path, not a public URL.
+  - `restore` does **not** execute any database or filesystem restore logic—only returns a JSON message.
+  - No background job, queue, or maintenance mode handling to protect data during restore.
+- **Action Needed:**
+  - Add real backup creation (DB dump + storage), signed download URLs, and actual restore (database import + storage sync) with auditing.
+  - Update frontend to upload/download via signed routes and display status.
+
+## Database Upload / Restore
+- **Current State:** No controller or route exists for database upload/restore beyond the placeholder backup restore noted above. The web portal has no UI for database uploads.
+- **Action Needed:** Implement dedicated endpoints for database import/export with validation, size limits, and admin gating; add frontend wiring and progress feedback.
+
+## Backup List / Download / Restore Verification
+- **List:** `/backups` returns rows, but relies on manual file upload; metadata is minimal.
+- **Download:** No download endpoint; direct storage path exposure risks 404 and security issues.
+- **Restore:** Not implemented; returns static message.
+- **Action Needed:** Implement authenticated download and real restore, plus status tracking and logging.
+
+## Repository Cleanup
+- **Observations:** Legacy overlays (`update-phase-0x` folders, `changed_files/`) remain. They duplicate production code but are unused at runtime. Supabase migrations also remain under `/supabase/migrations` even though the stack is PostgreSQL + Laravel.
+- **Action Needed:** Remove unused overlays and dead code paths, consolidate migrations, and ensure only active Laravel code remains.
+
+## Edge / Event Ingestion
+- **Current Implementation:** `EventController@ingest` creates events linked to an edge by `edge_id`, but there is no camera linkage or validation of payload consistency (e.g., severity domain, occurred_at timezone).
+- **Action Needed:** Enrich ingestion with camera associations, stricter validation, and per-org authorization for edge IDs.
+
+## AI Command Center
+- **Status:** Routes and models exist; queue/ack/retry flows are coded. Lacks job dispatch to actual edge transport and no security scoping per organization.
+- **Action Needed:** Wire to message broker or WebSocket push to edges; add org scoping and audit logs.
+
+## Testing Coverage
+- **Gap:** No automated tests for the critical features above (auth, updates, backups, restore).
+- **Action Needed:** Add feature tests in Laravel and component/e2e tests for the web portal.
+
+## Next Steps (Execution Plan)
+1. Implement real backup pipeline (create/list/download/restore) with signed URLs and background jobs.
+2. Fix web portal backup UI to upload archives and poll status; add restore progress + confirmations.
+3. Add database upload/restore endpoints and UI, reusing backup safety mechanisms.
+4. Validate and harden login flow against live API, adding regression tests.
+5. Sanitize and test platform updates publishing; ensure public feed reflects publish toggles.
+6. Clean repository overlays and remove unused Supabase artifacts after verifying no dependencies.
+
+> This audit is scoped to `update-phase-05-feature-completion` to comply with phase constraints. No application behavior has been modified yet.
