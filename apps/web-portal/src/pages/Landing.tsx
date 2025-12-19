@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ComponentType } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Flame,
@@ -182,13 +182,15 @@ export function Landing() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {(settings?.features?.length ? settings.features : modules).map((module, index) => {
-              const iconValue = (module as typeof modules[number]).icon as unknown;
-              const isComponentIcon = typeof iconValue === 'function';
-              const iconContent = isComponentIcon ? (
-                <(iconValue as typeof modules[number]['icon']) className="w-10 h-10 text-stc-gold mb-4" />
-              ) : typeof (module as { icon?: string }).icon === 'string' && (module as { icon?: string }).icon ? (
+              const iconValue = (module as { icon?: unknown }).icon;
+              const IconComponent = typeof iconValue === 'function'
+                ? iconValue as ComponentType<{ className?: string }>
+                : null;
+              const iconContent = IconComponent ? (
+                <IconComponent className="w-10 h-10 text-stc-gold mb-4" />
+              ) : typeof iconValue === 'string' && iconValue ? (
                 <div className="w-10 h-10 text-3xl text-stc-gold mb-4 flex items-center justify-center">
-                  {(module as { icon?: string }).icon}
+                  {iconValue}
                 </div>
               ) : (
                 <Zap className="w-10 h-10 text-stc-gold mb-4" />
