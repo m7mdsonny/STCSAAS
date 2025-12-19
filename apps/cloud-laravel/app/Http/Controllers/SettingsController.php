@@ -15,24 +15,67 @@ class SettingsController extends Controller
     public function getLanding(): JsonResponse
     {
         $this->ensureSuperAdmin(request());
-        $content = PlatformContent::firstOrCreate(['key' => 'landing_settings'], [
-            'value' => json_encode([]),
-            'section' => 'landing',
-        ]);
+        $content = PlatformContent::firstOrCreate(
+            ['key' => 'landing_settings'],
+            [
+                'value' => json_encode([]),
+                'section' => 'landing',
+                'published' => false,
+            ]
+        );
 
-        return response()->json(json_decode($content->value ?? '[]', true));
+        return response()->json([
+            'content' => $this->mergeLandingDefaults($content->value),
+            'published' => (bool) $content->published,
+        ]);
     }
 
     public function updateLanding(Request $request): JsonResponse
     {
         $this->ensureSuperAdmin($request);
         $content = PlatformContent::firstOrCreate(['key' => 'landing_settings']);
+        $payload = $request->get('content', $request->all());
+        $existing = json_decode($content->value ?? '[]', true) ?? [];
+        $contentData = array_merge($existing, is_array($payload) ? $payload : []);
+
         $content->update([
-            'value' => json_encode($request->all()),
+            'value' => json_encode($contentData),
+            'published' => (bool) $request->get('published', $content->published),
             'section' => 'landing',
         ]);
 
-        return response()->json(json_decode($content->value ?? '[]', true));
+        return response()->json([
+            'content' => $this->mergeLandingDefaults($contentData),
+            'published' => (bool) $content->published,
+        ]);
+    }
+
+    private function mergeLandingDefaults($content): array
+    {
+        $data = is_string($content) ? json_decode($content, true) : (is_array($content) ? $content : []);
+        return array_merge($this->landingDefaults(), $data ?? []);
+    }
+
+    private function landingDefaults(): array
+    {
+        return [
+            'hero_title' => 'منصة تحليل الفيديو بالذكاء الاصطناعي',
+            'hero_subtitle' => 'حول كاميرات المراقبة الى عيون ذكية تحمي منشاتك وتحلل بياناتك في الوقت الفعلي',
+            'hero_button_text' => 'ابدا تجربتك المجانية - 14 يوم',
+            'about_title' => 'عن المنصة',
+            'about_description' => 'حل متكامل لادارة المراقبة بالفيديو والذكاء الاصطناعي مع تكاملات جاهزة.',
+            'contact_email' => 'info@stc-solutions.com',
+            'contact_phone' => '+966 11 000 0000',
+            'contact_address' => 'الرياض، المملكة العربية السعودية',
+            'whatsapp_number' => '+966500000000',
+            'show_whatsapp_button' => true,
+            'footer_text' => 'STC Solutions. جميع الحقوق محفوظة',
+            'social_twitter' => null,
+            'social_linkedin' => null,
+            'social_instagram' => null,
+            'features' => [],
+            'stats' => [],
+        ];
     }
 
     public function getSystem(): JsonResponse

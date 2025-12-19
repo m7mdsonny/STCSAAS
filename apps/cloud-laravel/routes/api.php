@@ -18,8 +18,15 @@ use App\Http\Controllers\SmsQuotaController;
 use App\Http\Controllers\SystemBackupController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AiPolicyController;
+use App\Http\Controllers\UpdateAnnouncementController;
+use App\Http\Controllers\PublicContentController;
+use App\Http\Controllers\AiCommandController;
 
 Route::prefix('v1')->group(function () {
+    Route::get('/public/landing', [PublicContentController::class, 'landing']);
+    Route::get('/public/updates', [UpdateAnnouncementController::class, 'publicIndex']);
+    Route::get('/branding', [BrandingController::class, 'showPublic']);
+
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
@@ -44,6 +51,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/organizations/{organization}/toggle-active', [OrganizationController::class, 'toggleActive']);
         Route::put('/organizations/{organization}/plan', [OrganizationController::class, 'updatePlan']);
         Route::get('/organizations/{organization}/stats', [OrganizationController::class, 'stats']);
+        Route::post('/organizations/{organization}/sms-quota/consume', [SmsQuotaController::class, 'consume']);
 
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);
@@ -152,5 +160,17 @@ Route::prefix('v1')->group(function () {
         Route::delete('/ai-policies/{aiPolicy}', [AiPolicyController::class, 'destroy']);
         Route::post('/ai-policies/{aiPolicy}/events', [AiPolicyController::class, 'addEvent']);
         Route::get('/ai-policies/effective', [AiPolicyController::class, 'effective']);
+
+        Route::get('/updates', [UpdateAnnouncementController::class, 'index']);
+        Route::post('/updates', [UpdateAnnouncementController::class, 'store']);
+        Route::put('/updates/{update}', [UpdateAnnouncementController::class, 'update']);
+        Route::delete('/updates/{update}', [UpdateAnnouncementController::class, 'destroy']);
+        Route::post('/updates/{update}/toggle', [UpdateAnnouncementController::class, 'togglePublish']);
+
+        Route::get('/ai-commands', [AiCommandController::class, 'index']);
+        Route::post('/ai-commands', [AiCommandController::class, 'store']);
+        Route::post('/ai-commands/{aiCommand}/ack', [AiCommandController::class, 'ack']);
+        Route::post('/ai-commands/{aiCommand}/retry', [AiCommandController::class, 'retry']);
+        Route::get('/ai-commands/{aiCommand}/logs', [AiCommandController::class, 'logs']);
     });
 });

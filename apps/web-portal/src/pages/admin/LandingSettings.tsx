@@ -8,6 +8,7 @@ export function LandingSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [published, setPublished] = useState(false);
 
   const [form, setForm] = useState({
     hero_title: '',
@@ -34,22 +35,23 @@ export function LandingSettingsPage() {
     setLoading(true);
     try {
       const data = await settingsApi.getLandingSettings();
-      setSettings(data);
+      setSettings(data.content);
+      setPublished(data.published);
       setForm({
-        hero_title: data.hero_title || '',
-        hero_subtitle: data.hero_subtitle || '',
-        hero_button_text: data.hero_button_text || '',
-        about_title: data.about_title || '',
-        about_description: data.about_description || '',
-        contact_email: data.contact_email || '',
-        contact_phone: data.contact_phone || '',
-        contact_address: data.contact_address || '',
-        whatsapp_number: data.whatsapp_number || '',
-        show_whatsapp_button: data.show_whatsapp_button ?? true,
-        footer_text: data.footer_text || '',
-        social_twitter: data.social_twitter || '',
-        social_linkedin: data.social_linkedin || '',
-        social_instagram: data.social_instagram || '',
+        hero_title: data.content.hero_title || '',
+        hero_subtitle: data.content.hero_subtitle || '',
+        hero_button_text: data.content.hero_button_text || '',
+        about_title: data.content.about_title || '',
+        about_description: data.content.about_description || '',
+        contact_email: data.content.contact_email || '',
+        contact_phone: data.content.contact_phone || '',
+        contact_address: data.content.contact_address || '',
+        whatsapp_number: data.content.whatsapp_number || '',
+        show_whatsapp_button: data.content.show_whatsapp_button ?? true,
+        footer_text: data.content.footer_text || '',
+        social_twitter: data.content.social_twitter || '',
+        social_linkedin: data.content.social_linkedin || '',
+        social_instagram: data.content.social_instagram || '',
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -62,7 +64,8 @@ export function LandingSettingsPage() {
     if (!settings) return;
     setSaving(true);
     try {
-      await settingsApi.updateLandingSettings(form);
+      const response = await settingsApi.updateLandingSettings({ ...form, published });
+      setPublished(response.published);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
@@ -87,25 +90,41 @@ export function LandingSettingsPage() {
           <h1 className="text-2xl font-bold">اعدادات صفحة الهبوط</h1>
           <p className="text-white/60">تخصيص محتوى الصفحة الرئيسية للمنصة</p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="btn-primary flex items-center gap-2"
-        >
-          {saving ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : saved ? (
-            <>
-              <Save className="w-5 h-5" />
-              <span>تم الحفظ!</span>
-            </>
-          ) : (
-            <>
-              <Save className="w-5 h-5" />
-              <span>حفظ التغييرات</span>
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-3">
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-semibold ${
+              published ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-white/70'
+            }`}
+          >
+            {published ? 'منشور' : 'غير منشور'}
+          </span>
+          <button
+            onClick={() => setPublished(!published)}
+            className="btn-secondary"
+            type="button"
+          >
+            {published ? 'ايقاف النشر' : 'نشر الصفحة'}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="btn-primary flex items-center gap-2"
+          >
+            {saving ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : saved ? (
+              <>
+                <Save className="w-5 h-5" />
+                <span>تم الحفظ!</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                <span>حفظ التغييرات</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-6">

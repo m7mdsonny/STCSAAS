@@ -20,6 +20,16 @@ class BrandingController extends Controller
         return response()->json($branding);
     }
 
+    public function showPublic(): JsonResponse
+    {
+        $branding = BrandingSetting::whereNull('organization_id')->first();
+        if (!$branding) {
+            $branding = BrandingSetting::create();
+        }
+
+        return response()->json($branding);
+    }
+
     public function updateGlobal(Request $request): JsonResponse
     {
         $this->ensureSuperAdmin($request);

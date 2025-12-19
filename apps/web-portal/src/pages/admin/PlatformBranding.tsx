@@ -51,12 +51,13 @@ export function PlatformBrandingPage() {
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const dataUrl = event.target?.result as string;
-          updateBranding({ [field]: dataUrl });
-        };
-        reader.readAsDataURL(file);
+        try {
+          const { url } = await superAdminApi.uploadBrandingAsset(file);
+          updateBranding({ [field]: url });
+        } catch (error) {
+          console.error('Upload failed', error);
+          alert('فشل رفع الصورة');
+        }
       }
     };
     input.click();

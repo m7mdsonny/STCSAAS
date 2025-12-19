@@ -24,10 +24,14 @@ import { AdminSettings } from './pages/admin/AdminSettings';
 import { LandingSettingsPage } from './pages/admin/LandingSettings';
 import { AdminIntegrations } from './pages/admin/AdminIntegrations';
 import { AdminSmsSettings } from './pages/admin/AdminSmsSettings';
+import { AdminUpdates } from './pages/admin/AdminUpdates';
+import { AdminBackups } from './pages/admin/AdminBackups';
+import { AiCommandCenter } from './pages/admin/AiCommandCenter';
 import { EdgeServers } from './pages/admin/EdgeServers';
 import { Resellers } from './pages/admin/Resellers';
 import { SystemMonitor } from './pages/admin/SystemMonitor';
 import { Loader2 } from 'lucide-react';
+import { BrandingProvider } from './contexts/BrandingContext';
 
 function PrivateRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, loading, isSuperAdmin } = useAuth();
@@ -102,6 +106,9 @@ function AppRoutes() {
         <Route path="/admin/notifications" element={<AdminNotifications />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/landing" element={<LandingSettingsPage />} />
+        <Route path="/admin/updates" element={<AdminUpdates />} />
+        <Route path="/admin/backups" element={<AdminBackups />} />
+        <Route path="/admin/ai-commands" element={<AiCommandCenter />} />
       </Route>
 
       <Route
@@ -132,9 +139,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <BrandingProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrandingProvider>
     </BrowserRouter>
   );
 }
