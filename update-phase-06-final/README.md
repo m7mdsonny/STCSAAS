@@ -9,6 +9,9 @@ those checks on aaPanel without disturbing the existing database.
 - **Backend authentication guard restored:** Recreated the missing `App\\Http\\Middleware\\Authenticate` middleware and aliased it
   as `auth` so Sanctum-protected routes return JSON `401` responses instead of redirect-driven `500` errors. This removes the
   Laravel fallback redirect that was causing login/profile calls to fail in production.
+- **Unauthenticated error handling locked to JSON:** Added an `AuthenticationException` responder in `bootstrap/app.php` so any
+  uncaught auth failures always produce a JSON `401` payload (`{"message":"Unauthenticated."}`) rather than attempting
+  nonexistent redirect routes. This keeps `/api/v1/auth/me` stable even if middleware caches were stale.
 - **Frontend login stability:** Public landing no longer receives auth redirects, and the web portal always attaches stored Bearer
   tokens only to authenticated endpoints. Login responses now accept tokens even when the API omits inline user payloads by
   normalizing `/auth/login` and `/auth/me` responses (including nested `data.user` shapes) before populating session state, so
