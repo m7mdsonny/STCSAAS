@@ -65,6 +65,7 @@ The following application changes were applied in this phase to close the audit 
 ### Authentication & Login
 - Hardened login to reject disabled accounts and normalize emails before credential checks.
 - Added regression tests under `apps/cloud-laravel/tests/Feature/AuthLoginTest.php` to cover successful login and blocked accounts.
+- Enforced case-insensitive email matching on both API and web portal requests to prevent regressions when stored addresses include uppercase characters.
 
 ### Platform Updates / Announcements
 - Added length limits and HTML sanitization for update bodies to prevent oversized or unsafe payloads.
@@ -100,6 +101,7 @@ The following application changes were applied in this phase to close the audit 
    - `curl -H "Authorization: Bearer <token>" http://<host>/api/v1/auth/me`
    - Expect HTTP 200 with the same user payload; failures indicate expired or invalid tokens.
 4. For the web portal, log in through the UI and confirm the dashboard loads and subsequent API requests include the stored token (network tab shows `Authorization: Bearer ...`).
+5. If existing accounts were created with uppercase or spaced email values, repeat the API login using the same email casing; the controller now performs a lowercase comparison so tokens should be issued successfully, and the web portal automatically lowercases input before submission.
 
 ### Backup and Restore (super admin only)
 1. Authenticate as a `super_admin` or `is_super_admin` user and capture the token.
