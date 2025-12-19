@@ -100,12 +100,12 @@ export function AiCommandCenter() {
               <option key={org.id} value={org.id}>{org.name}</option>
             ))}
           </select>
-          <input
-            className="input"
-            placeholder="{ \"module\": \"fire\" }"
-            value={form.payload}
-            onChange={(e) => setForm({ ...form, payload: e.target.value })}
-            dir="ltr"
+            <input
+              className="input"
+              placeholder='{"module":"fire"}'
+              value={form.payload}
+              onChange={(e) => setForm({ ...form, payload: e.target.value })}
+              dir="ltr"
           />
         </div>
         <button onClick={submit} className="btn-primary w-fit" disabled={!form.title}>

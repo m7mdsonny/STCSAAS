@@ -6,6 +6,10 @@ new runtime code was introduced to keep the deployed stack stable; the items bel
 those checks on aaPanel without disturbing the existing database.
 
 ## What Was Fixed / Confirmed
+- **Frontend login stability:** Public landing no longer receives auth redirects, and the web portal always attaches stored Bearer
+  tokens only to authenticated endpoints. Login responses now accept tokens even when the API omits inline user payloads by
+  normalizing `/auth/login` and `/auth/me` responses (including nested `data.user` shapes) before populating session state, so
+  guards are satisfied after refresh and across navigation.
 - **Authentication:** Email normalization and inactive-user blocking are active; API and web token logins succeed and survive
   refresh. Password hashing/verification uses Laravel hashing with no plain-text fallbacks. Login regression tests exist from
   Phase 05.
@@ -19,6 +23,9 @@ those checks on aaPanel without disturbing the existing database.
 - **AI Command Center:** Existing queue/ack/retry flows remain intact; no placeholder UI paths remain from prior cleanups.
 - **Repository cleanliness:** Legacy overlays and Supabase artifacts removed in prior phases; no additional dead code detected in
   production paths during this verification.
+- **Frontend runtime stability:** Public landing and branding calls stay public (no bearer headers, no automatic 401
+  redirects), and authentication bootstrap only clears sessions on explicit 401 responses. Stored profiles are preserved on
+  transient network errors so valid logins survive refreshes and navigation without bouncing back to the login screen.
 
 ## Verification Performed
 Use the commands below against the running aaPanel deployment (replace `<host>` and credentials). Each step assumes an existing
