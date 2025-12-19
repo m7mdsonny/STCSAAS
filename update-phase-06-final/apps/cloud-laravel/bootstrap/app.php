@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Foundation\Application;
-use Illuminate\Foundation\Configuration\Exceptions;
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 
@@ -23,10 +21,4 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->respond(function (AuthenticationException $exception) {
-            return response()->json([
-                'message' => 'Unauthenticated.',
-            ], 401);
-        });
-    })->create();
+    ->create();
