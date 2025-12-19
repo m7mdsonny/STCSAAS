@@ -56,6 +56,7 @@ export const settingsApi = {
   async getPublishedLanding(): Promise<LandingSettingsResponse> {
     const { data, error } = await apiClient.get<LandingSettingsResponse>('/public/landing', undefined, {
       skipAuthRedirect: true,
+      skipAuthHeader: true,
     });
     if (error || !data) {
       throw new Error(error || 'Failed to fetch published landing content');
