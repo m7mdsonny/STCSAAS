@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SystemBackup;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 
@@ -105,6 +106,9 @@ class SystemBackupController extends Controller
             }
 
             file_put_contents(Storage::path($filename), $process->getOutput());
+        } elseif ($config['driver'] === 'sqlite') {
+            $dbPath = $this->resolveSqlitePath($config);
+            copy($dbPath, Storage::path($filename));
         } else {
             throw new \RuntimeException('Unsupported database driver for backup');
         }
@@ -145,8 +149,30 @@ class SystemBackupController extends Controller
             if (!$process->isSuccessful()) {
                 throw new \RuntimeException($process->getErrorOutput());
             }
+        } elseif ($config['driver'] === 'sqlite') {
+            $dbPath = $this->resolveSqlitePath($config);
+            copy($path, $dbPath);
+            DB::purge($connection);
+            DB::reconnect($connection);
         } else {
             throw new \RuntimeException('Unsupported database driver for restore');
         }
+    }
+
+    protected function resolveSqlitePath(array $config): string
+    {
+        $dbPath = $config['database'] ?? database_path('database.sqlite');
+        if ($dbPath === ':memory:') {
+            $dbPath = database_path('database.sqlite');
+        }
+
+        if (!file_exists($dbPath)) {
+            if (!is_dir(dirname($dbPath))) {
+                mkdir(dirname($dbPath), 0755, true);
+            }
+            touch($dbPath);
+        }
+
+        return $dbPath;
     }
 }
