@@ -12,6 +12,9 @@ those checks on aaPanel without disturbing the existing database.
 - **Unauthenticated error handling locked to JSON:** Added an `AuthenticationException` responder in `bootstrap/app.php` so any
   uncaught auth failures always produce a JSON `401` payload (`{"message":"Unauthenticated."}`) rather than attempting
   nonexistent redirect routes. This keeps `/api/v1/auth/me` stable even if middleware caches were stale.
+- **Stateless Sanctum API middleware:** Removed `EnsureFrontendRequestsAreStateful` from the API stack in `bootstrap/app.php`
+  and limited middleware prepends to `SubstituteBindings`, ensuring `/api/*` remains bearer-token only (no cookies/CSRF) so
+  SPA logins no longer hit `419` errors.
 - **Frontend login stability:** Public landing no longer receives auth redirects, and the web portal always attaches stored Bearer
   tokens only to authenticated endpoints. Login responses now accept tokens even when the API omits inline user payloads by
   normalizing `/auth/login` and `/auth/me` responses (including nested `data.user` shapes) before populating session state, so
