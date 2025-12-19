@@ -21,4 +21,3 @@ export { aiModulesApi, subscriptionPlansApi } from './aiModules';
 export { advancedAnalyticsApi } from './advancedAnalytics';
 export { modelTrainingApi } from './modelTraining';
 export { aiPoliciesApi } from './aiPolicies';
-export { smsQuotaApi } from './smsQuota';
