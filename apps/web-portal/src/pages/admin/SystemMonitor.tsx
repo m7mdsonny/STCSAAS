@@ -44,30 +44,30 @@ export function SystemMonitor() {
       const data = await dashboardApi.getAdminDashboard();
 
       setStats({
-        organizations: data.total_organizations,
-        users: data.total_users,
+        organizations: data.total_organizations || 0,
+        users: (data as any).users || 0,
         edgeServers: {
-          total: data.total_edge_servers,
-          online: data.total_edge_servers, // API should provide online count
-          offline: 0
+          total: data.total_edge_servers || 0,
+          online: (data as any).online_edge_servers || 0,
+          offline: (data.total_edge_servers || 0) - ((data as any).online_edge_servers || 0)
         },
         cameras: {
-          total: data.total_cameras,
-          online: data.total_cameras, // API should provide online count
+          total: data.total_cameras || 0,
+          online: data.total_cameras || 0, // TODO: API should provide online count
           offline: 0
         },
         alerts: {
-          today: data.alerts_today,
-          unresolved: data.alerts_today // API should provide unresolved count
+          today: data.alerts_today || 0,
+          unresolved: data.alerts_today || 0 // TODO: API should provide unresolved count
         },
         licenses: {
-          total: data.active_licenses,
-          active: data.active_licenses,
-          expired: 0
+          total: (data as any).active_licenses || 0,
+          active: (data as any).active_licenses || 0,
+          expired: 0 // TODO: API should provide expired count
         }
       });
 
-      // Note: Recent servers would need a separate API endpoint
+      // TODO: Recent servers would need a separate API endpoint
       setRecentServers([]);
 
       setLastUpdate(new Date());
@@ -336,7 +336,7 @@ export function SystemMonitor() {
             <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
             <div>
               <p className="font-medium">قاعدة البيانات</p>
-              <p className="text-xs text-white/50">Supabase</p>
+              <p className="text-xs text-white/50">PostgreSQL</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">

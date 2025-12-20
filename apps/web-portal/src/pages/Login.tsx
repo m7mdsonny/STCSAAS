@@ -11,7 +11,7 @@ export function Login() {
   const [loading, setLoading] = useState(false);
   const [creatingDemo, setCreatingDemo] = useState(false);
   const [demoMessage, setDemoMessage] = useState('');
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +27,8 @@ export function Login() {
         return;
       }
 
-      navigate('/dashboard');
+      // Redirect based on user role
+      navigate(isSuperAdmin ? '/admin' : '/dashboard');
     } catch (err) {
       const fallbackMessage = err instanceof Error
         ? err.message
