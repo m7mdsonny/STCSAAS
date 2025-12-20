@@ -112,7 +112,7 @@ export function Landing() {
             />
           </div>
           <nav className="hidden md:flex items-center gap-8">
-            <a href="#" className="text-white/70 hover:text-white transition-colors">الرئيسية</a>
+            <a href="#hero" className="text-white/70 hover:text-white transition-colors">الرئيسية</a>
             <a href="#features" className="text-white/70 hover:text-white transition-colors">المميزات</a>
             <a href="#modules" className="text-white/70 hover:text-white transition-colors">الموديولات</a>
             <a href="#pricing" className="text-white/70 hover:text-white transition-colors">الباقات</a>
@@ -125,7 +125,7 @@ export function Landing() {
         </div>
       </header>
 
-      <section className="pt-32 pb-16 px-4">
+      <section id="hero" className="pt-32 pb-16 px-4">
         <div className="container mx-auto text-center">
           {!published && (
             <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 px-4 py-3 inline-flex items-center gap-2">
