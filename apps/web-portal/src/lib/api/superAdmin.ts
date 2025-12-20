@@ -47,54 +47,78 @@ export interface SuperAdmin {
 }
 
 export const superAdminApi = {
-  getSystemSettings: async (): Promise<SystemSettings> => {
-    const response = await apiClient.get('/api/v1/super-admin/settings');
-    return response.data;
+  async getSystemSettings(): Promise<SystemSettings> {
+    const { data, error } = await apiClient.get<SystemSettings>('/super-admin/settings');
+    if (error || !data) {
+      throw new Error(error || 'Failed to fetch system settings');
+    }
+    return data;
   },
 
-  updateSystemSettings: async (data: Partial<SystemSettings>): Promise<SystemSettings> => {
-    const response = await apiClient.put('/api/v1/super-admin/settings', data);
-    return response.data;
+  async updateSystemSettings(data: Partial<SystemSettings>): Promise<SystemSettings> {
+    const { data: responseData, error } = await apiClient.put<SystemSettings>('/super-admin/settings', data);
+    if (error || !responseData) {
+      throw new Error(error || 'Failed to update system settings');
+    }
+    return responseData;
   },
 
-  getPlatformBranding: async (): Promise<PlatformBranding> => {
-    const response = await apiClient.get('/api/v1/super-admin/branding');
-    return response.data;
+  async getPlatformBranding(): Promise<PlatformBranding> {
+    const { data, error } = await apiClient.get<PlatformBranding>('/super-admin/branding');
+    if (error || !data) {
+      throw new Error(error || 'Failed to fetch platform branding');
+    }
+    return data;
   },
 
-  updatePlatformBranding: async (data: Partial<PlatformBranding>): Promise<PlatformBranding> => {
-    const response = await apiClient.put('/api/v1/super-admin/branding', data);
-    return response.data;
+  async updatePlatformBranding(data: Partial<PlatformBranding>): Promise<PlatformBranding> {
+    const { data: responseData, error } = await apiClient.put<PlatformBranding>('/super-admin/branding', data);
+    if (error || !responseData) {
+      throw new Error(error || 'Failed to update platform branding');
+    }
+    return responseData;
   },
 
-  uploadBrandingAsset: async (file: File): Promise<{ url: string }> => {
+  async uploadBrandingAsset(file: File): Promise<{ url: string }> {
     const formData = new FormData();
     formData.append('logo', file);
-    const { data, error } = await apiClient.post<{ url: string }>('/api/v1/settings/upload-logo', formData);
+    const { data, error } = await apiClient.post<{ url: string }>('/settings/upload-logo', formData);
     if (error || !data) {
       throw new Error(error || 'Failed to upload asset');
     }
     return data;
   },
 
-  getSuperAdmins: async (): Promise<SuperAdmin[]> => {
-    const response = await apiClient.get('/api/v1/super-admin/admins');
-    return response.data;
+  async getSuperAdmins(): Promise<SuperAdmin[]> {
+    const { data, error } = await apiClient.get<SuperAdmin[]>('/super-admin/admins');
+    if (error || !data) {
+      throw new Error(error || 'Failed to fetch super admins');
+    }
+    return Array.isArray(data) ? data : [];
   },
 
-  addSuperAdmin: async (userId: number): Promise<SuperAdmin> => {
-    const response = await apiClient.post('/api/v1/super-admin/admins', { user_id: userId });
-    return response.data;
+  async addSuperAdmin(userId: number): Promise<SuperAdmin> {
+    const { data, error } = await apiClient.post<SuperAdmin>('/super-admin/admins', { user_id: userId });
+    if (error || !data) {
+      throw new Error(error || 'Failed to add super admin');
+    }
+    return data;
   },
 
-  removeSuperAdmin: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/super-admin/admins/${id}`);
+  async removeSuperAdmin(id: string): Promise<void> {
+    const { error } = await apiClient.delete(`/super-admin/admins/${id}`);
+    if (error) {
+      throw new Error(error || 'Failed to remove super admin');
+    }
   },
 
-  checkIsSuperAdmin: async (): Promise<boolean> => {
+  async checkIsSuperAdmin(): Promise<boolean> {
     try {
-      const response = await apiClient.get('/api/v1/super-admin/check');
-      return response.data.is_super_admin;
+      const { data, error } = await apiClient.get<{ is_super_admin?: boolean }>('/super-admin/check');
+      if (error || !data) {
+        return false;
+      }
+      return data.is_super_admin ?? false;
     } catch {
       return false;
     }

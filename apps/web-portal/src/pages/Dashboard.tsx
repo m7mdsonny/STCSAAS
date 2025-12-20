@@ -13,16 +13,6 @@ import { EdgeServerMonitor } from '../components/ui/EdgeServerMonitor';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import type { Alert, Camera as CameraType, EdgeServer } from '../types/database';
 
-const weeklyData = [
-  { day: 'السبت', alerts: 12, visitors: 145 },
-  { day: 'الاحد', alerts: 8, visitors: 230 },
-  { day: 'الاثنين', alerts: 15, visitors: 189 },
-  { day: 'الثلاثاء', alerts: 5, visitors: 210 },
-  { day: 'الاربعاء', alerts: 9, visitors: 178 },
-  { day: 'الخميس', alerts: 3, visitors: 156 },
-  { day: 'الجمعة', alerts: 2, visitors: 98 },
-];
-
 export function Dashboard() {
   const { organization } = useAuth();
   const [cameras, setCameras] = useState<CameraType[]>([]);
@@ -30,6 +20,11 @@ export function Dashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [policy, setPolicy] = useState<AiPolicyEffective | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<{
+    visitors: { today: number; trend: number };
+    attendance: { today: number; late: number };
+    weekly_stats: { day: string; alerts: number; visitors: number }[];
+  } | null>(null);
 
   useEffect(() => {
     if (organization) {
@@ -40,17 +35,26 @@ export function Dashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [camerasRes, serversRes, alertsRes, effectivePolicy] = await Promise.all([
+      const [camerasRes, serversRes, alertsRes, effectivePolicy, dashboardRes] = await Promise.all([
         camerasApi.getCameras({ per_page: 100 }),
         edgeServersApi.getEdgeServers({ per_page: 100 }),
         alertsApi.getAlerts({ per_page: 10 }),
         aiPoliciesApi.getEffective(organization?.id),
+        dashboardApi.getDashboard(organization?.id).catch(() => null),
       ]);
 
       setCameras(camerasRes.data || []);
       setServers(serversRes.data || []);
       setAlerts(alertsRes.data || []);
       setPolicy(effectivePolicy);
+      
+      if (dashboardRes) {
+        setDashboardData({
+          visitors: dashboardRes.visitors || { today: 0, trend: 0 },
+          attendance: dashboardRes.attendance || { today: 0, late: 0 },
+          weekly_stats: dashboardRes.weekly_stats || [],
+        });
+      }
     } catch {
     }
     setLoading(false);
@@ -97,13 +101,13 @@ export function Dashboard() {
         />
         <StatCard
           title="الزوار اليوم"
-          value={loading ? '-' : 234}
+          value={loading ? '-' : (dashboardData?.visitors.today || 0)}
           icon={Users}
-          trend={{ value: 15, isPositive: true }}
+          trend={dashboardData?.visitors.trend ? { value: Math.abs(dashboardData.visitors.trend), isPositive: dashboardData.visitors.trend > 0 } : undefined}
         />
         <StatCard
           title="الحضور اليوم"
-          value={loading ? '-' : 48}
+          value={loading ? '-' : (dashboardData?.attendance.today || 0)}
           icon={UserCheck}
           color="blue"
         />
@@ -164,7 +168,7 @@ export function Dashboard() {
           </div>
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyData}>
+              <BarChart data={dashboardData?.weekly_stats.length ? dashboardData.weekly_stats : []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="day" stroke="rgba(255,255,255,0.5)" fontSize={11} />
                 <YAxis stroke="rgba(255,255,255,0.5)" fontSize={11} />
