@@ -4,6 +4,7 @@ namespace App\Exceptions;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -41,5 +42,31 @@ class Handler extends ExceptionHandler
         }
 
         return redirect()->guest('/login');
+    }
+
+    /**
+     * Render a 403 Forbidden exception into an HTTP response.
+     */
+    public function render($request, Throwable $exception)
+    {
+        // Handle 403 Forbidden exceptions
+        if ($exception instanceof \Illuminate\Auth\Access\AuthorizationException) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'message' => $exception->getMessage() ?: 'Forbidden.',
+                ], 403);
+            }
+        }
+
+        // Handle 404 Not Found for API routes
+        if ($exception instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'message' => 'Endpoint not found.',
+                ], 404);
+            }
+        }
+
+        return parent::render($request, $exception);
     }
 }

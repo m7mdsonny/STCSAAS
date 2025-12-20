@@ -131,10 +131,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       const { user: authUser } = await authApi.login({ email, password });
+      
+      // Wait a bit to ensure token is stored before making subsequent requests
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       await setAuthenticatedUser(authUser);
 
       return { error: null };
     } catch (err) {
+      // Clear any partial authentication state on error
+      authApi.clearSession();
+      clearStoredUser();
+      setUser(null);
+      setProfile(null);
+      setOrganization(null);
+      
       return { error: err instanceof Error ? err : new Error('Login failed') };
     }
   };
