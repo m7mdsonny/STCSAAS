@@ -176,6 +176,24 @@ export const authApi = {
     }
   },
 
+  async requestPasswordReset(email: string): Promise<string> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data, error } = await apiClient.post<{ message?: string }>(
+      '/auth/forgot-password',
+      { email: normalizedEmail },
+      { skipAuthHeader: true, skipAuthRedirect: true },
+    );
+
+    if (error) {
+      throw new Error(error === 'An error occurred'
+        ? 'تعذر ارسال طلب الاستعادة حالياً'
+        : error);
+    }
+
+    return (data as { message?: string } | undefined)?.message
+      || 'تم إرسال رابط الاستعادة في حال كان البريد مسجلاً لدينا';
+  },
+
   isAuthenticated(): boolean {
     return !!apiClient.getToken();
   },

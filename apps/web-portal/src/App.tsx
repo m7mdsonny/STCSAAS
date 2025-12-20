@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Layout } from './components/layout/Layout';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
+import { ForgotPassword } from './pages/ForgotPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Automation } from './pages/Automation';
 import { Cameras } from './pages/Cameras';
@@ -27,6 +28,11 @@ import { AdminSmsSettings } from './pages/admin/AdminSmsSettings';
 import { AdminUpdates } from './pages/admin/AdminUpdates';
 import { AdminBackups } from './pages/admin/AdminBackups';
 import { AiCommandCenter } from './pages/admin/AiCommandCenter';
+import { AIModulesAdmin } from './pages/admin/AIModulesAdmin';
+import { ModelTraining } from './pages/admin/ModelTraining';
+import { PlatformBrandingPage } from './pages/admin/PlatformBranding';
+import { SuperAdminManagement } from './pages/admin/SuperAdminManagement';
+import { SuperAdminSettings } from './pages/admin/SuperAdminSettings';
 import { EdgeServers } from './pages/admin/EdgeServers';
 import { Resellers } from './pages/admin/Resellers';
 import { SystemMonitor } from './pages/admin/SystemMonitor';
@@ -85,6 +91,14 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicRoute>
+            <ForgotPassword />
+          </PublicRoute>
+        }
+      />
 
       <Route
         element={
@@ -101,10 +115,15 @@ function AppRoutes() {
         <Route path="/admin/edge-servers" element={<EdgeServers />} />
         <Route path="/admin/resellers" element={<Resellers />} />
         <Route path="/admin/plans" element={<Plans />} />
+        <Route path="/admin/ai-modules" element={<AIModulesAdmin />} />
+        <Route path="/admin/model-training" element={<ModelTraining />} />
         <Route path="/admin/integrations" element={<AdminIntegrations />} />
         <Route path="/admin/sms" element={<AdminSmsSettings />} />
         <Route path="/admin/notifications" element={<AdminNotifications />} />
+        <Route path="/admin/branding" element={<PlatformBrandingPage />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
+        <Route path="/admin/super-admins" element={<SuperAdminManagement />} />
+        <Route path="/admin/super-settings" element={<SuperAdminSettings />} />
         <Route path="/admin/landing" element={<LandingSettingsPage />} />
         <Route path="/admin/updates" element={<AdminUpdates />} />
         <Route path="/admin/backups" element={<AdminBackups />} />
