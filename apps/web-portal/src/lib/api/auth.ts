@@ -54,12 +54,13 @@ export const authApi = {
       email: credentials.email.trim().toLowerCase(),
     };
 
-    const { data, error, status, errors } = await apiClient.post<unknown>('/auth/login', normalizedCredentials, {
+    const { data, error, status, httpStatus, errors } = await apiClient.post<unknown>('/auth/login', normalizedCredentials, {
       skipAuthRedirect: true,
       skipAuthHeader: true,
     });
     if (error || !data) {
-      const validationMessage = status === 422 && errors
+      const validationMessage = (status === 422 || status === 403 || httpStatus === 422)
+        && errors
         ? Object.values(errors).flat()[0]
         : undefined;
 
@@ -140,13 +141,13 @@ export const authApi = {
 
   async getCurrentUserDetailed(options?: { skipRedirect?: boolean }): Promise<{ user: User | null; unauthorized: boolean; error?: string }>
   {
-    const { data, error, status } = await apiClient.get<unknown>('/auth/me', undefined, {
+    const { data, error, status, httpStatus } = await apiClient.get<unknown>('/auth/me', undefined, {
       skipAuthRedirect: options?.skipRedirect,
     });
 
     return {
       user: extractUserPayload(data),
-      unauthorized: status === 401,
+      unauthorized: status === 401 || httpStatus === 401 || (status !== undefined && status >= 400),
       error,
     };
   },

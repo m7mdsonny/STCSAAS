@@ -19,15 +19,23 @@ export function Login() {
     setError('');
     setLoading(true);
 
-    const { error } = await signIn(email, password);
+    try {
+      const { error: loginError } = await signIn(email, password);
 
-    if (error) {
-      setError(error.message || 'البريد الالكتروني او كلمة المرور غير صحيحة');
+      if (loginError) {
+        setError(loginError.message || 'البريد الالكتروني او كلمة المرور غير صحيحة');
+        return;
+      }
+
+      navigate('/dashboard');
+    } catch (err) {
+      const fallbackMessage = err instanceof Error
+        ? err.message
+        : 'تعذر تسجيل الدخول حالياً، حاول مرة أخرى';
+      setError(fallbackMessage);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    navigate('/dashboard');
   };
 
   const createDemoAccount = async (type: 'admin' | 'org') => {
