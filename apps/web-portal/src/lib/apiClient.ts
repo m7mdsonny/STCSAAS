@@ -79,8 +79,21 @@ class ApiClient {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${activeToken}`;
     }
 
+    const fullUrl = this.resolveEndpoint(endpoint);
+
+    // Log all requests in development to track the problematic call
+    if (import.meta.env.DEV) {
+      console.log('🔵 API Request:', {
+        endpoint,
+        fullUrl,
+        method: fetchOptions.method || 'GET',
+        hasToken: !!activeToken,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     try {
-      const response = await fetch(this.resolveEndpoint(endpoint), {
+      const response = await fetch(fullUrl, {
         ...fetchOptions,
         headers,
       });
@@ -114,6 +127,18 @@ class ApiClient {
           || parsed?.message
           || 'An error occurred';
 
+        // Enhanced error logging
+        console.error('❌ API Error Response:', {
+          endpoint,
+          fullUrl,
+          method: fetchOptions.method || 'GET',
+          status: response.status,
+          message,
+          responseData: parsed,
+          hasToken: !!activeToken,
+          timestamp: new Date().toISOString(),
+        });
+
         return {
           error: message,
           status: response.status,
@@ -141,7 +166,13 @@ class ApiClient {
           || 'An error occurred';
 
         // Log warning about improper error response format
-        console.warn(`Backend returned HTTP 200 with error code ${logicalStatus}. This should be fixed to return HTTP ${logicalStatus}.`);
+        console.warn(`⚠️ Backend returned HTTP 200 with error code ${logicalStatus}. This should be fixed to return HTTP ${logicalStatus}.`, {
+          endpoint,
+          fullUrl,
+          logicalStatus,
+          message,
+          timestamp: new Date().toISOString(),
+        });
 
         return {
           error: message,
@@ -153,6 +184,23 @@ class ApiClient {
 
       return { data: data as T, status: logicalStatus || response.status, httpStatus: response.status };
     } catch (error) {
+      // Enhanced error logging
+      const errorDetails = {
+        endpoint,
+        fullUrl: this.resolveEndpoint(endpoint),
+        method: fetchOptions.method || 'GET',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+      };
+
+      console.error('💥 API Request Failed:', errorDetails);
+
+      // Re-throw with more context for debugging
+      if (error instanceof Error) {
+        error.message = `API request to ${endpoint} failed: ${error.message}`;
+      }
+
       return { error: (error as Error).message || 'Network error' };
     }
   }
