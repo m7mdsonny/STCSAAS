@@ -98,22 +98,17 @@ class ApiClient {
 
       const parsed = data as { message?: string; errors?: Record<string, string[]>; code?: number; status?: number };
 
-      // Some endpoints return HTTP 200 with an application-level error code (e.g., 403/422)
-      const logicalStatus = typeof parsed?.code === 'number'
-        ? parsed.code
-        : typeof parsed?.status === 'number'
-          ? parsed.status
-          : undefined;
-
-      const validationErrors = parsed?.errors;
-      const firstValidationMessage = validationErrors
-        ? Object.values(validationErrors).flat()[0]
-        : undefined;
-
-      if (!response.ok || (logicalStatus && logicalStatus >= 400)) {
+      // Check for HTTP error status codes first (proper way)
+      if (!response.ok) {
+        // If we get a proper HTTP error status, use it
         if (response.status === 401 && activeToken) {
           this.setToken(null);
         }
+
+        const validationErrors = parsed?.errors;
+        const firstValidationMessage = validationErrors
+          ? Object.values(validationErrors).flat()[0]
+          : undefined;
 
         const message = firstValidationMessage
           || parsed?.message
@@ -121,7 +116,36 @@ class ApiClient {
 
         return {
           error: message,
-          status: logicalStatus || response.status,
+          status: response.status,
+          httpStatus: response.status,
+          errors: validationErrors,
+        };
+      }
+
+      // Legacy: Some old endpoints might return HTTP 200 with an application-level error code
+      // This should be fixed in the backend, but we handle it for compatibility
+      const logicalStatus = typeof parsed?.code === 'number'
+        ? parsed.code
+        : typeof parsed?.status === 'number'
+          ? parsed.status
+          : undefined;
+
+      if (logicalStatus && logicalStatus >= 400) {
+        const validationErrors = parsed?.errors;
+        const firstValidationMessage = validationErrors
+          ? Object.values(validationErrors).flat()[0]
+          : undefined;
+
+        const message = firstValidationMessage
+          || parsed?.message
+          || 'An error occurred';
+
+        // Log warning about improper error response format
+        console.warn(`Backend returned HTTP 200 with error code ${logicalStatus}. This should be fixed to return HTTP ${logicalStatus}.`);
+
+        return {
+          error: message,
+          status: logicalStatus,
           httpStatus: response.status,
           errors: validationErrors,
         };

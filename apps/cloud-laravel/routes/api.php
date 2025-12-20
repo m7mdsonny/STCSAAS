@@ -254,4 +254,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/ai-modules/configs/{moduleId}/enable', [AiModuleController::class, 'enableModule']);
         Route::post('/ai-modules/configs/{moduleId}/disable', [AiModuleController::class, 'disableModule']);
     });
+
+    // Catch-all for non-existent API endpoints - return 404 instead of falling through to web routes
+    Route::fallback(function () {
+        return response()->json([
+            'message' => 'API endpoint not found.',
+        ], 404);
+    });
 });

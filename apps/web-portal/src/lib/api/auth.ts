@@ -139,8 +139,7 @@ export const authApi = {
     return extractUserPayload(data);
   },
 
-  async getCurrentUserDetailed(options?: { skipRedirect?: boolean }): Promise<{ user: User | null; unauthorized: boolean; error?: string }>
-  {
+  async getCurrentUserDetailed(options?: { skipRedirect?: boolean }): Promise<{ user: User | null; unauthorized: boolean; error?: string }> {
     const { data, error, status, httpStatus } = await apiClient.get<unknown>('/auth/me', undefined, {
       skipAuthRedirect: options?.skipRedirect,
     });
