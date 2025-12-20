@@ -6,6 +6,7 @@ export interface ApiResponse<T> {
   error?: string;
   message?: string;
   status?: number;
+  errors?: Record<string, string[]>;
 }
 
 export interface PaginatedResponse<T> {
@@ -99,11 +100,17 @@ class ApiClient {
           this.setToken(null);
         }
 
-        const message = typeof data === 'object' && data !== null && 'message' in data
-          ? (data as { message?: string }).message
+        const parsed = data as { message?: string; errors?: Record<string, string[]> };
+        const validationErrors = parsed?.errors;
+        const firstValidationMessage = validationErrors
+          ? Object.values(validationErrors).flat()[0]
           : undefined;
 
-        return { error: message || 'An error occurred', status: response.status };
+        const message = firstValidationMessage
+          || parsed?.message
+          || 'An error occurred';
+
+        return { error: message, status: response.status, errors: validationErrors };
       }
 
       return { data: data as T, status: response.status };

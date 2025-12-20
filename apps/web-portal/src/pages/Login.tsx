@@ -22,7 +22,7 @@ export function Login() {
     const { error } = await signIn(email, password);
 
     if (error) {
-      setError('البريد الالكتروني او كلمة المرور غير صحيحة');
+      setError(error.message || 'البريد الالكتروني او كلمة المرور غير صحيحة');
       setLoading(false);
       return;
     }
