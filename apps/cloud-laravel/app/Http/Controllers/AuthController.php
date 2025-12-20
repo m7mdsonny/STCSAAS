@@ -14,23 +14,28 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => 'required|email',
+            'email' => 'required|string',
             'password' => 'required|string'
         ]);
 
-        $email = strtolower(trim($request->email));
-        $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
+        $identifier = strtolower(trim($request->email));
+
+        $user = User::whereRaw('LOWER(email) = ?', [$identifier])
+            ->orWhere('phone', $identifier)
+            ->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Invalid credentials provided.'],
-            ]);
+            return response()->json([
+                'message' => 'Invalid credentials provided.',
+                'status' => 401,
+            ], 401);
         }
 
         if (!$user->is_active) {
-            throw ValidationException::withMessages([
-                'email' => ['Account is disabled. Contact an administrator.'],
-            ]);
+            return response()->json([
+                'message' => 'Account is disabled. Contact an administrator.',
+                'status' => 403,
+            ], 403);
         }
 
         $user->forceFill(['last_login' => now()])->save();
