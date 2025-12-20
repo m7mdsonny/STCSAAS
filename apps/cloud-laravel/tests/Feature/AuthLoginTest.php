@@ -47,6 +47,27 @@ class AuthLoginTest extends TestCase
             'password' => $password,
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(403)
+            ->assertJson(['status' => 403]);
+    }
+
+    /** @test */
+    public function invalid_credentials_return_unauthorized_with_json_message()
+    {
+        $password = 'P@ssword123';
+        User::create([
+            'name' => 'Test User',
+            'email' => 'user@example.com',
+            'password' => Hash::make($password),
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'user@example.com',
+            'password' => 'wrong-password',
+        ]);
+
+        $response->assertStatus(401)
+            ->assertJson(['status' => 401]);
     }
 }

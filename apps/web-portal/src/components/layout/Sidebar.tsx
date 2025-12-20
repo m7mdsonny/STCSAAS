@@ -21,7 +21,14 @@ import {
   MessageSquare,
   Server,
   Activity,
-  Handshake
+  Handshake,
+  Sparkles,
+  Cpu,
+  Palette,
+  Shield,
+  Sliders,
+  Database,
+  UploadCloud
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -43,11 +50,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/admin/licenses', icon: Key, label: 'التراخيص' },
     { to: '/admin/resellers', icon: Handshake, label: 'الموزعين' },
     { to: '/admin/plans', icon: CreditCard, label: 'الباقات' },
+    { to: '/admin/ai-modules', icon: Sparkles, label: 'موديولات الذكاء الاصطناعي' },
+    { to: '/admin/model-training', icon: Cpu, label: 'تدريب النماذج' },
     { to: '/admin/integrations', icon: Link2, label: 'التكاملات' },
     { to: '/admin/sms', icon: MessageSquare, label: 'الرسائل' },
     { to: '/admin/landing', icon: Globe, label: 'صفحة الهبوط' },
     { to: '/admin/notifications', icon: Bell, label: 'الاشعارات' },
+    { to: '/admin/branding', icon: Palette, label: 'الهوية البصرية' },
     { to: '/admin/settings', icon: Settings, label: 'الاعدادات' },
+    { to: '/admin/super-admins', icon: Shield, label: 'السوبر ادمن' },
+    { to: '/admin/super-settings', icon: Sliders, label: 'تحكمات السوبر ادمن' },
+    { to: '/admin/updates', icon: UploadCloud, label: 'التحديثات' },
+    { to: '/admin/backups', icon: Database, label: 'النسخ الاحتياطية' },
   ];
 
   const orgLinks = [
