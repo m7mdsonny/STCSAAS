@@ -161,7 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOrganization(null);
     try {
       await authApi.logout();
-    } catch {
+    } catch (error) {
+      console.error('Failed to revoke session during sign out', error);
     }
   };
 

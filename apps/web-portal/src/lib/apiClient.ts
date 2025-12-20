@@ -6,6 +6,8 @@ export interface ApiResponse<T> {
   error?: string;
   message?: string;
   status?: number;
+  httpStatus?: number;
+  errors?: Record<string, string[]>;
 }
 
 export interface PaginatedResponse<T> {
@@ -94,19 +96,38 @@ class ApiClient {
         }
       }
 
-      if (!response.ok) {
+      const parsed = data as { message?: string; errors?: Record<string, string[]>; code?: number; status?: number };
+
+      // Some endpoints return HTTP 200 with an application-level error code (e.g., 403/422)
+      const logicalStatus = typeof parsed?.code === 'number'
+        ? parsed.code
+        : typeof parsed?.status === 'number'
+          ? parsed.status
+          : undefined;
+
+      const validationErrors = parsed?.errors;
+      const firstValidationMessage = validationErrors
+        ? Object.values(validationErrors).flat()[0]
+        : undefined;
+
+      if (!response.ok || (logicalStatus && logicalStatus >= 400)) {
         if (response.status === 401 && activeToken) {
           this.setToken(null);
         }
 
-        const message = typeof data === 'object' && data !== null && 'message' in data
-          ? (data as { message?: string }).message
-          : undefined;
+        const message = firstValidationMessage
+          || parsed?.message
+          || 'An error occurred';
 
-        return { error: message || 'An error occurred', status: response.status };
+        return {
+          error: message,
+          status: logicalStatus || response.status,
+          httpStatus: response.status,
+          errors: validationErrors,
+        };
       }
 
-      return { data: data as T, status: response.status };
+      return { data: data as T, status: logicalStatus || response.status, httpStatus: response.status };
     } catch (error) {
       return { error: (error as Error).message || 'Network error' };
     }
