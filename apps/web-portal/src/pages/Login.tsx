@@ -22,7 +22,7 @@ export function Login() {
     const { error } = await signIn(email, password);
 
     if (error) {
-      setError('البريد الالكتروني او كلمة المرور غير صحيحة');
+      setError(error.message || 'البريد الالكتروني او كلمة المرور غير صحيحة');
       setLoading(false);
       return;
     }
@@ -148,7 +148,7 @@ export function Login() {
                   <input type="checkbox" className="w-4 h-4 rounded border-white/20 bg-white/5" />
                   <span className="text-white/70">تذكرني</span>
                 </label>
-                <a href="#" className="text-stc-gold hover:underline">نسيت كلمة المرور؟</a>
+                <Link to="/forgot-password" className="text-stc-gold hover:underline">نسيت كلمة المرور؟</Link>
               </div>
 
               <button

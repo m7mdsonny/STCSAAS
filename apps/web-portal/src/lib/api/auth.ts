@@ -54,12 +54,16 @@ export const authApi = {
       email: credentials.email.trim().toLowerCase(),
     };
 
-    const { data, error } = await apiClient.post<unknown>('/auth/login', normalizedCredentials, {
+    const { data, error, status, errors } = await apiClient.post<unknown>('/auth/login', normalizedCredentials, {
       skipAuthRedirect: true,
       skipAuthHeader: true,
     });
     if (error || !data) {
-      throw new Error(error || 'Login failed');
+      const validationMessage = status === 422 && errors
+        ? Object.values(errors).flat()[0]
+        : undefined;
+
+      throw new Error(validationMessage || error || 'Login failed');
     }
 
     const token = (data as { token?: string; access_token?: string }).token
@@ -174,6 +178,24 @@ export const authApi = {
     if (error) {
       throw new Error(error);
     }
+  },
+
+  async requestPasswordReset(email: string): Promise<string> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data, error } = await apiClient.post<{ message?: string }>(
+      '/auth/forgot-password',
+      { email: normalizedEmail },
+      { skipAuthHeader: true, skipAuthRedirect: true },
+    );
+
+    if (error) {
+      throw new Error(error === 'An error occurred'
+        ? 'تعذر ارسال طلب الاستعادة حالياً'
+        : error);
+    }
+
+    return (data as { message?: string } | undefined)?.message
+      || 'تم إرسال رابط الاستعادة في حال كان البريد مسجلاً لدينا';
   },
 
   isAuthenticated(): boolean {
