@@ -161,6 +161,8 @@ class UserController extends Controller
         return response()->json(['message' => 'Super admin privileges removed']);
     }
 
-    // Removed override - using parent's protected ensureSuperAdmin() method
-    // The parent Controller class already provides this method with proper visibility
+    // FIXED: Removed private override of ensureSuperAdmin()
+    // The parent Controller class already provides this method as protected
+    // PHP visibility rules require that overridden methods cannot be more restrictive
+    // (private is more restrictive than protected, which caused the fatal error)
 }
