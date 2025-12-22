@@ -79,21 +79,8 @@ class ApiClient {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${activeToken}`;
     }
 
-    const fullUrl = this.resolveEndpoint(endpoint);
-
-    // Log all requests in development to track the problematic call
-    if (import.meta.env.DEV) {
-      console.log('🔵 API Request:', {
-        endpoint,
-        fullUrl,
-        method: fetchOptions.method || 'GET',
-        hasToken: !!activeToken,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     try {
-      const response = await fetch(fullUrl, {
+      const response = await fetch(this.resolveEndpoint(endpoint), {
         ...fetchOptions,
         headers,
       });
@@ -111,72 +98,30 @@ class ApiClient {
 
       const parsed = data as { message?: string; errors?: Record<string, string[]>; code?: number; status?: number };
 
-      // Check for HTTP error status codes first (proper way)
-      if (!response.ok) {
-        // If we get a proper HTTP error status, use it
-        if (response.status === 401 && activeToken) {
-          this.setToken(null);
-        }
-
-        const validationErrors = parsed?.errors;
-        const firstValidationMessage = validationErrors
-          ? Object.values(validationErrors).flat()[0]
-          : undefined;
-
-        const message = firstValidationMessage
-          || parsed?.message
-          || 'An error occurred';
-
-        // Enhanced error logging
-        console.error('❌ API Error Response:', {
-          endpoint,
-          fullUrl,
-          method: fetchOptions.method || 'GET',
-          status: response.status,
-          message,
-          responseData: parsed,
-          hasToken: !!activeToken,
-          timestamp: new Date().toISOString(),
-        });
-
-        return {
-          error: message,
-          status: response.status,
-          httpStatus: response.status,
-          errors: validationErrors,
-        };
-      }
-
-      // Legacy: Some old endpoints might return HTTP 200 with an application-level error code
-      // This should be fixed in the backend, but we handle it for compatibility
+      // Some endpoints return HTTP 200 with an application-level error code (e.g., 403/422)
       const logicalStatus = typeof parsed?.code === 'number'
         ? parsed.code
         : typeof parsed?.status === 'number'
           ? parsed.status
           : undefined;
 
-      if (logicalStatus && logicalStatus >= 400) {
-        const validationErrors = parsed?.errors;
-        const firstValidationMessage = validationErrors
-          ? Object.values(validationErrors).flat()[0]
-          : undefined;
+      const validationErrors = parsed?.errors;
+      const firstValidationMessage = validationErrors
+        ? Object.values(validationErrors).flat()[0]
+        : undefined;
+
+      if (!response.ok || (logicalStatus && logicalStatus >= 400)) {
+        if (response.status === 401 && activeToken) {
+          this.setToken(null);
+        }
 
         const message = firstValidationMessage
           || parsed?.message
           || 'An error occurred';
 
-        // Log warning about improper error response format
-        console.warn(`⚠️ Backend returned HTTP 200 with error code ${logicalStatus}. This should be fixed to return HTTP ${logicalStatus}.`, {
-          endpoint,
-          fullUrl,
-          logicalStatus,
-          message,
-          timestamp: new Date().toISOString(),
-        });
-
         return {
           error: message,
-          status: logicalStatus,
+          status: logicalStatus || response.status,
           httpStatus: response.status,
           errors: validationErrors,
         };
@@ -184,23 +129,6 @@ class ApiClient {
 
       return { data: data as T, status: logicalStatus || response.status, httpStatus: response.status };
     } catch (error) {
-      // Enhanced error logging
-      const errorDetails = {
-        endpoint,
-        fullUrl: this.resolveEndpoint(endpoint),
-        method: fetchOptions.method || 'GET',
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: new Date().toISOString(),
-      };
-
-      console.error('💥 API Request Failed:', errorDetails);
-
-      // Re-throw with more context for debugging
-      if (error instanceof Error) {
-        error.message = `API request to ${endpoint} failed: ${error.message}`;
-      }
-
       return { error: (error as Error).message || 'Network error' };
     }
   }

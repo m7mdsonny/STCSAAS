@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\RoleHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
@@ -12,10 +13,21 @@ class LicenseController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $this->ensureSuperAdmin($request);
+        $user = $request->user();
         $query = License::query();
 
-        if ($request->filled('organization_id')) {
+        // Super admin can see all licenses
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            // Organization owners/admins can see their org's licenses
+            if ($user->organization_id) {
+                $query->where('organization_id', $user->organization_id);
+            } else {
+                return response()->json(['data' => [], 'total' => 0]);
+            }
+        }
+
+        // Super admin can filter by organization
+        if ($request->filled('organization_id') && RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
             $query->where('organization_id', $request->get('organization_id'));
         }
 
@@ -34,7 +46,13 @@ class LicenseController extends Controller
 
     public function show(License $license): JsonResponse
     {
-        $this->ensureSuperAdmin(request());
+        $user = request()->user();
+        
+        // Super admin can see all, others only their org's licenses
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            $this->ensureOrganizationAccess(request(), $license->organization_id);
+        }
+        
         return response()->json($license);
     }
 

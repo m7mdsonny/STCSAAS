@@ -53,17 +53,38 @@ export function Organizations() {
     e.preventDefault();
 
     try {
+      // Ensure subscription_plan is set
+      const submitData = {
+        ...formData,
+        subscription_plan: formData.subscription_plan || 'basic',
+      };
+
       if (editingOrg) {
-        await organizationsApi.updateOrganization(editingOrg.id, formData);
+        await organizationsApi.updateOrganization(editingOrg.id, submitData);
         setEditingOrg(null);
       } else {
-        await organizationsApi.createOrganization(formData);
+        await organizationsApi.createOrganization(submitData);
       }
       fetchOrganizations();
       setShowModal(false);
+      resetForm();
     } catch (error) {
       console.error('Error saving organization:', error);
+      alert(error instanceof Error ? error.message : 'حدث خطأ في حفظ المؤسسة');
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      name_en: '',
+      email: '',
+      phone: '',
+      city: '',
+      subscription_plan: 'basic' as const,
+      max_cameras: 4,
+      max_edge_servers: 1,
+    });
   };
 
   const handleEdit = (org: Organization) => {
@@ -185,17 +206,8 @@ export function Organizations() {
         </div>
         <button
           onClick={() => {
+            resetForm();
             setEditingOrg(null);
-            setFormData({
-              name: '',
-              name_en: '',
-              email: '',
-              phone: '',
-              city: '',
-              subscription_plan: 'basic',
-              max_cameras: 4,
-              max_edge_servers: 1,
-            });
             setShowModal(true);
           }}
           className="btn-primary flex items-center gap-2"

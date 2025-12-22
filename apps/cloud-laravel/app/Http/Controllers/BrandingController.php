@@ -6,6 +6,7 @@ use App\Models\BrandingSetting;
 use App\Models\Organization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class BrandingController extends Controller
 {
@@ -56,6 +57,41 @@ class BrandingController extends Controller
         $branding->update($this->validateData($request));
 
         return response()->json($branding);
+    }
+
+    public function uploadLogo(Request $request): JsonResponse
+    {
+        $this->ensureSuperAdmin($request);
+        $request->validate([
+            'logo' => 'required|file|mimes:png,jpg,jpeg,svg|max:5120', // 5MB max
+            'type' => 'nullable|string|in:logo,logo_dark,favicon', // Type of logo
+        ]);
+
+        $type = $request->get('type', 'logo');
+        $file = $request->file('logo');
+        $path = $file->store('public/branding/logos');
+        $url = Storage::url($path);
+
+        // Update global branding with the uploaded logo URL
+        $branding = BrandingSetting::whereNull('organization_id')->first();
+        if (!$branding) {
+            $branding = BrandingSetting::create(['organization_id' => null]);
+        }
+
+        $fieldMap = [
+            'logo' => 'logo_url',
+            'logo_dark' => 'logo_dark_url',
+            'favicon' => 'favicon_url',
+        ];
+
+        $field = $fieldMap[$type] ?? 'logo_url';
+        $branding->update([$field => $url]);
+
+        return response()->json([
+            'url' => $url,
+            'type' => $type,
+            'branding' => $branding,
+        ]);
     }
 
     private function validateData(Request $request): array

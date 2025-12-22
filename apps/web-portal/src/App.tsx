@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { isSuperAdmin, canManageOrganization, normalizeRole } from './lib/rbac';
 import { Layout } from './components/layout/Layout';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
@@ -39,8 +40,16 @@ import { SystemMonitor } from './pages/admin/SystemMonitor';
 import { Loader2 } from 'lucide-react';
 import { BrandingProvider } from './contexts/BrandingContext';
 
-function PrivateRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
-  const { user, loading, isSuperAdmin } = useAuth();
+function PrivateRoute({ 
+  children, 
+  adminOnly = false,
+  requireManage = false,
+}: { 
+  children: React.ReactNode; 
+  adminOnly?: boolean;
+  requireManage?: boolean;
+}) {
+  const { user, profile, loading, isSuperAdmin: isSuperAdminFlag } = useAuth();
 
   if (loading) {
     return (
@@ -54,8 +63,25 @@ function PrivateRoute({ children, adminOnly = false }: { children: React.ReactNo
     return <Navigate to="/login" replace />;
   }
 
-  if (adminOnly && !isSuperAdmin) {
+  const userRole = normalizeRole(profile?.role);
+  const isSuperAdminUser = isSuperAdmin(userRole, profile?.is_super_admin);
+
+  // Super admin only routes
+  if (adminOnly && !isSuperAdminUser) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Routes requiring manage permissions (owner or admin)
+  if (requireManage && !isSuperAdminUser && !canManageOrganization(userRole)) {
+    return (
+      <div className="min-h-screen bg-stc-bg-dark flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-2">غير مصرح</h2>
+          <p className="text-white/60">ليس لديك صلاحية للوصول إلى هذه الصفحة</p>
+          <Navigate to="/dashboard" replace />
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;
@@ -82,14 +108,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <PublicRoute>
-            <Landing />
-          </PublicRoute>
-        }
-      />
+      <Route path="/" element={<Landing />} />
       <Route
         path="/login"
         element={
@@ -153,7 +172,14 @@ function AppRoutes() {
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/attendance" element={<Attendance />} />
         <Route path="/automation" element={<Automation />} />
-        <Route path="/team" element={<Team />} />
+        <Route 
+          path="/team" 
+          element={
+            <PrivateRoute requireManage>
+              <Team />
+            </PrivateRoute>
+          } 
+        />
         <Route path="/settings" element={<Settings />} />
       </Route>
 

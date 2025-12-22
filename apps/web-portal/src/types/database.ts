@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'org_owner' | 'org_admin' | 'org_operator' | 'org_viewer';
+export type UserRole = 'super_admin' | 'owner' | 'admin' | 'editor' | 'viewer';
 export type SubscriptionPlanType = 'basic' | 'professional' | 'enterprise';
 export type LicenseStatus = 'active' | 'expired' | 'suspended' | 'trial';
 export type DeviceStatus = 'online' | 'offline' | 'error';

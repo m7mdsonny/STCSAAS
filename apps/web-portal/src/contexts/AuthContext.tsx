@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { authApi } from '../lib/api/auth';
 import { organizationsApi } from '../lib/api/organizations';
+import { normalizeRole } from '../lib/rbac';
 import type { User, Organization } from '../types/database';
 
 const USER_STORAGE_KEY = 'auth_user';
@@ -94,9 +95,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const setAuthenticatedUser = async (authUser: User) => {
-    setUser(authUser);
-    setProfile(authUser);
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(authUser));
+    // Normalize role before storing
+    const normalizedUser = {
+      ...authUser,
+      role: normalizeRole(authUser.role),
+    };
+    setUser(normalizedUser);
+    setProfile(normalizedUser);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUser));
 
     if (authUser.organization_id) {
       try {
@@ -131,21 +137,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       const { user: authUser } = await authApi.login({ email, password });
-      
-      // Wait a bit to ensure token is stored before making subsequent requests
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       await setAuthenticatedUser(authUser);
 
       return { error: null };
     } catch (err) {
-      // Clear any partial authentication state on error
-      authApi.clearSession();
-      clearStoredUser();
-      setUser(null);
-      setProfile(null);
-      setOrganization(null);
-      
       return { error: err instanceof Error ? err : new Error('Login failed') };
     }
   };
@@ -177,8 +172,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isSuperAdmin = profile?.role === 'super_admin';
-  const isOrgAdmin = profile?.role === 'org_owner' || profile?.role === 'org_admin';
+  // Normalize role and compute permissions
+  const normalizedRole = profile?.role ? normalizeRole(profile.role) : null;
+  
+  const isSuperAdmin = normalizedRole === 'super_admin' || profile?.is_super_admin === true;
+  const isOrgAdmin = normalizedRole === 'owner' || normalizedRole === 'admin';
   const canManage = isSuperAdmin || isOrgAdmin;
 
   return (

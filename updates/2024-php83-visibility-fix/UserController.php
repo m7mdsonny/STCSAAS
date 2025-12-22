@@ -92,77 +92,10 @@ class UserController extends Controller
         return response()->json(['message' => 'Password reset', 'new_password' => $newPassword]);
     }
 
-    public function getSuperAdmins(Request $request): JsonResponse
-    {
-        $this->ensureSuperAdmin($request);
-
-        $superAdmins = User::where(function ($query) {
-            $query->where('role', 'super_admin')
-                ->orWhere('is_super_admin', true);
-        })->get();
-
-        // Format response to match frontend expectations
-        $formatted = $superAdmins->map(function ($user) {
-            return [
-                'id' => (string) $user->id,
-                'user_id' => $user->id,
-                'permissions' => [],
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                ],
-            ];
-        });
-
-        return response()->json($formatted);
-    }
-
-    public function addSuperAdmin(Request $request): JsonResponse
-    {
-        $this->ensureSuperAdmin($request);
-
-        $data = $request->validate([
-            'user_id' => 'required|integer|exists:users,id',
-        ]);
-
-        $user = User::findOrFail($data['user_id']);
-        $user->update([
-            'role' => 'super_admin',
-            'is_super_admin' => true,
-        ]);
-
-        return response()->json([
-            'id' => (string) $user->id,
-            'user_id' => $user->id,
-            'permissions' => [],
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-        ], 201);
-    }
-
-    public function removeSuperAdmin(Request $request, User $user): JsonResponse
-    {
-        $this->ensureSuperAdmin($request);
-
-        // Prevent removing yourself
-        if ($user->id === $request->user()->id) {
-            return response()->json(['message' => 'Cannot remove your own super admin privileges'], 403);
-        }
-
-        $user->update([
-            'role' => 'user',
-            'is_super_admin' => false,
-        ]);
-
-        return response()->json(['message' => 'Super admin privileges removed']);
-    }
-
-    // FIXED: Removed private override of ensureSuperAdmin()
-    // The parent Controller class already provides this method as protected
-    // PHP visibility rules require that overridden methods cannot be more restrictive
-    // (private is more restrictive than protected, which caused the fatal error)
+    // NOTE: This controller does NOT override ensureSuperAdmin()
+    // It correctly inherits the protected method from the base Controller class
+    // If you see a public function ensureSuperAdmin() here, REMOVE IT or change to protected
 }
+
+
+

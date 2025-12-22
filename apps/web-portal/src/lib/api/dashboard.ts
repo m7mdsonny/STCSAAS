@@ -25,16 +25,14 @@ interface DashboardData extends DashboardStats {
 
 interface AdminDashboardData {
   total_organizations: number;
-  active_organizations: number;
   active_licenses: number;
   total_edge_servers: number;
-  online_edge_servers: number;
   total_cameras: number;
   total_users: number;
   alerts_today: number;
   revenue_this_month: number;
-  organizations_by_plan?: { plan: string; count: number }[];
-  recent_activities?: { id: string; type: string; description: string; created_at: string }[];
+  organizations_by_plan: { plan: string; count: number }[];
+  recent_activities: { id: string; type: string; description: string; created_at: string }[];
 }
 
 interface SystemHealth {
@@ -64,7 +62,7 @@ export const dashboardApi = {
   },
 
   async getAdminDashboard(): Promise<AdminDashboardData> {
-    const { data, error } = await apiClient.get<AdminDashboardData>('/dashboard/admin');
+    const { data, error } = await apiClient.get<AdminDashboardData>('/admin/dashboard');
     if (error || !data) {
       throw new Error(error || 'Failed to fetch admin dashboard');
     }

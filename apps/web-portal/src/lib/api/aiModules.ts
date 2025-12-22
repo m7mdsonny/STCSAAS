@@ -56,111 +56,72 @@ export interface SubscriptionPlan {
 
 export const aiModulesApi = {
   getModules: async (): Promise<AiModule[]> => {
-    const { data, error } = await apiClient.get<AiModule[]>('/ai-modules');
-    if (error || !data) {
-      throw new Error(error || 'Failed to fetch AI modules');
-    }
-    return data;
+    const response = await apiClient.get('/api/v1/ai-modules');
+    return response.data;
   },
 
   getModule: async (id: number): Promise<AiModule> => {
-    const { data, error } = await apiClient.get<AiModule>(`/ai-modules/${id}`);
-    if (error || !data) {
-      throw new Error(error || 'Failed to fetch AI module');
-    }
-    return data;
+    const response = await apiClient.get(`/api/v1/ai-modules/${id}`);
+    return response.data;
   },
 
   updateModule: async (id: number, data: Partial<AiModule>): Promise<AiModule> => {
-    const { data: result, error } = await apiClient.put<AiModule>(`/ai-modules/${id}`, data);
-    if (error || !result) {
-      throw new Error(error || 'Failed to update AI module');
-    }
-    return result;
+    const response = await apiClient.put(`/api/v1/ai-modules/${id}`, data);
+    return response.data;
   },
 
   getOrganizationConfigs: async (): Promise<AiModuleConfig[]> => {
-    const { data, error } = await apiClient.get<AiModuleConfig[]>('/ai-modules/configs');
-    if (error || !data) {
-      throw new Error(error || 'Failed to fetch organization AI module configs');
-    }
-    return data;
+    const response = await apiClient.get('/api/v1/ai-modules/configs');
+    return response.data;
   },
 
   getOrganizationConfig: async (moduleId: number): Promise<AiModuleConfig | null> => {
     try {
-      const { data, error } = await apiClient.get<AiModuleConfig>(`/ai-modules/configs/${moduleId}`);
-      if (error || !data) {
-        return null;
-      }
-      return data;
+      const response = await apiClient.get(`/api/v1/ai-modules/configs/${moduleId}`);
+      return response.data;
     } catch {
       return null;
     }
   },
 
   updateOrganizationConfig: async (moduleId: number, data: Partial<AiModuleConfig>): Promise<AiModuleConfig> => {
-    const { data: result, error } = await apiClient.put<AiModuleConfig>(`/ai-modules/configs/${moduleId}`, data);
-    if (error || !result) {
-      throw new Error(error || 'Failed to update organization AI module config');
-    }
-    return result;
+    const response = await apiClient.put(`/api/v1/ai-modules/configs/${moduleId}`, data);
+    return response.data;
   },
 
   enableModule: async (moduleId: number): Promise<AiModuleConfig> => {
-    const { data, error } = await apiClient.post<AiModuleConfig>(`/ai-modules/configs/${moduleId}/enable`);
-    if (error || !data) {
-      throw new Error(error || 'Failed to enable AI module');
-    }
-    return data;
+    const response = await apiClient.post(`/api/v1/ai-modules/configs/${moduleId}/enable`);
+    return response.data;
   },
 
   disableModule: async (moduleId: number): Promise<AiModuleConfig> => {
-    const { data, error } = await apiClient.post<AiModuleConfig>(`/ai-modules/configs/${moduleId}/disable`);
-    if (error || !data) {
-      throw new Error(error || 'Failed to disable AI module');
-    }
-    return data;
+    const response = await apiClient.post(`/api/v1/ai-modules/configs/${moduleId}/disable`);
+    return response.data;
   },
 };
 
 export const subscriptionPlansApi = {
   getPlans: async (): Promise<SubscriptionPlan[]> => {
-    const { data, error } = await apiClient.get<SubscriptionPlan[]>('/subscription-plans');
-    if (error || !data) {
-      throw new Error(error || 'Failed to fetch subscription plans');
-    }
-    return data;
+    const response = await apiClient.get('/api/v1/subscription-plans');
+    return response.data;
   },
 
   getPlan: async (id: number): Promise<SubscriptionPlan> => {
-    const { data, error } = await apiClient.get<SubscriptionPlan>(`/subscription-plans/${id}`);
-    if (error || !data) {
-      throw new Error(error || 'Failed to fetch subscription plan');
-    }
-    return data;
+    const response = await apiClient.get(`/api/v1/subscription-plans/${id}`);
+    return response.data;
   },
 
   createPlan: async (data: Omit<SubscriptionPlan, 'id'>): Promise<SubscriptionPlan> => {
-    const { data: result, error } = await apiClient.post<SubscriptionPlan>('/subscription-plans', data);
-    if (error || !result) {
-      throw new Error(error || 'Failed to create subscription plan');
-    }
-    return result;
+    const response = await apiClient.post('/api/v1/subscription-plans', data);
+    return response.data;
   },
 
   updatePlan: async (id: number, data: Partial<SubscriptionPlan>): Promise<SubscriptionPlan> => {
-    const { data: result, error } = await apiClient.put<SubscriptionPlan>(`/subscription-plans/${id}`, data);
-    if (error || !result) {
-      throw new Error(error || 'Failed to update subscription plan');
-    }
-    return result;
+    const response = await apiClient.put(`/api/v1/subscription-plans/${id}`, data);
+    return response.data;
   },
 
   deletePlan: async (id: number): Promise<void> => {
-    const { error } = await apiClient.delete(`/subscription-plans/${id}`);
-    if (error) {
-      throw new Error(error || 'Failed to delete subscription plan');
-    }
+    await apiClient.delete(`/api/v1/subscription-plans/${id}`);
   },
 };
