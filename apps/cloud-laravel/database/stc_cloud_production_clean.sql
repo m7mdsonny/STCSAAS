@@ -3,10 +3,10 @@
 -- PostgreSQL Complete Schema + Seed Data
 -- ============================================
 -- Description: Clean production-ready database schema
--- Version: 2.1.0
+-- Version: 2.2.0
 -- Date: 2025-01-02
 -- Laravel Version: 11.x
--- Compatible with: aaPanel custom PostgreSQL builds
+-- Compatible with: aaPanel custom PostgreSQL builds (NO EXTENSIONS REQUIRED)
 -- ============================================
 -- 
 -- USAGE:
@@ -15,14 +15,14 @@
 -- 3. Run this SQL file: psql -U postgres -d your_database < stc_cloud_production_clean.sql
 -- 4. Or via Laravel: php artisan migrate:fresh --seed
 --
--- NOTE: This schema uses pgcrypto extension (not uuid-ossp)
--- For UUID generation, use: gen_random_uuid() from pgcrypto
+-- IMPORTANT NOTES:
+-- - This schema does NOT require any PostgreSQL extensions
+-- - Compatible with aaPanel custom PostgreSQL builds that don't support extensions
+-- - All IDs use BIGSERIAL (auto-incrementing integers), not UUIDs
+-- - If UUIDs are needed in Laravel, generate them using Str::uuid() in model boot methods
+-- - No database-level UUID generation functions are used
 --
 -- ============================================
-
--- Enable pgcrypto extension for UUID generation and encryption
--- Compatible with aaPanel custom PostgreSQL builds
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================
 -- DROP EXISTING TABLES (in reverse dependency order)
