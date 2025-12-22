@@ -46,8 +46,12 @@ class EdgeServerState:
         self.is_licensed = False
         self.is_connected = False
         self.hardware_id = platform.node()
+        self.edge_id = None  # Edge ID for Cloud registration
         self.cameras = {}
         self.modules_loaded = False
+        self.ai_manager = None  # AI Module Manager
+        self.camera_service = None  # Camera Service
+        self.sync_service = None  # Sync Service
 
 
 state = EdgeServerState()
@@ -75,8 +79,15 @@ async def initialize_database():
 async def validate_license():
     license_store = LocalLicenseStore()
 
-    if not settings.has_license():
-        logger.warning("No license key configured")
+    # Check for free trial if no license key
+    if not settings.has_license() or settings.LICENSE_KEY.lower() in ("", "trial", "free"):
+        if license_store._check_free_trial_eligibility("TRIAL", state.hardware_id):
+            state.license_data = license_store.data
+            state.is_licensed = True
+            trial_days = license_store.get_trial_days_remaining()
+            logger.info(f"14-day free trial active - {trial_days} days remaining")
+            return True
+        logger.warning("No license key configured and trial not available")
         return False
 
     if not state.db:
@@ -115,19 +126,27 @@ async def register_server():
         return False
 
     import socket
+    import uuid
     hostname = socket.gethostname()
 
-    success, server_id = await state.db.register_server(
-        license_id=state.license_data.get('license_id'),
-        organization_id=state.license_data.get('organization_id'),
-        name=hostname,
+    # Generate or use existing edge_id
+    if not state.edge_id:
+        state.edge_id = str(uuid.uuid4())
+
+    # Registration happens via heartbeat, but we can set server_id from hardware_id
+    state.server_id = state.edge_id
+
+    # Send initial heartbeat to register
+    success = await state.db.heartbeat(
+        edge_id=state.edge_id,
         version=settings.APP_VERSION,
-        hardware_id=state.hardware_id,
+        system_info=state.db._get_system_info(),
+        organization_id=state.license_data.get('organization_id') if state.license_data else None,
+        license_id=state.license_data.get('license_id') if state.license_data else None,
     )
 
     if success:
-        state.server_id = server_id
-        logger.info(f"Server registered: {server_id}")
+        logger.info(f"Server registered with edge_id: {state.edge_id}")
         return True
 
     return False
@@ -136,11 +155,76 @@ async def register_server():
 async def start_services():
     from app.services.sync import SyncService
     from app.services.camera import CameraService
+    from app.ai.manager import AIModuleManager
 
-    sync_service = SyncService(state.db)
+    # Initialize AI Module Manager
+    ai_manager = AIModuleManager()
+    state.ai_manager = ai_manager
+
+    # Initialize Camera Service
     camera_service = CameraService()
+    state.camera_service = camera_service
 
+    # Register AI processor with camera service
+    async def ai_processor(camera_id: str, frame, enabled_modules: list):
+        """Process frame through AI modules"""
+        if not state.ai_manager:
+            return
+        
+        # Get metadata from sync service
+        metadata = {}
+        if state.sync_service:
+            metadata = {
+                'faces_database': state.sync_service.get_faces(),
+                'vehicles_database': state.sync_service.get_vehicles(),
+                'rules': state.sync_service.get_rules(),
+            }
+        
+        # Process frame
+        results = state.ai_manager.process_frame(
+            frame=frame,
+            camera_id=camera_id,
+            enabled_modules=enabled_modules,
+            metadata=metadata
+        )
+        
+        # Send alerts and events to Cloud
+        if state.db and state.is_connected:
+            for alert in results.get('alerts', []):
+                alert_data = {
+                    'camera_id': camera_id,
+                    'module': alert.get('module', 'unknown'),
+                    'type': alert.get('type'),
+                    'severity': alert.get('severity', 'medium'),
+                    'title': alert.get('title', 'Alert'),
+                    'description': alert.get('description'),
+                    'metadata': alert.get('metadata', {}),
+                }
+                await state.db.create_alert(alert_data)
+            
+            for event in results.get('events', []):
+                event_data = {
+                    'camera_id': camera_id,
+                    'type': event.get('type'),
+                    'metadata': event,
+                }
+                await state.db.create_event(event_data)
+
+    camera_service.register_processor(ai_processor)
+
+    # Initialize Sync Service
+    sync_service = SyncService(state.db)
+    state.sync_service = sync_service
+
+    # Start sync service
     asyncio.create_task(sync_service.run())
+
+    # Enable AI modules based on license
+    if state.license_data:
+        enabled_modules = state.license_data.get('modules', [])
+        if enabled_modules:
+            ai_manager.enable_modules(enabled_modules)
+            logger.info(f"Enabled AI modules: {', '.join(enabled_modules)}")
 
     logger.info("Services started")
 
@@ -177,8 +261,20 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("Shutting down...")
+    
+    # Cleanup services
+    if state.camera_service:
+        await state.camera_service.stop()
+    
+    if state.ai_manager:
+        state.ai_manager.cleanup()
+    
+    if state.sync_service:
+        await state.sync_service.stop()
+    
     if state.db:
         await state.db.disconnect()
+    
     logger.info("Shutdown complete")
 
 

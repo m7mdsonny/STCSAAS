@@ -41,6 +41,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/edges/heartbeat', [EdgeController::class, 'heartbeat']);
         Route::post('/edges/events', [EventController::class, 'ingest']);
         Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/register-device', [NotificationController::class, 'registerDevice']);
+        Route::post('/auth/register-fcm-token', [NotificationController::class, 'registerDevice']); // Alias for mobile app compatibility
+        Route::delete('/notifications/unregister-device', [NotificationController::class, 'unregisterDevice']);
+        Route::get('/notifications/devices', [NotificationController::class, 'getDevices']);
 
         Route::get('/dashboard/admin', [DashboardController::class, 'admin']);
 

@@ -16,6 +16,10 @@ export interface SystemSettings {
   require_2fa: boolean;
   allow_registration: boolean;
   require_email_verification: boolean;
+  fcm_settings?: {
+    server_key?: string;
+    project_id?: string;
+  };
 }
 
 export interface PlatformBranding {
@@ -98,5 +102,13 @@ export const superAdminApi = {
     } catch {
       return false;
     }
+  },
+
+  testFcm: async (testToken?: string): Promise<{ success: boolean; message: string }> => {
+    const url = testToken 
+      ? `/api/v1/super-admin/test-fcm?test_token=${testToken}`
+      : '/api/v1/super-admin/test-fcm';
+    const response = await apiClient.post(url);
+    return response.data;
   },
 };

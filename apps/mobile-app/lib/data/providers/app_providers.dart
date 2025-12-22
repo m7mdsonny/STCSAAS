@@ -5,6 +5,8 @@ import '../../core/services/api_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/camera_monitor_service.dart';
+import '../../core/services/notification_sound_settings.dart';
 import '../repositories/camera_repository.dart';
 import '../repositories/alert_repository.dart';
 import '../repositories/server_repository.dart';
@@ -25,7 +27,14 @@ final apiServiceProvider = Provider<ApiService>((ref) {
 final authServiceProvider = Provider<AuthService>((ref) {
   final storage = ref.watch(storageServiceProvider);
   final api = ref.watch(apiServiceProvider);
-  return AuthService(storage: storage, api: api);
+  final notificationService = ref.watch(notificationServiceProvider);
+  final notificationRegistrationService = ref.watch(notificationRegistrationServiceProvider);
+  return AuthService(
+    storage: storage,
+    api: api,
+    notificationService: notificationService,
+    notificationRegistrationService: notificationRegistrationService,
+  );
 });
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -45,6 +54,32 @@ final alertRepositoryProvider = Provider<AlertRepository>((ref) {
 final serverRepositoryProvider = Provider<ServerRepository>((ref) {
   final api = ref.watch(apiServiceProvider);
   return ServerRepository(api: api);
+});
+
+final notificationRegistrationServiceProvider = Provider((ref) {
+  final api = ref.watch(apiServiceProvider);
+  final storage = ref.watch(storageServiceProvider);
+  final notificationService = ref.watch(notificationServiceProvider);
+  return NotificationRegistrationService(
+    api: api,
+    storage: storage,
+  );
+});
+
+final cameraMonitorServiceProvider = Provider<CameraMonitorService>((ref) {
+  final cameraRepository = ref.watch(cameraRepositoryProvider);
+  final notificationService = ref.watch(notificationServiceProvider);
+  final storageService = ref.watch(storageServiceProvider);
+  return CameraMonitorService(
+    cameraRepository: cameraRepository,
+    notificationService: notificationService,
+    storageService: storageService,
+  );
+});
+
+final notificationSoundSettingsProvider = Provider<NotificationSoundSettings>((ref) {
+  final storageService = ref.watch(storageServiceProvider);
+  return NotificationSoundSettings(storage: storageService);
 });
 
 final currentUserProvider = FutureProvider<UserModel?>((ref) async {

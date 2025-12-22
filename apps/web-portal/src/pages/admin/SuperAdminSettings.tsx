@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Settings, Shield, Users, Server, Save, AlertTriangle } from 'lucide-react';
+import { Settings, Shield, Users, Server, Save, AlertTriangle, Bell } from 'lucide-react';
 import { superAdminApi, SystemSettings } from '../../lib/api/superAdmin';
 
 export function SuperAdminSettings() {
-  const [activeTab, setActiveTab] = useState<'general' | 'security' | 'registration' | 'maintenance'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'security' | 'registration' | 'maintenance' | 'firebase'>('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
@@ -49,6 +49,7 @@ export function SuperAdminSettings() {
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'registration', label: 'Registration', icon: Users },
     { id: 'maintenance', label: 'Maintenance', icon: Server },
+    { id: 'firebase', label: 'Firebase', icon: Bell },
   ];
 
   if (loading) {
@@ -342,6 +343,111 @@ export function SuperAdminSettings() {
                   <p className="text-xs text-white/50 mt-1">
                     This message will be shown to users when maintenance mode is active
                   </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'firebase' && (
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
+              <h2 className="text-lg font-semibold mb-6">Firebase Cloud Messaging (FCM)</h2>
+              <div className="space-y-6">
+                <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <Bell className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-blue-500">Firebase Configuration</p>
+                    <p className="text-sm text-white/70 mt-1">
+                      Configure Firebase Cloud Messaging for push notifications to mobile apps.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">
+                      FCM Server Key
+                    </label>
+                    <input
+                      type="password"
+                      value={settings.fcm_settings?.server_key || ''}
+                      onChange={(e) => updateSettings({ 
+                        fcm_settings: { 
+                          ...settings.fcm_settings, 
+                          server_key: e.target.value 
+                        } 
+                      })}
+                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                      placeholder="AAAA..."
+                    />
+                    <p className="text-xs text-white/50 mt-1">
+                      Get this from Firebase Console → Project Settings → Cloud Messaging → Server Key
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">
+                      Firebase Project ID
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.fcm_settings?.project_id || ''}
+                      onChange={(e) => updateSettings({ 
+                        fcm_settings: { 
+                          ...settings.fcm_settings, 
+                          project_id: e.target.value 
+                        } 
+                      })}
+                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="your-project-id"
+                      dir="ltr"
+                    />
+                    <p className="text-xs text-white/50 mt-1">
+                      Optional: For FCM HTTP v1 API (more secure)
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">
+                      Test Device Token (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      id="test-token"
+                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                      placeholder="Enter device token to test..."
+                      dir="ltr"
+                    />
+                    <p className="text-xs text-white/50 mt-1">
+                      Enter a device token to send a test notification
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={async () => {
+                      const testToken = (document.getElementById('test-token') as HTMLInputElement)?.value;
+                      try {
+                        const response = await fetch('/api/v1/super-admin/test-fcm' + (testToken ? `?test_token=${testToken}` : ''), {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+                            'Content-Type': 'application/json',
+                          },
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                          alert('Test notification sent successfully!');
+                        } else {
+                          alert(`Failed: ${data.message}`);
+                        }
+                      } catch (error) {
+                        alert('Error sending test notification');
+                      }
+                    }}
+                    className="btn-secondary flex items-center gap-2"
+                  >
+                    <Bell className="w-4 h-4" />
+                    <span>Send Test Notification</span>
+                  </button>
                 </div>
               </div>
             </div>

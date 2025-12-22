@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../features/splash/splash_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/alerts/alerts_screen.dart';
+import '../features/cameras/cameras_screen.dart';
+import '../features/settings/notification_sound_settings_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
@@ -26,16 +29,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/cameras',
       name: 'cameras',
-      builder: (context, state) => const Scaffold(
-        body: Center(child: Text('قائمة الكاميرات - قيد التطوير')),
-      ),
+      builder: (context, state) => const CamerasScreen(),
     ),
     GoRoute(
       path: '/alerts',
       name: 'alerts',
-      builder: (context, state) => const Scaffold(
-        body: Center(child: Text('التنبيهات - قيد التطوير')),
-      ),
+      builder: (context, state) => const AlertsScreen(),
     ),
     GoRoute(
       path: '/analytics',
@@ -50,6 +49,11 @@ final appRouter = GoRouter(
       builder: (context, state) => const Scaffold(
         body: Center(child: Text('الإعدادات - قيد التطوير')),
       ),
+    ),
+    GoRoute(
+      path: '/settings/notification-sounds',
+      name: 'notification-sounds',
+      builder: (context, state) => const NotificationSoundSettingsScreen(),
     ),
   ],
   errorBuilder: (context, state) => Scaffold(

@@ -1,16 +1,26 @@
 import '../../data/models/user_model.dart';
 import 'api_service.dart';
 import 'storage_service.dart';
+import 'notification_service.dart';
+import 'notification_registration_service.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 
 class AuthService {
   final StorageService _storage;
   final ApiService _api;
+  final NotificationService? _notificationService;
+  final NotificationRegistrationService? _notificationRegistrationService;
 
   AuthService({
     required StorageService storage,
     required ApiService api,
+    NotificationService? notificationService,
+    NotificationRegistrationService? notificationRegistrationService,
   })  : _storage = storage,
-        _api = api;
+        _api = api,
+        _notificationService = notificationService,
+        _notificationRegistrationService = notificationRegistrationService;
 
   Future<Map<String, dynamic>> login({
     required String email,
@@ -37,6 +47,9 @@ class AuthService {
 
       final user = UserModel.fromJson(userData);
       await _storage.saveUser(user.toJsonString());
+
+      // Register FCM token after successful login
+      _registerFcmTokenIfAvailable();
 
       return {
         'token': token,
@@ -65,8 +78,51 @@ class AuthService {
     } catch (e) {
       // Continue with local logout even if API fails
     } finally {
+      // Unregister FCM token on logout
+      await _unregisterFcmToken();
+      
       await _storage.clearToken();
       await _storage.clearUser();
+    }
+  }
+
+  Future<void> _registerFcmTokenIfAvailable() async {
+    if (_notificationService == null || _notificationRegistrationService == null) {
+      return;
+    }
+
+    try {
+      final fcmToken = await _notificationService!.getToken();
+      if (fcmToken != null) {
+        await _notificationRegistrationService!.registerDeviceToken(
+          deviceToken: fcmToken,
+          appVersion: '1.0.0',
+        );
+        if (kDebugMode) {
+          print('FCM token registered after login');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to register FCM token after login: $e');
+      }
+    }
+  }
+
+  Future<void> _unregisterFcmToken() async {
+    if (_notificationRegistrationService == null) {
+      return;
+    }
+
+    try {
+      final storedToken = await _notificationRegistrationService!.getStoredToken();
+      if (storedToken != null) {
+        await _notificationRegistrationService!.unregisterDeviceToken(storedToken);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to unregister FCM token on logout: $e');
+      }
     }
   }
 

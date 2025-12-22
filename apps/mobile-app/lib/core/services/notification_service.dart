@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
+import 'notification_sound_settings.dart';
+import 'storage_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -120,17 +122,39 @@ class NotificationService {
     if (notification == null) return;
 
     final alertLevel = data['level'] as String? ?? 'medium';
-    final notificationSound = _getNotificationSound(alertLevel);
+    final alertType = data['type'] as String? ?? 'general';
+    
+    // Get sound from settings (if available)
+    String notificationSound = _getNotificationSound(alertLevel);
+    try {
+      // Try to get custom sound from storage
+      final storage = StorageService();
+      final soundSettings = NotificationSoundSettings(storage: storage);
+      final soundsEnabled = await soundSettings.areSoundsEnabled();
+      if (soundsEnabled) {
+        notificationSound = await soundSettings.getSoundForAlert(
+          type: alertType,
+          level: alertLevel,
+        );
+      } else {
+        notificationSound = 'none'; // Silent
+      }
+    } catch (e) {
+      // Fallback to default
+      notificationSound = _getNotificationSound(alertLevel);
+    }
+    
     final priority = _getNotificationPriority(alertLevel);
 
+    final playSound = notificationSound != 'none';
     final androidDetails = AndroidNotificationDetails(
       'high_importance_channel',
       'تنبيهات مهمة',
       channelDescription: 'قناة للتنبيهات المهمة',
       importance: Importance.max,
       priority: priority,
-      playSound: true,
-      sound: RawResourceAndroidNotificationSound(notificationSound),
+      playSound: playSound,
+      sound: playSound ? RawResourceAndroidNotificationSound(notificationSound) : null,
       enableVibration: alertLevel == 'critical',
       vibrationPattern: alertLevel == 'critical'
           ? Int64List.fromList([0, 1000, 500, 1000])
@@ -206,12 +230,36 @@ class NotificationService {
       if (kDebugMode) {
         print('FCM Token: $token');
       }
+      
+      // Register token with Cloud API
+      if (token != null) {
+        await _registerTokenWithCloud(token);
+      }
+      
       return token;
     } catch (e) {
       if (kDebugMode) {
         print('Error getting FCM token: $e');
       }
       return null;
+    }
+  }
+
+  Future<void> _registerTokenWithCloud(String token) async {
+    try {
+      // Import ApiService dynamically to avoid circular dependency
+      // This will be called after user login
+      if (kDebugMode) {
+        print('FCM token should be registered with Cloud API: $token');
+        print('Note: Implement token registration endpoint in Cloud API');
+      }
+      // TODO: Call Cloud API to register FCM token
+      // POST /api/v1/notifications/register-device
+      // Body: { device_token: token, platform: 'android' | 'ios' }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error registering FCM token with Cloud: $e');
+      }
     }
   }
 
@@ -247,18 +295,37 @@ class NotificationService {
     required String body,
     String? payload,
     String level = 'medium',
+    String? type,
   }) async {
-    final notificationSound = _getNotificationSound(level);
+    // Get sound from settings
+    String notificationSound = _getNotificationSound(level);
+    try {
+      final storage = StorageService();
+      final soundSettings = NotificationSoundSettings(storage: storage);
+      final soundsEnabled = await soundSettings.areSoundsEnabled();
+      if (soundsEnabled) {
+        notificationSound = await soundSettings.getSoundForAlert(
+          type: type ?? 'general',
+          level: level,
+        );
+      } else {
+        notificationSound = 'none';
+      }
+    } catch (e) {
+      notificationSound = _getNotificationSound(level);
+    }
+    
     final priority = _getNotificationPriority(level);
 
+    final playSound = notificationSound != 'none';
     final androidDetails = AndroidNotificationDetails(
       'high_importance_channel',
       'تنبيهات مهمة',
       channelDescription: 'قناة للتنبيهات المهمة',
       importance: Importance.max,
       priority: priority,
-      playSound: true,
-      sound: RawResourceAndroidNotificationSound(notificationSound),
+      playSound: playSound,
+      sound: playSound ? RawResourceAndroidNotificationSound(notificationSound) : null,
       enableVibration: level == 'critical',
       vibrationPattern: level == 'critical'
           ? Int64List.fromList([0, 1000, 500, 1000])

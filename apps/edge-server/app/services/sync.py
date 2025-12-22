@@ -87,11 +87,12 @@ class SyncService:
 
     async def stop(self):
         self._running = False
+        logger.info("Sync service stopped")
 
     async def _heartbeat(self):
         from main import state
 
-        if not state.server_id:
+        if not state.edge_id and not state.server_id:
             return
 
         now = datetime.utcnow()
@@ -101,7 +102,16 @@ class SyncService:
             if elapsed < settings.HEARTBEAT_INTERVAL:
                 return
 
-        success = await self.db.heartbeat(state.server_id, version=settings.APP_VERSION)
+        edge_id = state.edge_id or state.server_id or state.hardware_id
+        system_info = self.db._get_system_info() if self.db else None
+
+        success = await self.db.heartbeat(
+            edge_id=edge_id,
+            version=settings.APP_VERSION,
+            system_info=system_info,
+            organization_id=state.license_data.get('organization_id') if state.license_data else None,
+            license_id=state.license_data.get('license_id') if state.license_data else None,
+        )
 
         if success:
             self._last_heartbeat = now
@@ -174,11 +184,12 @@ class SyncService:
     async def _poll_commands(self):
         from main import state
 
-        if not state.server_id:
+        edge_id = state.edge_id or state.server_id
+        if not edge_id:
             return
 
         try:
-            commands = await self.db.fetch_pending_commands(state.server_id)
+            commands = await self.db.fetch_pending_commands(edge_id)
         except Exception as exc:
             logger.error(f"Failed to fetch commands: {exc}")
             return
@@ -201,7 +212,8 @@ class SyncService:
             }
 
             if handled and cmd_id:
-                await self.db.acknowledge_command(state.server_id, cmd_id, status="acknowledged", result=result)
+                edge_id = state.edge_id or state.server_id
+                await self.db.acknowledge_command(edge_id, cmd_id, status="acknowledged", result=result)
 
     def queue_alert(self, alert_data: Dict):
         self.offline_queue.add('alert', alert_data)

@@ -1,7 +1,8 @@
 class Env {
+  // Cloud API URL - Update with your production URL
   static const String apiUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://localhost:8000/api/v1',
+    defaultValue: 'https://api.stcsolutions.online/api/v1',
   );
 
   static const String appName = 'STC AI-VAP';
@@ -9,4 +10,11 @@ class Env {
 
   static const bool enableOfflineMode = true;
   static const bool enableDebugMode = false;
+
+  // Firebase Configuration (if using Firebase)
+  static const bool useFirebase = true;
+  
+  // Real-time updates
+  static const bool enableRealtimeUpdates = true;
+  static const int pollingIntervalSeconds = 30;
 }

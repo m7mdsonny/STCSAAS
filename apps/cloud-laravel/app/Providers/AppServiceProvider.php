@@ -13,6 +13,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        // Register observers
+        \App\Models\Camera::observe(\App\Observers\CameraObserver::class);
     }
 }

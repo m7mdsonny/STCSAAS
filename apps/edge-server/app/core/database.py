@@ -1,3 +1,7 @@
+"""
+Cloud Database Communication Module
+Handles all communication with the Cloud Laravel API
+"""
 import httpx
 import asyncio
 from typing import Optional, Tuple, Dict, Any, List
@@ -8,6 +12,8 @@ from config.settings import settings
 
 
 class CloudDatabase:
+    """Manages communication with the Cloud Laravel API"""
+    
     def __init__(self):
         self.client: Optional[httpx.AsyncClient] = None
         self.connected = False
@@ -16,6 +22,7 @@ class CloudDatabase:
         self._retry_delay = 2
 
     async def connect(self) -> bool:
+        """Establish connection to Cloud API"""
         if not settings.CLOUD_API_URL:
             logger.warning("CLOUD_API_URL not configured")
             return False
@@ -35,8 +42,15 @@ class CloudDatabase:
                 timeout=30.0
             )
 
-            response = await self.client.get("/api/v1/edge/health")
+            # Test connection
+            response = await self.client.get("/api/v1/public/landing")
             self.connected = response.status_code in (200, 404, 401)
+            
+            if self.connected:
+                logger.info(f"Connected to Cloud API: {settings.CLOUD_API_URL}")
+            else:
+                logger.warning(f"Cloud API connection test returned: {response.status_code}")
+            
             return self.connected
 
         except Exception as e:
@@ -44,12 +58,20 @@ class CloudDatabase:
             return False
 
     async def disconnect(self):
+        """Close connection to Cloud API"""
         if self.client:
             await self.client.aclose()
             self.client = None
         self.connected = False
 
-    async def _request(self, method: str, endpoint: str, retry: bool = True, **kwargs) -> Tuple[bool, Any]:
+    async def _request(
+        self, 
+        method: str, 
+        endpoint: str, 
+        retry: bool = True, 
+        **kwargs
+    ) -> Tuple[bool, Any]:
+        """Make HTTP request with retry logic"""
         if not self.client:
             return False, "Not connected"
 
@@ -73,7 +95,7 @@ class CloudDatabase:
                     error_data = response.json() if response.text else {}
                     return False, error_data.get('message', 'Validation error')
                 else:
-                    last_error = f"Error {response.status_code}: {response.text}"
+                    last_error = f"Error {response.status_code}: {response.text[:200]}"
 
             except httpx.ConnectError as e:
                 last_error = f"Connection error: {e}"
@@ -88,22 +110,81 @@ class CloudDatabase:
         logger.error(f"Request failed after {attempts} attempts: {last_error}")
         return False, last_error
 
-    async def validate_license(self, license_key: str, hardware_id: Optional[str] = None) -> Tuple[bool, Dict]:
+    async def validate_license(
+        self, 
+        license_key: str, 
+        hardware_id: Optional[str] = None
+    ) -> Tuple[bool, Dict]:
+        """
+        Validate license key with Cloud API
+        
+        Expected Cloud API endpoint: POST /api/v1/licensing/validate
+        Expected request: { license_key: str, edge_id: str }
+        Expected response: { valid: bool, organization_id: int, expires_at: str, grace_days: int }
+        """
+        from main import state
+        
+        edge_id = state.hardware_id if not hasattr(state, 'edge_id') or not state.edge_id else state.edge_id
+        
         payload = {
             "license_key": license_key,
-            "hardware_id": hardware_id
+            "edge_id": edge_id or hardware_id or "unknown"
         }
 
         success, data = await self._request(
             "POST",
-            "/api/v1/edge/validate-license",
+            "/api/v1/licensing/validate",
             json=payload
         )
 
-        if success and data:
-            return True, data
+        if success and data and data.get('valid'):
+            # Map Cloud response to Edge Server format
+            return True, {
+                'license_id': data.get('license_id'),
+                'organization_id': data.get('organization_id'),
+                'expires_at': data.get('expires_at'),
+                'grace_days': data.get('grace_days', 14),
+                'plan': data.get('plan', 'trial'),
+                'max_cameras': data.get('max_cameras', 4),
+                'modules': data.get('modules', []),
+            }
 
         return False, {}
+
+    async def heartbeat(
+        self, 
+        edge_id: str, 
+        version: Optional[str] = None, 
+        system_info: Optional[Dict] = None,
+        organization_id: Optional[int] = None,
+        license_id: Optional[int] = None
+    ) -> bool:
+        """
+        Send heartbeat to Cloud API
+        
+        Expected Cloud API endpoint: POST /api/v1/edges/heartbeat
+        Expected request: { edge_id, version, online, organization_id, license_id }
+        """
+        from main import state
+        
+        payload = {
+            "edge_id": edge_id,
+            "version": version or settings.APP_VERSION,
+            "online": True,
+            "organization_id": organization_id or (state.license_data.get('organization_id') if state.license_data else None),
+            "license_id": license_id or (state.license_data.get('license_id') if state.license_data else None),
+        }
+
+        if system_info:
+            payload['system_info'] = system_info
+
+        success, _ = await self._request(
+            "POST",
+            "/api/v1/edges/heartbeat",
+            json=payload,
+            retry=False
+        )
+        return success
 
     async def register_server(
         self,
@@ -113,98 +194,98 @@ class CloudDatabase:
         version: str,
         hardware_id: Optional[str] = None
     ) -> Tuple[bool, Optional[str]]:
-        server_data = {
-            "license_id": license_id,
-            "organization_id": organization_id,
-            "name": name,
-            "version": version,
-            "hardware_id": hardware_id,
-            "ip_address": self._get_local_ip(),
-        }
-
-        success, result = await self._request(
-            "POST",
-            "/api/v1/edge/register",
-            json=server_data,
-        )
-
-        if success and result:
-            return True, result.get("id") or result.get("edge_server_id")
-
-        return False, None
-
-    async def heartbeat(self, server_id: str, version: Optional[str] = None, system_info: Optional[Dict] = None) -> bool:
-        payload = {
-            "status": "online",
-            "version": version,
-            "system_info": system_info or self._get_system_info(),
-        }
-
-        success, _ = await self._request(
-            "POST",
-            f"/api/v1/edge/{server_id}/heartbeat",
-            json=payload,
-            retry=False
-        )
-        return success
+        """
+        Register Edge Server with Cloud (via heartbeat, not separate endpoint)
+        Cloud uses heartbeat to auto-register Edge Servers
+        """
+        # Registration happens via heartbeat, so we just return success
+        # The Cloud will create/update the Edge Server record on heartbeat
+        return True, hardware_id
 
     async def get_config(self, server_id: str) -> Dict:
-        success, data = await self._request(
-            "GET",
-            f"/api/v1/edge/{server_id}/config"
-        )
-        return data if success and data else {}
-
-    async def sync_all(self, server_id: str) -> Dict:
-        success, data = await self._request(
-            "GET",
-            f"/api/v1/edge/{server_id}/sync"
-        )
-
-        if success and data:
-            return {
-                "cameras": data.get("cameras", []),
-                "faces": data.get("registered_faces", []),
-                "vehicles": data.get("registered_vehicles", []),
-                "rules": data.get("automation_rules", []),
-                "integrations": data.get("integrations", []),
-            }
-
+        """Get configuration from Cloud (not currently used)"""
         return {}
 
+    async def sync_all(self, server_id: str) -> Dict:
+        """
+        Sync all configuration from Cloud
+        
+        Expected Cloud API endpoints:
+        - GET /api/v1/cameras?organization_id=X
+        - GET /api/v1/edge/faces?organization_id=X (if exists)
+        - GET /api/v1/edge/vehicles?organization_id=X (if exists)
+        """
+        from main import state
+        
+        if not state.license_data:
+            return {}
+
+        org_id = state.license_data.get('organization_id')
+        if not org_id:
+            return {}
+
+        result = {
+            "cameras": [],
+            "faces": [],
+            "vehicles": [],
+            "rules": [],
+            "integrations": [],
+        }
+
+        # Get cameras
+        cameras = await self.get_cameras(org_id)
+        result["cameras"] = cameras
+
+        # Get registered faces (if endpoint exists)
+        faces = await self.get_registered_faces(org_id)
+        result["faces"] = faces
+
+        # Get registered vehicles (if endpoint exists)
+        vehicles = await self.get_registered_vehicles(org_id)
+        result["vehicles"] = vehicles
+
+        # Get automation rules
+        rules = await self.get_automation_rules(org_id)
+        result["rules"] = rules
+
+        return result
+
     async def get_cameras(self, organization_id: str) -> List[Dict]:
+        """Get cameras for organization"""
         success, data = await self._request(
             "GET",
-            "/api/v1/edge/cameras",
+            "/api/v1/cameras",
             params={"organization_id": organization_id}
         )
-        return data.get("data", []) if success and isinstance(data, dict) else (data if success else [])
+        
+        if success and isinstance(data, dict):
+            # Handle paginated response
+            if 'data' in data:
+                return data['data']
+            return data if isinstance(data, list) else []
+        return []
 
     async def get_registered_faces(self, organization_id: str) -> List[Dict]:
-        success, data = await self._request(
-            "GET",
-            "/api/v1/edge/faces",
-            params={"organization_id": organization_id}
-        )
-        return data.get("data", []) if success and isinstance(data, dict) else (data if success else [])
+        """Get registered faces (placeholder - implement when Cloud API is ready)"""
+        # TODO: Implement when Cloud API endpoint is available
+        return []
 
     async def get_registered_vehicles(self, organization_id: str) -> List[Dict]:
-        success, data = await self._request(
-            "GET",
-            "/api/v1/edge/vehicles",
-            params={"organization_id": organization_id}
-        )
-        return data.get("data", []) if success and isinstance(data, dict) else (data if success else [])
+        """Get registered vehicles (placeholder - implement when Cloud API is ready)"""
+        # TODO: Implement when Cloud API endpoint is available
+        return []
 
     async def get_automation_rules(self, organization_id: str) -> List[Dict]:
-        success, data = await self._request(
-            "GET",
-            "/api/v1/edge/automation-rules",
-            params={"organization_id": organization_id}
-        )
-        return data.get("data", []) if success and isinstance(data, dict) else (data if success else [])
+        """Get automation rules (placeholder - implement when Cloud API is ready)"""
+        # TODO: Implement when Cloud API endpoint is available
+        return []
 
     async def create_alert(self, alert_data: Dict) -> Tuple[bool, Optional[str]]:
+        """
+        Create alert in Cloud
+        
+        Expected Cloud API endpoint: POST /api/v1/edges/events
+        """
         payload = {
             **alert_data,
             "occurred_at": alert_data.get('occurred_at') or datetime.utcnow().isoformat(),
@@ -212,7 +293,7 @@ class CloudDatabase:
 
         success, result = await self._request(
             "POST",
-            "/api/v1/edge/alerts",
+            "/api/v1/edges/events",
             json=payload
         )
 
@@ -222,41 +303,35 @@ class CloudDatabase:
         return False, None
 
     async def create_event(self, event_data: Dict) -> bool:
-        payload = {
-            **event_data,
-            "occurred_at": event_data.get('occurred_at') or datetime.utcnow().isoformat(),
-        }
-
-        success, _ = await self._request(
-            "POST",
-            "/api/v1/edge/events",
-            json=payload
-        )
-        return success
+        """Create event in Cloud (same as alert)"""
+        return (await self.create_alert(event_data))[0]
 
     async def batch_events(self, events: List[Dict]) -> bool:
+        """Batch create events"""
         if not events:
             return True
 
-        payload = {
-            "events": events,
-            "submitted_at": datetime.utcnow().isoformat(),
-        }
+        # Send events one by one (Cloud may support batch endpoint later)
+        success_count = 0
+        for event in events:
+            success = await self.create_event(event)
+            if success:
+                success_count += 1
 
-        success, _ = await self._request(
-            "POST",
-            "/api/v1/edge/events/batch",
-            json=payload
-        )
-        return success
+        return success_count > 0
 
     async def fetch_pending_commands(self, edge_id: str) -> List[Dict]:
-        success, data = await self._request(
-            "GET",
-            f"/api/v1/edge/{edge_id}/commands",
-            params={"status": "pending"}
-        )
-        return data.get("data", []) if success and isinstance(data, dict) else (data if success else [])
+        """
+        Fetch pending AI commands from Cloud
+        
+        Expected Cloud API endpoint: GET /api/v1/ai-commands?edge_server_id=X&status=pending
+        """
+        from main import state
+        
+        # Get edge server ID from Cloud
+        # For now, we'll use a different approach - Cloud will push commands
+        # But we can poll if needed
+        return []
 
     async def acknowledge_command(
         self,
@@ -265,6 +340,11 @@ class CloudDatabase:
         status: str = "acknowledged",
         result: Optional[Dict] = None
     ) -> bool:
+        """
+        Acknowledge AI command execution
+        
+        Expected Cloud API endpoint: POST /api/v1/ai-commands/{id}/ack
+        """
         payload = {
             "status": status,
             "result": result or {},
@@ -273,59 +353,44 @@ class CloudDatabase:
 
         success, _ = await self._request(
             "POST",
-            f"/api/v1/edge/{edge_id}/commands/{command_id}/ack",
+            f"/api/v1/ai-commands/{command_id}/ack",
             json=payload,
         )
         return success
 
     async def log_attendance(self, attendance_data: Dict) -> bool:
-        payload = {
+        """Log attendance (via events endpoint)"""
+        return await self.create_event({
             **attendance_data,
-            "occurred_at": attendance_data.get('occurred_at') or datetime.utcnow().isoformat()
-        }
-
-        success, _ = await self._request(
-            "POST",
-            "/api/v1/edge/attendance",
-            json=payload
-        )
-        return success
+            "type": "attendance"
+        })
 
     async def log_vehicle_access(self, access_data: Dict) -> bool:
-        payload = {
+        """Log vehicle access (via events endpoint)"""
+        return await self.create_event({
             **access_data,
-            "occurred_at": access_data.get('occurred_at') or datetime.utcnow().isoformat()
-        }
-
-        success, _ = await self._request(
-            "POST",
-            "/api/v1/edge/vehicle-access",
-            json=payload
-        )
-        return success
+            "type": "vehicle_access"
+        })
 
     async def submit_analytics(self, analytics_data: Dict) -> bool:
-        payload = {
+        """Submit analytics (via events endpoint)"""
+        return await self.create_event({
             **analytics_data,
-            "submitted_at": datetime.utcnow().isoformat()
-        }
-
-        success, _ = await self._request(
-            "POST",
-            "/api/v1/edge/analytics",
-            json=payload
-        )
-        return success
+            "type": "analytics"
+        })
 
     async def check_module_entitlement(self, license_id: str, module: str) -> bool:
-        success, data = await self._request(
-            "GET",
-            f"/api/v1/edge/entitlement/{module}",
-            params={"license_id": license_id}
-        )
-        return success and data.get("entitled", False) if data else False
+        """Check if module is enabled for license"""
+        from main import state
+        
+        if state.license_data:
+            modules = state.license_data.get('modules', [])
+            return module in modules
+        
+        return False
 
     def _get_local_ip(self) -> Optional[str]:
+        """Get local IP address"""
         import socket
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -337,6 +402,7 @@ class CloudDatabase:
             return None
 
     def _get_system_info(self) -> Dict:
+        """Get system information"""
         import platform
         try:
             import psutil
@@ -345,7 +411,7 @@ class CloudDatabase:
                 "platform_version": platform.version(),
                 "processor": platform.processor(),
                 "cpu_count": psutil.cpu_count(),
-                "cpu_percent": psutil.cpu_percent(),
+                "cpu_percent": psutil.cpu_percent(interval=0.1),
                 "memory_total_gb": round(psutil.virtual_memory().total / (1024**3), 2),
                 "memory_used_percent": psutil.virtual_memory().percent,
                 "disk_total_gb": round(psutil.disk_usage('/').total / (1024**3), 2),

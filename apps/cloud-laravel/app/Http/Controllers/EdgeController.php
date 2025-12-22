@@ -207,6 +207,7 @@ class EdgeController extends Controller
             'online' => 'required|boolean',
             'organization_id' => 'required|integer|exists:organizations,id',
             'license_id' => 'sometimes|integer|exists:licenses,id',
+            'cameras_status' => 'nullable|array', // Array of {camera_id: string, status: 'online'|'offline'}
         ]);
 
         $existingEdge = EdgeServer::where('edge_id', $request->edge_id)->first();
@@ -229,6 +230,25 @@ class EdgeController extends Controller
                 'last_seen_at' => now(),
             ]
         );
+
+        // Update camera statuses if provided
+        if ($request->has('cameras_status') && is_array($request->cameras_status)) {
+            foreach ($request->cameras_status as $cameraStatus) {
+                if (isset($cameraStatus['camera_id']) && isset($cameraStatus['status'])) {
+                    $camera = \App\Models\Camera::where('camera_id', $cameraStatus['camera_id'])
+                        ->where('edge_server_id', $edge->id)
+                        ->first();
+                    
+                    if ($camera) {
+                        $oldStatus = $camera->status;
+                        $camera->status = $cameraStatus['status'];
+                        $camera->save();
+                        
+                        // CameraObserver will handle offline notification if status changed to offline
+                    }
+                }
+            }
+        }
 
         return response()->json(['ok' => true, 'edge' => $edge]);
     }

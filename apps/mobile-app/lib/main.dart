@@ -5,7 +5,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/camera_monitor_service.dart';
 import 'data/providers/app_providers.dart';
+import 'data/providers/data_providers.dart';
 import 'routes/app_router.dart';
 
 void main() async {
@@ -42,6 +44,48 @@ void main() async {
   );
 }
 
+class CameraMonitorInitializer extends ConsumerStatefulWidget {
+  final Widget child;
+  const CameraMonitorInitializer({super.key, required this.child});
+
+  @override
+  ConsumerState<CameraMonitorInitializer> createState() => _CameraMonitorInitializerState();
+}
+
+class _CameraMonitorInitializerState extends ConsumerState<CameraMonitorInitializer> {
+  @override
+  void initState() {
+    super.initState();
+    // Start camera monitoring after a delay to ensure user is logged in
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        final currentUserAsync = ref.read(currentUserProvider);
+        currentUserAsync.whenData((user) {
+          if (user != null && mounted) {
+            final monitorService = ref.read(cameraMonitorServiceProvider);
+            monitorService.startMonitoring(organizationId: user.organizationId);
+          }
+        });
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    if (mounted) {
+      final monitorService = ref.read(cameraMonitorServiceProvider);
+      monitorService.stopMonitoring();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
+  }
+}
+
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
@@ -49,20 +93,22 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
 
-    return MaterialApp.router(
-      title: 'STC AI-VAP',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
-      routerConfig: appRouter,
-      locale: const Locale('ar', 'SA'),
-      builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
+    return CameraMonitorInitializer(
+      child: MaterialApp.router(
+        title: 'STC AI-VAP',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: themeMode,
+        routerConfig: appRouter,
+        locale: const Locale('ar', 'SA'),
+        builder: (context, child) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
+      ),
     );
   }
 }

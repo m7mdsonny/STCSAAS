@@ -32,6 +32,7 @@ class CameraService:
         self._frame_interval = 1.0 / settings.PROCESSING_FPS
 
     def register_processor(self, processor: Callable):
+        """Register async processor function: async def processor(camera_id, frame, enabled_modules)"""
         self.processors.append(processor)
 
     async def add_camera(self, camera_id: str, name: str, rtsp_url: str, modules: List[str] = None) -> bool:
@@ -76,7 +77,7 @@ class CameraService:
         self._running = True
         logger.info("Camera service started")
 
-        for camera_id in self.cameras:
+        for camera_id in list(self.cameras.keys()):
             asyncio.create_task(self._process_camera(camera_id))
 
     async def stop(self):
@@ -161,7 +162,18 @@ class CameraService:
                 if frame is not None:
                     for processor in self.processors:
                         try:
-                            await processor(camera_id, frame, stream.enabled_modules)
+                            # Processor should be async: async def processor(camera_id, frame, enabled_modules)
+                            if asyncio.iscoroutinefunction(processor):
+                                await processor(camera_id, frame, stream.enabled_modules)
+                            else:
+                                # Sync processor
+                                await asyncio.get_event_loop().run_in_executor(
+                                    self._executor,
+                                    processor,
+                                    camera_id,
+                                    frame,
+                                    stream.enabled_modules
+                                )
                         except Exception as e:
                             logger.error(f"Processor error: {e}")
 

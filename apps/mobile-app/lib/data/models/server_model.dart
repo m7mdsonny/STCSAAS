@@ -30,20 +30,29 @@ class ServerModel {
   });
 
   factory ServerModel.fromJson(Map<String, dynamic> json) {
+    // Cloud API returns edge_servers with ip_address and online status
+    final systemInfo = json['system_info'] as Map<String, dynamic>?;
+    
     return ServerModel(
-      id: json['id'] ?? '',
+      id: json['id'] ?? json['edge_id'] ?? '',
       name: json['name'] ?? '',
-      host: json['host'] ?? '',
-      port: json['port'] ?? 8000,
-      isOnline: json['is_online'] ?? json['isOnline'] ?? false,
+      host: json['ip_address'] ?? json['host'] ?? '',
+      port: json['port'] ?? 8080,
+      isOnline: json['online'] ?? json['is_online'] ?? json['isOnline'] ?? false,
       version: json['version'],
       camerasCount: json['cameras_count'] ?? json['camerasCount'],
-      cpuUsage: json['cpu_usage']?.toDouble() ?? json['cpuUsage']?.toDouble(),
-      memoryUsage: json['memory_usage']?.toDouble() ?? json['memoryUsage']?.toDouble(),
-      diskUsage: json['disk_usage']?.toDouble() ?? json['diskUsage']?.toDouble(),
-      lastSeen: json['last_seen'] != null
-          ? DateTime.parse(json['last_seen'])
-          : null,
+      cpuUsage: systemInfo?['cpu_percent']?.toDouble() ?? 
+                json['cpu_usage']?.toDouble() ?? 
+                json['cpuUsage']?.toDouble(),
+      memoryUsage: systemInfo?['memory_used_percent']?.toDouble() ?? 
+                   json['memory_usage']?.toDouble() ?? 
+                   json['memoryUsage']?.toDouble(),
+      diskUsage: systemInfo?['disk_used_percent']?.toDouble() ?? 
+                 json['disk_usage']?.toDouble() ?? 
+                 json['diskUsage']?.toDouble(),
+      lastSeen: json['last_seen_at'] != null
+          ? DateTime.parse(json['last_seen_at'])
+          : (json['last_seen'] != null ? DateTime.parse(json['last_seen']) : null),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : null,
