@@ -1,0 +1,159 @@
+# ============================================
+# OpenLiteSpeed Virtual Host Configuration
+# STC AI-VAP Platform - API (Laravel Backend)
+# ============================================
+# 
+# ملف الإعدادات لموقع: api.stcsolutions.online
+# 
+# هذا الملف للـ API فقط (Laravel Backend)
+# استخدمه إذا كنت تريد API على دومين منفصل
+#
+# ============================================
+
+# Document Root للـ API (Laravel Backend)
+docRoot                   /home/stcsolutions.online/public_html/backend/public
+vhDomain                  api.stcsolutions.online
+vhAliases                 
+adminEmails               m7mdsonny@gmail.com
+enableGzip                1
+enableIpGeo               1
+
+# Index Files
+index  {
+  useServer               0
+  indexFiles              index.php
+}
+
+# Error Log
+errorlog $VH_ROOT/logs/api.stcsolutions.online.error_log {
+  useServer               0
+  logLevel                WARN
+  rollingSize             10M
+}
+
+# Access Log
+accesslog $VH_ROOT/logs/api.stcsolutions.online.access_log {
+  useServer               0
+  logFormat               "%h %l %u %t "%r" %>s %b "%{Referer}i" "%{User-Agent}i""
+  logHeaders              5
+  rollingSize             10M
+  keepDays                10  
+  compressArchive         1
+}
+
+# PHP Handler
+scripthandler  {
+  add                     lsapi:stcso3998 php
+}
+
+extprocessor stcso3998 {
+  type                    lsapi
+  address                 UDS://tmp/lshttpd/stcso3998.sock
+  maxConns                10
+  env                     LSAPI_CHILDREN=10
+  initTimeout             600
+  retryTimeout            0
+  persistConn             1
+  pcKeepAliveTimeout      1
+  respBuffer              0
+  autoStart               1
+  path                    /usr/local/lsws/lsphp82/bin/lsphp
+  extUser                 stcso3998
+  extGroup                stcso3998
+  memSoftLimit            1024M
+  memHardLimit            1024M
+  procSoftLimit           400
+  procHardLimit           500
+}
+
+# PHP Configuration Override
+phpIniOverride  {
+  php_admin_value open_basedir "/home/stcsolutions.online/public_html/backend:/tmp"
+  php_admin_value upload_max_filesize "50M"
+  php_admin_value post_max_size "50M"
+  php_admin_value max_execution_time "300"
+  php_admin_value max_input_time "300"
+  php_admin_value memory_limit "512M"
+}
+
+# Cache Module
+module cache {
+  storagePath /usr/local/lsws/cachedata/api.stcsolutions.online
+}
+
+# Rewrite Rules (Laravel)
+rewrite  {
+  enable                  1
+  autoLoadHtaccess        1
+  
+  # Laravel Rewrite - جميع الطلبات ترجع إلى index.php
+  rewriteRule             ^(.*)$ /index.php [L,QSA]
+}
+
+# Main Context
+context / {
+  type                    documentroot
+  location                /home/stcsolutions.online/public_html/backend/public
+  allowBrowse             0
+  indexFiles              index.php
+  
+  rewrite  {
+    enable                  1
+    rewriteFile             /home/stcsolutions.online/public_html/backend/public/.htaccess
+    rewriteBase             /
+    rewriteRule             ^(.*)$ /index.php [L,QSA]
+  }
+  
+  phpIniOverride  {
+    php_admin_value open_basedir "/home/stcsolutions.online/public_html/backend:/tmp"
+    php_admin_value upload_max_filesize "50M"
+    php_admin_value post_max_size "50M"
+    php_admin_value max_execution_time "300"
+    php_admin_value max_input_time "300"
+    php_admin_value memory_limit "512M"
+  }
+}
+
+# Storage Context
+context /storage {
+  type                    documentroot
+  location                /home/stcsolutions.online/public_html/backend/storage/app/public
+  allowBrowse             1
+  
+  rewrite  {
+    enable                  0
+  }
+  
+  phpIniOverride  {
+    php_admin_value open_basedir "/home/stcsolutions.online/public_html/backend/storage:/tmp"
+  }
+}
+
+# ACME Challenge Context
+context /.well-known/acme-challenge {
+  location                /usr/local/lsws/Example/html/.well-known/acme-challenge
+  allowBrowse             1
+
+  rewrite  {
+    enable                  0
+  }
+  addDefaultCharset       off
+
+  phpIniOverride  {
+  }
+}
+
+# SSL Configuration
+vhssl  {
+  keyFile                 /etc/letsencrypt/live/api.stcsolutions.online/privkey.pem
+  certFile                /etc/letsencrypt/live/api.stcsolutions.online/fullchain.pem
+  certChain               1
+  sslProtocol             24
+  enableECDHE             1
+  renegProtection         1
+  sslSessionCache         1
+  enableSpdy              15
+  enableStapling           1
+  ocspRespMaxAge           86400
+}
+

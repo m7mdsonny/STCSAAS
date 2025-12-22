@@ -1,0 +1,149 @@
+# ============================================
+# OpenLiteSpeed Virtual Host Configuration
+# STC AI-VAP Platform - Frontend (React)
+# ============================================
+# 
+# ملف الإعدادات لموقع: stcsolutions.online (Frontend)
+# 
+# ملاحظة: هذا ملف منفصل للـ Frontend
+# إذا كنت تريد Frontend و Backend على نفس الدومين، استخدم الملف الآخر
+#
+# ============================================
+
+# Document Root للـ Frontend (React Build)
+docRoot                   /home/stcsolutions.online/public_html/frontend/dist
+vhDomain                  stcsolutions.online
+vhAliases                 www.stcsolutions.online
+adminEmails               m7mdsonny@gmail.com
+enableGzip                1
+enableIpGeo               1
+
+# Index Files
+index  {
+  useServer               0
+  indexFiles              index.html, index.php
+}
+
+# Error Log
+errorlog $VH_ROOT/logs/stcsolutions.online.error_log {
+  useServer               0
+  logLevel                WARN
+  rollingSize             10M
+}
+
+# Access Log
+accesslog $VH_ROOT/logs/stcsolutions.online.access_log {
+  useServer               0
+  logFormat               "%h %l %u %t "%r" %>s %b "%{Referer}i" "%{User-Agent}i""
+  logHeaders              5
+  rollingSize             10M
+  keepDays                10  
+  compressArchive         1
+}
+
+# PHP Handler (لن تحتاجه للـ Frontend فقط، لكن احتفظ به)
+scripthandler  {
+  add                     lsapi:stcso3998 php
+}
+
+extprocessor stcso3998 {
+  type                    lsapi
+  address                 UDS://tmp/lshttpd/stcso3998.sock
+  maxConns                10
+  env                     LSAPI_CHILDREN=10
+  initTimeout             600
+  retryTimeout            0
+  persistConn             1
+  pcKeepAliveTimeout      1
+  respBuffer              0
+  autoStart               1
+  path                    /usr/local/lsws/lsphp82/bin/lsphp
+  extUser                 stcso3998
+  extGroup                stcso3998
+  memSoftLimit            1024M
+  memHardLimit            1024M
+  procSoftLimit           400
+  procHardLimit           500
+}
+
+# PHP Configuration Override
+phpIniOverride  {
+}
+
+# Cache Module
+module cache {
+  storagePath /usr/local/lsws/cachedata/stcsolutions.online
+}
+
+# Rewrite Rules (SPA Routing)
+rewrite  {
+  enable                  1
+  autoLoadHtaccess        1
+  
+  # SPA Fallback - جميع الطلبات ترجع إلى index.html
+  rewriteRule             ^(?!.*\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|json)).*$ /index.html [L]
+}
+
+# Main Context
+context / {
+  type                    documentroot
+  location                /home/stcsolutions.online/public_html/frontend/dist
+  allowBrowse             1
+  indexFiles              index.html
+  
+  rewrite  {
+    enable                  1
+    # SPA Routing - جميع الطلبات ترجع إلى index.html
+    rewriteRule             ^(?!.*\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|json)).*$ /index.html [L]
+  }
+  
+  phpIniOverride  {
+  }
+}
+
+# Static Assets Context (Caching)
+context /assets {
+  type                    documentroot
+  location                /home/stcsolutions.online/public_html/frontend/dist/assets
+  allowBrowse             1
+  
+  rewrite  {
+    enable                  0
+  }
+  
+  addDefaultCharset       off
+  
+  # Cache Headers
+  header  {
+    add                    Cache-Control "public, max-age=31536000, immutable"
+  }
+}
+
+# ACME Challenge Context
+context /.well-known/acme-challenge {
+  location                /usr/local/lsws/Example/html/.well-known/acme-challenge
+  allowBrowse             1
+
+  rewrite  {
+    enable                  0
+  }
+  addDefaultCharset       off
+
+  phpIniOverride  {
+  }
+}
+
+# SSL Configuration
+vhssl  {
+  keyFile                 /etc/letsencrypt/live/stcsolutions.online/privkey.pem
+  certFile                /etc/letsencrypt/live/stcsolutions.online/fullchain.pem
+  certChain               1
+  sslProtocol             24
+  enableECDHE             1
+  renegProtection         1
+  sslSessionCache         1
+  enableSpdy              15
+  enableStapling           1
+  ocspRespMaxAge           86400
+}
+
