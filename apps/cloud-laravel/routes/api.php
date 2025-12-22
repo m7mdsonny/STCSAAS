@@ -22,6 +22,7 @@ use App\Http\Controllers\UpdateAnnouncementController;
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\AiCommandController;
 use App\Http\Controllers\CameraController;
+use App\Http\Controllers\IntegrationController;
 
 Route::prefix('v1')->group(function () {
     Route::get('/public/landing', [PublicContentController::class, 'landing']);
@@ -188,5 +189,14 @@ Route::prefix('v1')->group(function () {
         Route::post('/ai-commands/{aiCommand}/ack', [AiCommandController::class, 'ack']);
         Route::post('/ai-commands/{aiCommand}/retry', [AiCommandController::class, 'retry']);
         Route::get('/ai-commands/{aiCommand}/logs', [AiCommandController::class, 'logs']);
+
+        Route::get('/integrations', [IntegrationController::class, 'index']);
+        Route::post('/integrations', [IntegrationController::class, 'store']);
+        Route::get('/integrations/{integration}', [IntegrationController::class, 'show']);
+        Route::put('/integrations/{integration}', [IntegrationController::class, 'update']);
+        Route::delete('/integrations/{integration}', [IntegrationController::class, 'destroy']);
+        Route::post('/integrations/{integration}/toggle-active', [IntegrationController::class, 'toggleActive']);
+        Route::post('/integrations/{integration}/test', [IntegrationController::class, 'testConnection']);
+        Route::get('/integrations/types', [IntegrationController::class, 'getAvailableTypes']);
     });
 });

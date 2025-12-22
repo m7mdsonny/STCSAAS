@@ -52,6 +52,11 @@ export function Organizations() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!formData.name.trim()) {
+      alert('يرجى إدخال اسم المؤسسة');
+      return;
+    }
+
     try {
       // Ensure subscription_plan is set
       const submitData = {
@@ -65,12 +70,13 @@ export function Organizations() {
       } else {
         await organizationsApi.createOrganization(submitData);
       }
-      fetchOrganizations();
+      await fetchOrganizations();
       setShowModal(false);
       resetForm();
     } catch (error) {
       console.error('Error saving organization:', error);
-      alert(error instanceof Error ? error.message : 'حدث خطأ في حفظ المؤسسة');
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ في حفظ المؤسسة';
+      alert(errorMessage);
     }
   };
 

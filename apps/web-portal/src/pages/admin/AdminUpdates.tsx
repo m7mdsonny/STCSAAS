@@ -33,28 +33,42 @@ export function AdminUpdates() {
   };
 
   const createUpdate = async () => {
-    if (!form.title) return;
+    if (!form.title || !form.title.trim()) {
+      alert('يرجى إدخال عنوان التحديث');
+      return;
+    }
     setSaving(true);
     try {
       await updatesApi.create(form);
       setForm({ title: '', body: '', organization_id: null, is_published: false });
-      fetchAll();
+      await fetchAll();
     } catch (error) {
       console.error('Error creating update', error);
+      alert(error instanceof Error ? error.message : 'حدث خطأ في إنشاء التحديث');
     } finally {
       setSaving(false);
     }
   };
 
   const togglePublish = async (id: number) => {
-    await updatesApi.toggle(id);
-    fetchAll();
+    try {
+      await updatesApi.toggle(id);
+      await fetchAll();
+    } catch (error) {
+      console.error('Error toggling publish', error);
+      alert(error instanceof Error ? error.message : 'حدث خطأ في تغيير حالة النشر');
+    }
   };
 
   const removeUpdate = async (id: number) => {
     if (!confirm('حذف التحديث؟')) return;
-    await updatesApi.remove(id);
-    fetchAll();
+    try {
+      await updatesApi.remove(id);
+      await fetchAll();
+    } catch (error) {
+      console.error('Error removing update', error);
+      alert(error instanceof Error ? error.message : 'حدث خطأ في حذف التحديث');
+    }
   };
 
   return (

@@ -35,10 +35,10 @@ export function AdminIntegrations() {
     connection_config: {
       host: '',
       port: '',
-      username: '',
-      password: '',
       topic: '',
       endpoint: '',
+      api_key: '',
+      device_id: '',
     },
   });
 
@@ -71,21 +71,26 @@ export function AdminIntegrations() {
 
   const addIntegration = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.organization_id || !form.edge_server_id) return;
+    if (!form.organization_id || !form.edge_server_id || !form.name.trim()) {
+      alert('يرجى ملء جميع الحقول المطلوبة');
+      return;
+    }
 
     try {
       await integrationsApi.createIntegration({
         name: form.name,
         type: form.type,
+        organization_id: form.organization_id,
         edge_server_id: form.edge_server_id,
         connection_config: form.connection_config,
       });
 
       setShowModal(false);
       resetForm();
-      fetchData();
+      await fetchData();
     } catch (error) {
       console.error('Error creating integration:', error);
+      alert(error instanceof Error ? error.message : 'حدث خطأ في إنشاء التكامل');
     }
   };
 
@@ -95,7 +100,7 @@ export function AdminIntegrations() {
       edge_server_id: '',
       name: '',
       type: 'http_rest',
-      connection_config: { host: '', port: '', username: '', password: '', topic: '', endpoint: '' },
+      connection_config: { host: '', port: '', topic: '', endpoint: '', api_key: '', device_id: '' },
     });
   };
 
@@ -121,17 +126,17 @@ export function AdminIntegrations() {
   const getIntegrationConfig = () => {
     switch (form.type) {
       case 'mqtt':
-        return ['host', 'port', 'username', 'password', 'topic'];
+        return ['host', 'port', 'topic', 'api_key'];
       case 'http_rest':
-        return ['endpoint', 'username', 'password'];
+        return ['endpoint', 'api_key'];
       case 'modbus_tcp':
-        return ['host', 'port'];
+        return ['host', 'port', 'device_id'];
       case 'tcp_socket':
         return ['host', 'port'];
       case 'arduino':
-        return ['port'];
+        return ['port', 'device_id'];
       case 'raspberry_gpio':
-        return [];
+        return ['device_id'];
       default:
         return [];
     }
@@ -305,15 +310,15 @@ export function AdminIntegrations() {
           {getIntegrationConfig().map(field => (
             <div key={field}>
               <label className="label">
-                {field === 'host' ? 'عنوان المضيف' :
-                 field === 'port' ? 'المنفذ' :
-                 field === 'username' ? 'اسم المستخدم' :
-                 field === 'password' ? 'كلمة المرور' :
+                {field === 'host' ? 'عنوان المضيف (Host)' :
+                 field === 'port' ? 'المنفذ (Port)' :
+                 field === 'api_key' ? 'مفتاح API' :
+                 field === 'device_id' ? 'معرف الجهاز' :
                  field === 'topic' ? 'الموضوع (Topic)' :
                  field === 'endpoint' ? 'نقطة النهاية (Endpoint)' : field}
               </label>
               <input
-                type={field === 'password' ? 'password' : 'text'}
+                type={field === 'api_key' ? 'password' : 'text'}
                 value={form.connection_config[field as keyof typeof form.connection_config] || ''}
                 onChange={(e) => setForm({
                   ...form,
@@ -321,6 +326,12 @@ export function AdminIntegrations() {
                 })}
                 className="input"
                 dir="ltr"
+                placeholder={field === 'host' ? '192.168.1.100' :
+                             field === 'port' ? '8080' :
+                             field === 'api_key' ? 'أدخل مفتاح API' :
+                             field === 'device_id' ? 'device-001' :
+                             field === 'topic' ? '/sensors/temperature' :
+                             field === 'endpoint' ? 'https://api.example.com/webhook' : ''}
               />
             </div>
           ))}

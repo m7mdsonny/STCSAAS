@@ -12,6 +12,7 @@ interface IntegrationFilters {
 
 interface CreateIntegrationData {
   name: string;
+  organization_id: string;
   edge_server_id: string;
   type: IntegrationType;
   connection_config: Record<string, unknown>;

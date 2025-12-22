@@ -41,9 +41,11 @@ export function Plans() {
     try {
       await settingsApi.updatePlan(editingPlan, editForm);
       setEditingPlan(null);
-      fetchPlans();
+      setEditForm({});
+      await fetchPlans();
     } catch (error) {
       console.error('Error saving plan:', error);
+      alert(error instanceof Error ? error.message : 'حدث خطأ في حفظ الباقة');
     }
   };
 
