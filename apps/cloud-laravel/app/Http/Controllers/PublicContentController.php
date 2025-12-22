@@ -4,18 +4,60 @@ namespace App\Http\Controllers;
 
 use App\Models\PlatformContent;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Schema;
 
 class PublicContentController extends Controller
 {
     public function landing(): JsonResponse
     {
-        $content = PlatformContent::where('key', 'landing_settings')->where('published', true)->first();
-        $data = $content ? json_decode($content->value ?? '[]', true) : [];
-
-        return response()->json([
-            'content' => array_merge($this->landingDefaults(), $data ?? []),
-            'published' => (bool) ($content->published ?? false),
-        ]);
+        try {
+            // Try to get published content first
+            $content = PlatformContent::where('key', 'landing_settings')
+                ->when(
+                    Schema::hasColumn('platform_contents', 'published'),
+                    fn($query) => $query->where('published', true),
+                    fn($query) => $query
+                )
+                ->first();
+            
+            // If no published content, try to get any content
+            if (!$content) {
+                $content = PlatformContent::where('key', 'landing_settings')->first();
+            }
+            
+            $data = $content && $content->value 
+                ? json_decode($content->value, true) 
+                : [];
+            
+            // Ensure data is an array
+            if (!is_array($data)) {
+                $data = [];
+            }
+            
+            $published = false;
+            if ($content) {
+                // Check if published column exists and get its value
+                if (Schema::hasColumn('platform_contents', 'published')) {
+                    $published = (bool) ($content->published ?? false);
+                } else {
+                    // If published column doesn't exist, consider it published if content exists
+                    $published = true;
+                }
+            }
+            
+            return response()->json([
+                'content' => array_merge($this->landingDefaults(), $data),
+                'published' => $published,
+            ]);
+        } catch (\Exception $e) {
+            // If database query fails, return defaults
+            \Log::error('PublicContentController::landing error: ' . $e->getMessage());
+            
+            return response()->json([
+                'content' => $this->landingDefaults(),
+                'published' => false,
+            ]);
+        }
     }
 
     private function landingDefaults(): array
