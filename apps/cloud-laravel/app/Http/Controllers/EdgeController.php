@@ -2,17 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\RoleHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\EdgeServer;
 use App\Models\EdgeServerLog;
+use App\Models\License;
 use Illuminate\Support\Str;
 
 class EdgeController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
         $query = EdgeServer::query();
+
+        // Organization users can only see their org's edge servers
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            if ($user->organization_id) {
+                $query->where('organization_id', $user->organization_id);
+            } else {
+                return response()->json(['data' => [], 'total' => 0]);
+            }
+        }
+
+        // Super admin can filter by organization
+        if ($request->filled('organization_id') && RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            $query->where('organization_id', $request->get('organization_id'));
+        }
 
         if ($request->filled('status')) {
             $query->where('online', $request->get('status') === 'online');
@@ -20,7 +37,7 @@ class EdgeController extends Controller
 
         $perPage = (int) $request->get('per_page', 15);
 
-        return response()->json($query->orderByDesc('last_seen_at')->paginate($perPage));
+        return response()->json($query->with(['organization', 'license'])->orderByDesc('last_seen_at')->paginate($perPage));
     }
 
     public function show(EdgeServer $edgeServer): JsonResponse
@@ -30,6 +47,7 @@ class EdgeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'organization_id' => 'required|exists:organizations,id',
@@ -39,17 +57,59 @@ class EdgeController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        $organizationId = $data['organization_id'];
+
+        // Organization users can only create edge servers for their organization
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            if (!$user->organization_id) {
+                return response()->json(['message' => 'User must belong to an organization'], 403);
+            }
+            if ((int) $organizationId !== (int) $user->organization_id) {
+                return response()->json(['message' => 'You can only create edge servers for your organization'], 403);
+            }
+            // Only owners and admins can create edge servers
+            if (!RoleHelper::canManageOrganization($user->role)) {
+                return response()->json(['message' => 'Insufficient permissions to create edge servers'], 403);
+            }
+        }
+
+        // If license_id provided, verify it belongs to the organization
+        if (!empty($data['license_id'])) {
+            $license = \App\Models\License::findOrFail($data['license_id']);
+            if ($license->organization_id !== (int) $organizationId) {
+                return response()->json(['message' => 'License does not belong to the specified organization'], 403);
+            }
+
+            // Check if license is already bound to another edge server
+            $existingEdge = EdgeServer::where('license_id', $data['license_id'])
+                ->where('id', '!=', $request->get('edge_id')) // Exclude current if updating
+                ->first();
+            if ($existingEdge) {
+                return response()->json(['message' => 'License is already bound to another edge server'], 409);
+            }
+        }
+
         $edgeServer = EdgeServer::create([
             ...$data,
             'edge_id' => $data['edge_id'] ?? Str::uuid()->toString(),
             'online' => false,
         ]);
 
-        return response()->json($edgeServer, 201);
+        return response()->json($edgeServer->load(['organization', 'license']), 201);
     }
 
     public function update(Request $request, EdgeServer $edgeServer): JsonResponse
     {
+        $user = $request->user();
+
+        // Check ownership and permissions
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            $this->ensureOrganizationAccess($request, $edgeServer->organization_id);
+            if (!RoleHelper::canManageOrganization($user->role)) {
+                return response()->json(['message' => 'Insufficient permissions to update edge servers'], 403);
+            }
+        }
+
         $data = $request->validate([
             'name' => 'sometimes|string|max:255',
             'license_id' => 'nullable|exists:licenses,id',
@@ -60,13 +120,41 @@ class EdgeController extends Controller
             'version' => 'nullable|string',
         ]);
 
+        // If license_id is being updated, verify ownership and uniqueness
+        if (isset($data['license_id']) && $data['license_id'] !== $edgeServer->license_id) {
+            $license = \App\Models\License::findOrFail($data['license_id']);
+            
+            // Verify license belongs to the edge server's organization
+            if ($license->organization_id !== $edgeServer->organization_id) {
+                return response()->json(['message' => 'License does not belong to this edge server\'s organization'], 403);
+            }
+
+            // Check if license is already bound to another edge server
+            $existingEdge = EdgeServer::where('license_id', $data['license_id'])
+                ->where('id', '!=', $edgeServer->id)
+                ->first();
+            if ($existingEdge) {
+                return response()->json(['message' => 'License is already bound to another edge server'], 409);
+            }
+        }
+
         $edgeServer->update($data);
 
-        return response()->json($edgeServer);
+        return response()->json($edgeServer->load(['organization', 'license']));
     }
 
     public function destroy(EdgeServer $edgeServer): JsonResponse
     {
+        $user = request()->user();
+
+        // Check ownership and permissions
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            $this->ensureOrganizationAccess(request(), $edgeServer->organization_id);
+            if (!RoleHelper::canManageOrganization($user->role)) {
+                return response()->json(['message' => 'Insufficient permissions to delete edge servers'], 403);
+            }
+        }
+
         $edgeServer->delete();
         return response()->json(['message' => 'Edge server deleted']);
     }

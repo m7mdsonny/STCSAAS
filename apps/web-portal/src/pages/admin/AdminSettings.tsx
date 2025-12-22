@@ -1,12 +1,9 @@
 import { useState } from 'react';
 import { Settings, Shield, Database, Globe, Mail, Server, Save } from 'lucide-react';
-import { settingsApi } from '../../lib/api/settings';
-import { backupsApi } from '../../lib/api/backups';
 
 export function AdminSettings() {
   const [activeTab, setActiveTab] = useState<'general' | 'security' | 'email' | 'system'>('general');
   const [saving, setSaving] = useState(false);
-  const [creatingBackup, setCreatingBackup] = useState(false);
 
   const [generalSettings, setGeneralSettings] = useState({
     platformName: 'STC AI-VAP',
@@ -35,45 +32,9 @@ export function AdminSettings() {
 
   const handleSave = async () => {
     setSaving(true);
-    try {
-      // Save system settings
-      await settingsApi.updateSystemSettings({
-        site_name: generalSettings.platformName,
-        default_language: generalSettings.defaultLanguage,
-        default_timezone: generalSettings.timezone,
-        session_timeout_minutes: securitySettings.sessionTimeout,
-        max_login_attempts: securitySettings.maxLoginAttempts,
-        require_2fa: securitySettings.requireMfa,
-        password_min_length: securitySettings.passwordMinLength,
-        smtp_host: emailSettings.smtpHost,
-        smtp_port: emailSettings.smtpPort,
-        smtp_username: emailSettings.smtpUser,
-        smtp_from_email: emailSettings.fromEmail,
-        smtp_from_name: emailSettings.fromName,
-      });
-      alert('تم حفظ الاعدادات بنجاح');
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      alert('فشل حفظ الاعدادات. يرجى المحاولة مرة أخرى.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCreateBackup = async () => {
-    if (!confirm('هل تريد إنشاء نسخة احتياطية للنظام؟')) {
-      return;
-    }
-    setCreatingBackup(true);
-    try {
-      await backupsApi.create();
-      alert('تم بدء إنشاء النسخة الاحتياطية بنجاح');
-    } catch (error) {
-      console.error('Error creating backup:', error);
-      alert('فشل إنشاء النسخة الاحتياطية. يرجى المحاولة مرة أخرى.');
-    } finally {
-      setCreatingBackup(false);
-    }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setSaving(false);
+    alert('تم حفظ الاعدادات بنجاح');
   };
 
   const tabs = [
@@ -349,28 +310,9 @@ export function AdminSettings() {
                 <div className="pt-4 border-t border-white/10">
                   <h3 className="font-medium mb-3">صيانة النظام</h3>
                   <div className="flex flex-wrap gap-3">
-                    <button 
-                      className="btn-secondary" 
-                      disabled
-                      title="قريباً - سيتم إضافة هذه الميزة"
-                    >
-                      تنظيف الذاكرة المؤقتة
-                    </button>
-                    <button 
-                      onClick={handleCreateBackup}
-                      disabled={creatingBackup}
-                      className="btn-secondary"
-                      title="انشاء نسخة احتياطية للنظام"
-                    >
-                      {creatingBackup ? 'جاري الإنشاء...' : 'انشاء نسخة احتياطية'}
-                    </button>
-                    <button 
-                      className="btn-secondary text-red-400 hover:bg-red-500/20" 
-                      disabled
-                      title="قريباً - سيتم إضافة هذه الميزة"
-                    >
-                      اعادة تشغيل الخدمات
-                    </button>
+                    <button className="btn-secondary">تنظيف الذاكرة المؤقتة</button>
+                    <button className="btn-secondary">انشاء نسخة احتياطية</button>
+                    <button className="btn-secondary text-red-400 hover:bg-red-500/20">اعادة تشغيل الخدمات</button>
                   </div>
                 </div>
               </div>

@@ -4,12 +4,14 @@ import { usersApi, organizationsApi } from '../../lib/api';
 import { Modal } from '../../components/ui/Modal';
 import type { User, Organization, UserRole } from '../../types/database';
 
+import { getRoleLabel, getRoleBadgeClass, normalizeRole } from '../../lib/rbac';
+
 const ROLES: { value: UserRole; label: string }[] = [
   { value: 'super_admin', label: 'مدير النظام' },
-  { value: 'org_owner', label: 'مالك المؤسسة' },
-  { value: 'org_admin', label: 'مدير المؤسسة' },
-  { value: 'org_operator', label: 'مشغل' },
-  { value: 'org_viewer', label: 'مشاهد' },
+  { value: 'owner', label: 'مالك المؤسسة' },
+  { value: 'admin', label: 'مدير المؤسسة' },
+  { value: 'editor', label: 'محرر' },
+  { value: 'viewer', label: 'مشاهد' },
 ];
 
 export function Users() {
@@ -148,25 +150,19 @@ export function Users() {
   });
 
   const getRoleBadge = (role: UserRole) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-500/20 text-red-400';
-      case 'org_owner': return 'bg-stc-gold/20 text-stc-gold';
-      case 'org_admin': return 'bg-blue-500/20 text-blue-400';
-      case 'org_operator': return 'bg-emerald-500/20 text-emerald-400';
-      case 'org_viewer': return 'bg-gray-500/20 text-gray-400';
-      default: return '';
-    }
+    return getRoleBadgeClass(role);
   };
 
-  const getRoleLabel = (role: UserRole) => {
-    return ROLES.find(r => r.value === role)?.label || role;
+  const getRoleLabelDisplay = (role: UserRole) => {
+    const normalized = normalizeRole(role);
+    return getRoleLabel(normalized);
   };
 
   const stats = {
     total: users.length,
     active: users.filter(u => u.is_active).length,
     admins: users.filter(u => u.role === 'super_admin').length,
-    orgOwners: users.filter(u => u.role === 'org_owner').length,
+    orgOwners: users.filter(u => normalizeRole(u.role) === 'owner').length,
   };
 
   return (
@@ -307,7 +303,7 @@ export function Users() {
                   <td className="p-4 text-white/70" dir="ltr">{user.email}</td>
                   <td className="p-4">
                     <span className={`badge ${getRoleBadge(user.role)}`}>
-                      {getRoleLabel(user.role)}
+                      {getRoleLabelDisplay(user.role)}
                     </span>
                   </td>
                   <td className="p-4">

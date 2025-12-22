@@ -31,6 +31,7 @@ import {
   UploadCloud
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { canManageOrganization, canEdit, normalizeRole } from '../../lib/rbac';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -40,6 +41,10 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { profile, organization, signOut, isSuperAdmin } = useAuth();
   const location = useLocation();
+  
+  const userRole = normalizeRole(profile?.role);
+  const canManage = canManageOrganization(profile?.role);
+  const canEditResources = canEdit(profile?.role);
 
   const superAdminLinks = [
     { to: '/admin', icon: LayoutDashboard, label: 'لوحة التحكم' },
@@ -65,20 +70,32 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   ];
 
   const orgLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'لوحة التحكم' },
-    { to: '/live', icon: MonitorPlay, label: 'البث المباشر' },
-    { to: '/cameras', icon: Camera, label: 'الكاميرات' },
-    { to: '/alerts', icon: AlertTriangle, label: 'التنبيهات' },
-    { to: '/analytics', icon: BarChart3, label: 'التحليلات' },
-    { to: '/people', icon: Users, label: 'الاشخاص' },
-    { to: '/vehicles', icon: Car, label: 'المركبات' },
-    { to: '/attendance', icon: UserCheck, label: 'الحضور' },
-    { to: '/automation', icon: Zap, label: 'اوامر الذكاء الاصطناعي' },
-    { to: '/team', icon: UserCog, label: 'فريق العمل' },
-    { to: '/settings', icon: Settings, label: 'الاعدادات' },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'لوحة التحكم', roles: ['owner', 'admin', 'editor', 'viewer'] },
+    { to: '/live', icon: MonitorPlay, label: 'البث المباشر', roles: ['owner', 'admin', 'editor', 'viewer'] },
+    { to: '/cameras', icon: Camera, label: 'الكاميرات', roles: ['owner', 'admin', 'editor', 'viewer'] },
+    { to: '/alerts', icon: AlertTriangle, label: 'التنبيهات', roles: ['owner', 'admin', 'editor', 'viewer'] },
+    { to: '/analytics', icon: BarChart3, label: 'التحليلات', roles: ['owner', 'admin', 'editor', 'viewer'] },
+    { to: '/people', icon: Users, label: 'الاشخاص', roles: ['owner', 'admin', 'editor', 'viewer'] },
+    { to: '/vehicles', icon: Car, label: 'المركبات', roles: ['owner', 'admin', 'editor', 'viewer'] },
+    { to: '/attendance', icon: UserCheck, label: 'الحضور', roles: ['owner', 'admin', 'editor', 'viewer'] },
+    { to: '/automation', icon: Zap, label: 'اوامر الذكاء الاصطناعي', roles: ['owner', 'admin', 'editor', 'viewer'] },
+    { to: '/team', icon: UserCog, label: 'فريق العمل', roles: ['owner', 'admin'] }, // Only owners and admins
+    { to: '/settings', icon: Settings, label: 'الاعدادات', roles: ['owner', 'admin', 'editor', 'viewer'] },
   ];
 
-  const links = isSuperAdmin ? superAdminLinks : orgLinks;
+  // Filter links based on role
+  const getFilteredLinks = () => {
+    if (isSuperAdmin) {
+      return superAdminLinks;
+    }
+    
+    return orgLinks.filter(link => {
+      if (!link.roles) return true;
+      return link.roles.includes(userRole);
+    });
+  };
+
+  const links = getFilteredLinks();
 
   return (
     <>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\RoleHelper;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,14 +12,28 @@ class UserController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
         $query = User::query();
 
-        if ($request->filled('organization_id')) {
+        // Super admin can see all users
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            // Organization users can only see users in their organization
+            if ($user->organization_id) {
+                $query->where('organization_id', $user->organization_id);
+            } else {
+                // User without organization can't see any users
+                return response()->json(['data' => [], 'total' => 0]);
+            }
+        }
+
+        // Super admin can filter by organization
+        if ($request->filled('organization_id') && RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
             $query->where('organization_id', $request->get('organization_id'));
         }
 
         if ($request->filled('role')) {
-            $query->where('role', $request->get('role'));
+            $normalizedRole = RoleHelper::normalize($request->get('role'));
+            $query->where('role', $normalizedRole);
         }
 
         if ($request->filled('is_active')) {
@@ -28,50 +43,118 @@ class UserController extends Controller
         $perPage = (int) $request->get('per_page', 15);
         $users = $query->orderByDesc('created_at')->paginate($perPage);
 
+        // Normalize roles in response
+        $users->getCollection()->transform(function ($u) {
+            $u->role = RoleHelper::normalize($u->role);
+            return $u;
+        });
+
         return response()->json($users);
     }
 
     public function show(User $user): JsonResponse
     {
+        $currentUser = request()->user();
+        
+        // Check access
+        if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
+            $this->ensureOrganizationAccess(request(), $user->organization_id);
+        }
+
+        $user->role = RoleHelper::normalize($user->role);
         return response()->json($user);
     }
 
     public function store(Request $request): JsonResponse
     {
+        $currentUser = $request->user();
+        
+        // Only super admin or organization managers can create users
+        if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
+            $this->ensureCanManage($request);
+        }
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
             'phone' => 'nullable|string|max:50',
-            'role' => 'required|string',
+            'role' => 'required|string|in:' . implode(',', RoleHelper::VALID_ROLES),
             'organization_id' => 'nullable|exists:organizations,id',
         ]);
+
+        // Normalize role
+        $data['role'] = RoleHelper::normalize($data['role']);
+
+        // Non-super-admin users can only create users for their organization
+        if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
+            $data['organization_id'] = $currentUser->organization_id;
+            
+            // Non-super-admin cannot create super_admin users
+            if ($data['role'] === RoleHelper::SUPER_ADMIN) {
+                return response()->json(['message' => 'Cannot create super admin users'], 403);
+            }
+        }
 
         $user = User::create([
             ...$data,
             'password' => Hash::make($data['password']),
         ]);
 
+        $user->role = RoleHelper::normalize($user->role);
         return response()->json($user, 201);
     }
 
     public function update(Request $request, User $user): JsonResponse
     {
+        $currentUser = $request->user();
+        
+        // Check access
+        if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
+            $this->ensureOrganizationAccess($request, $user->organization_id);
+            $this->ensureCanManage($request);
+        }
+
         $data = $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
             'phone' => 'nullable|string|max:50',
-            'role' => 'sometimes|string',
+            'role' => 'sometimes|string|in:' . implode(',', RoleHelper::VALID_ROLES),
             'is_active' => 'nullable|boolean',
         ]);
 
+        // Normalize role if provided
+        if (isset($data['role'])) {
+            $data['role'] = RoleHelper::normalize($data['role']);
+            
+            // Non-super-admin cannot assign super_admin role
+            if ($data['role'] === RoleHelper::SUPER_ADMIN && 
+                !RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
+                return response()->json(['message' => 'Cannot assign super admin role'], 403);
+            }
+        }
+
         $user->update($data);
+        $user->role = RoleHelper::normalize($user->role);
 
         return response()->json($user);
     }
 
     public function destroy(User $user): JsonResponse
     {
+        $currentUser = request()->user();
+        
+        // Check access
+        if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
+            $this->ensureOrganizationAccess(request(), $user->organization_id);
+            $this->ensureCanManage(request());
+        }
+
+        // Prevent self-deletion
+        if ($user->id === $currentUser->id) {
+            return response()->json(['message' => 'Cannot delete your own account'], 403);
+        }
+
         $user->delete();
         return response()->json(['message' => 'User deleted']);
     }
@@ -91,76 +174,4 @@ class UserController extends Controller
 
         return response()->json(['message' => 'Password reset', 'new_password' => $newPassword]);
     }
-
-    public function getSuperAdmins(Request $request): JsonResponse
-    {
-        $this->ensureSuperAdmin($request);
-
-        $superAdmins = User::where(function ($query) {
-            $query->where('role', 'super_admin')
-                ->orWhere('is_super_admin', true);
-        })->get();
-
-        // Format response to match frontend expectations
-        $formatted = $superAdmins->map(function ($user) {
-            return [
-                'id' => (string) $user->id,
-                'user_id' => $user->id,
-                'permissions' => [],
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                ],
-            ];
-        });
-
-        return response()->json($formatted);
-    }
-
-    public function addSuperAdmin(Request $request): JsonResponse
-    {
-        $this->ensureSuperAdmin($request);
-
-        $data = $request->validate([
-            'user_id' => 'required|integer|exists:users,id',
-        ]);
-
-        $user = User::findOrFail($data['user_id']);
-        $user->update([
-            'role' => 'super_admin',
-            'is_super_admin' => true,
-        ]);
-
-        return response()->json([
-            'id' => (string) $user->id,
-            'user_id' => $user->id,
-            'permissions' => [],
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-        ], 201);
-    }
-
-    public function removeSuperAdmin(Request $request, User $user): JsonResponse
-    {
-        $this->ensureSuperAdmin($request);
-
-        // Prevent removing yourself
-        if ($user->id === $request->user()->id) {
-            return response()->json(['message' => 'Cannot remove your own super admin privileges'], 403);
-        }
-
-        $user->update([
-            'role' => 'user',
-            'is_super_admin' => false,
-        ]);
-
-        return response()->json(['message' => 'Super admin privileges removed']);
-    }
-
-    // Removed override - using parent's protected ensureSuperAdmin() method
-    // The parent Controller class already provides this method with proper visibility
 }

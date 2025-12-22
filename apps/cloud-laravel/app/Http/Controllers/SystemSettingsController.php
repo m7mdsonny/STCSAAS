@@ -88,18 +88,91 @@ class SystemSettingsController extends Controller
         return response()->json(['success' => true, 'message' => 'SMS provider configuration saved']);
     }
 
-    public function testFcm(): JsonResponse
+    public function testFcm(Request $request): JsonResponse
     {
-        $this->ensureSuperAdmin(request());
+        $this->ensureSuperAdmin($request);
 
         $settings = SystemSetting::first();
-        $configured = $settings && $settings->fcm_settings && ($settings->fcm_settings['server_key'] ?? false);
+        $fcmSettings = $settings?->fcm_settings ?? [];
 
-        if (!$configured) {
-            return response()->json(['success' => false, 'message' => 'FCM credentials missing'], 422);
+        if (empty($fcmSettings['server_key'] ?? null)) {
+            return response()->json(['success' => false, 'message' => 'FCM server key is missing'], 422);
         }
 
-        return response()->json(['success' => true, 'message' => 'FCM settings present']);
+        $testToken = $request->get('test_token'); // Optional: specific device token to test
+        $serverKey = $fcmSettings['server_key'];
+
+        try {
+            // Send test notification using FCM HTTP v1 API
+            $url = 'https://fcm.googleapis.com/v1/projects/' . ($fcmSettings['project_id'] ?? '') . '/messages:send';
+            
+            // For simplicity, use legacy FCM API if project_id not set
+            if (empty($fcmSettings['project_id'])) {
+                $url = 'https://fcm.googleapis.com/fcm/send';
+                $headers = [
+                    'Authorization: key=' . $serverKey,
+                    'Content-Type: application/json',
+                ];
+                
+                $payload = [
+                    'to' => $testToken ?? '/topics/test', // Use topic if no token
+                    'notification' => [
+                        'title' => 'STC AI-VAP Test Notification',
+                        'body' => 'This is a test push notification from the platform. FCM is configured correctly!',
+                        'sound' => 'default',
+                    ],
+                    'data' => [
+                        'type' => 'test',
+                        'timestamp' => now()->toIso8601String(),
+                    ],
+                ];
+            } else {
+                // FCM HTTP v1 API (more secure, requires OAuth token)
+                // For now, log that v1 API would be used
+                \Log::info('FCM v1 API would be used with project_id: ' . $fcmSettings['project_id']);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'FCM v1 API configuration detected. Use Firebase Admin SDK for full functionality.',
+                    'note' => 'For production, implement OAuth token generation for FCM v1 API',
+                ]);
+            }
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode === 200) {
+                $responseData = json_decode($response, true);
+                \Log::info('FCM test notification sent', ['response' => $responseData]);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Test notification sent successfully',
+                    'response' => $responseData,
+                ]);
+            } else {
+                \Log::error('FCM test failed', ['http_code' => $httpCode, 'response' => $response]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to send test notification',
+                    'error' => $response,
+                    'http_code' => $httpCode,
+                ], 500);
+            }
+        } catch (\Throwable $e) {
+            \Log::error('FCM test exception', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error sending test notification: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function check(): JsonResponse

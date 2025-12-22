@@ -22,12 +22,6 @@ use App\Http\Controllers\UpdateAnnouncementController;
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\AiCommandController;
 use App\Http\Controllers\CameraController;
-use App\Http\Controllers\AlertController;
-use App\Http\Controllers\PersonController;
-use App\Http\Controllers\VehicleController;
-use App\Http\Controllers\AttendanceController;
-use App\Http\Controllers\AutomationRuleController;
-use App\Http\Controllers\AiModuleController;
 
 Route::prefix('v1')->group(function () {
     Route::get('/public/landing', [PublicContentController::class, 'landing']);
@@ -48,7 +42,6 @@ Route::prefix('v1')->group(function () {
         Route::post('/edges/events', [EventController::class, 'ingest']);
         Route::get('/notifications', [NotificationController::class, 'index']);
 
-        Route::get('/dashboard', [DashboardController::class, 'index']);
         Route::get('/dashboard/admin', [DashboardController::class, 'admin']);
 
         Route::get('/organizations', [OrganizationController::class, 'index']);
@@ -95,6 +88,14 @@ Route::prefix('v1')->group(function () {
         Route::post('/edge-servers/{edgeServer}/sync-config', [EdgeController::class, 'syncConfig']);
         Route::get('/edge-servers/{edgeServer}/config', [EdgeController::class, 'config']);
 
+        Route::get('/cameras', [CameraController::class, 'index']);
+        Route::post('/cameras', [CameraController::class, 'store']);
+        Route::get('/cameras/{camera}', [CameraController::class, 'show']);
+        Route::put('/cameras/{camera}', [CameraController::class, 'update']);
+        Route::delete('/cameras/{camera}', [CameraController::class, 'destroy']);
+        Route::get('/cameras/{camera}/snapshot', [CameraController::class, 'getSnapshot']);
+        Route::get('/cameras/{camera}/stream', [CameraController::class, 'getStreamUrl']);
+
         Route::get('/settings/landing', [SettingsController::class, 'getLanding']);
         Route::put('/settings/landing', [SettingsController::class, 'updateLanding']);
         Route::get('/settings/system', [SettingsController::class, 'getSystem']);
@@ -117,12 +118,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/super-admin/test-fcm', [SystemSettingsController::class, 'testFcm']);
         Route::get('/super-admin/check', [SystemSettingsController::class, 'check']);
 
-        Route::get('/super-admin/users', [UserController::class, 'getSuperAdmins']);
-        Route::post('/super-admin/users', [UserController::class, 'addSuperAdmin']);
-        Route::delete('/super-admin/users/{user}', [UserController::class, 'removeSuperAdmin']);
-
         Route::get('/super-admin/branding', [BrandingController::class, 'showGlobal']);
         Route::put('/super-admin/branding', [BrandingController::class, 'updateGlobal']);
+        Route::post('/super-admin/branding/upload-logo', [BrandingController::class, 'uploadLogo']);
         Route::get('/super-admin/branding/{organization}', [BrandingController::class, 'showForOrganization']);
         Route::put('/super-admin/branding/{organization}', [BrandingController::class, 'updateForOrganization']);
 
@@ -182,83 +180,9 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/ai-commands', [AiCommandController::class, 'index']);
         Route::post('/ai-commands', [AiCommandController::class, 'store']);
+        Route::post('/ai-commands/execute', [AiCommandController::class, 'execute']); // For Organization Owners
         Route::post('/ai-commands/{aiCommand}/ack', [AiCommandController::class, 'ack']);
         Route::post('/ai-commands/{aiCommand}/retry', [AiCommandController::class, 'retry']);
         Route::get('/ai-commands/{aiCommand}/logs', [AiCommandController::class, 'logs']);
-
-        // Cameras
-        Route::get('/cameras', [CameraController::class, 'index']);
-        Route::post('/cameras', [CameraController::class, 'store']);
-        Route::get('/cameras/{camera}', [CameraController::class, 'show']);
-        Route::put('/cameras/{camera}', [CameraController::class, 'update']);
-        Route::delete('/cameras/{camera}', [CameraController::class, 'destroy']);
-        Route::post('/cameras/test-connection', [CameraController::class, 'testConnection']);
-        Route::get('/cameras/{camera}/snapshot', [CameraController::class, 'getSnapshot']);
-
-        // Alerts
-        Route::get('/alerts', [AlertController::class, 'index']);
-        Route::get('/alerts/{alert}', [AlertController::class, 'show']);
-        Route::post('/alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);
-        Route::post('/alerts/{alert}/resolve', [AlertController::class, 'resolve']);
-        Route::post('/alerts/{alert}/false-alarm', [AlertController::class, 'markFalseAlarm']);
-        Route::post('/alerts/bulk-acknowledge', [AlertController::class, 'bulkAcknowledge']);
-        Route::post('/alerts/bulk-resolve', [AlertController::class, 'bulkResolve']);
-
-        // People
-        Route::get('/people', [PersonController::class, 'index']);
-        Route::post('/people', [PersonController::class, 'store']);
-        Route::get('/people/{person}', [PersonController::class, 'show']);
-        Route::put('/people/{person}', [PersonController::class, 'update']);
-        Route::delete('/people/{person}', [PersonController::class, 'destroy']);
-        Route::post('/people/{person}/toggle-active', [PersonController::class, 'toggleActive']);
-        Route::post('/people/{person}/photo', [PersonController::class, 'uploadPhoto']);
-        Route::get('/people/departments', [PersonController::class, 'getDepartments']);
-
-        // Vehicles
-        Route::get('/vehicles', [VehicleController::class, 'index']);
-        Route::post('/vehicles', [VehicleController::class, 'store']);
-        Route::get('/vehicles/{vehicle}', [VehicleController::class, 'show']);
-        Route::put('/vehicles/{vehicle}', [VehicleController::class, 'update']);
-        Route::delete('/vehicles/{vehicle}', [VehicleController::class, 'destroy']);
-        Route::post('/vehicles/{vehicle}/toggle-active', [VehicleController::class, 'toggleActive']);
-        Route::get('/vehicles/access-logs', [VehicleController::class, 'getAccessLogs']);
-
-        // Attendance
-        Route::get('/attendance', [AttendanceController::class, 'index']);
-        Route::get('/attendance/{attendance}', [AttendanceController::class, 'show']);
-        Route::get('/attendance/summary', [AttendanceController::class, 'getSummary']);
-        Route::get('/attendance/daily/{date}', [AttendanceController::class, 'getDailyReport']);
-        Route::get('/attendance/person/{personId}', [AttendanceController::class, 'getPersonHistory']);
-        Route::post('/attendance/check-in', [AttendanceController::class, 'manualCheckIn']);
-        Route::post('/attendance/{attendance}/check-out', [AttendanceController::class, 'manualCheckOut']);
-
-        // Automation Rules
-        Route::get('/automation-rules', [AutomationRuleController::class, 'index']);
-        Route::post('/automation-rules', [AutomationRuleController::class, 'store']);
-        Route::get('/automation-rules/{rule}', [AutomationRuleController::class, 'show']);
-        Route::put('/automation-rules/{rule}', [AutomationRuleController::class, 'update']);
-        Route::delete('/automation-rules/{rule}', [AutomationRuleController::class, 'destroy']);
-        Route::post('/automation-rules/{rule}/toggle-active', [AutomationRuleController::class, 'toggleActive']);
-        Route::post('/automation-rules/{rule}/test', [AutomationRuleController::class, 'test']);
-        Route::get('/automation-rules/logs', [AutomationRuleController::class, 'getLogs']);
-        Route::get('/automation-rules/triggers', [AutomationRuleController::class, 'getAvailableTriggers']);
-        Route::get('/automation-rules/actions', [AutomationRuleController::class, 'getAvailableActions']);
-
-        // AI Modules
-        Route::get('/ai-modules', [AiModuleController::class, 'index']);
-        Route::get('/ai-modules/{module}', [AiModuleController::class, 'show']);
-        Route::put('/ai-modules/{module}', [AiModuleController::class, 'update']);
-        Route::get('/ai-modules/configs', [AiModuleController::class, 'getOrganizationConfigs']);
-        Route::get('/ai-modules/configs/{moduleId}', [AiModuleController::class, 'getOrganizationConfig']);
-        Route::put('/ai-modules/configs/{moduleId}', [AiModuleController::class, 'updateOrganizationConfig']);
-        Route::post('/ai-modules/configs/{moduleId}/enable', [AiModuleController::class, 'enableModule']);
-        Route::post('/ai-modules/configs/{moduleId}/disable', [AiModuleController::class, 'disableModule']);
-    });
-
-    // Catch-all for non-existent API endpoints - return 404 instead of falling through to web routes
-    Route::fallback(function () {
-        return response()->json([
-            'message' => 'API endpoint not found.',
-        ], 404);
     });
 });

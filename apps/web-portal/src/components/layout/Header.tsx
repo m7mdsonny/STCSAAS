@@ -2,6 +2,7 @@ import { Menu, Bell, Search } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import { alertsApi } from '../../lib/api/alerts';
+import { getRoleLabel } from '../../lib/rbac';
 import type { Alert } from '../../types/database';
 
 interface HeaderProps {
@@ -148,10 +149,7 @@ export function Header({ onMenuClick, title }: HeaderProps) {
             <div className="text-right">
               <p className="text-sm font-medium">{profile?.name}</p>
               <p className="text-xs text-white/50">
-                {profile?.role === 'super_admin' ? 'مشرف عام' :
-                 profile?.role === 'org_owner' ? 'مالك' :
-                 profile?.role === 'org_admin' ? 'مدير' :
-                 profile?.role === 'org_operator' ? 'مشغل' : 'مشاهد'}
+                {getRoleLabel(profile?.role)}
               </p>
             </div>
           </div>

@@ -40,6 +40,9 @@ class AuthController extends Controller
 
         $user->forceFill(['last_login' => now()])->save();
 
+        // Ensure role is normalized in response
+        $user->role = \App\Helpers\RoleHelper::normalize($user->role);
+
         $token = $user->createToken('api')->plainTextToken;
         return response()->json(['token' => $token, 'user' => $user]);
     }
@@ -52,7 +55,12 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        return response()->json($request->user());
+        $user = $request->user();
+        if ($user) {
+            // Ensure role is normalized in response
+            $user->role = \App\Helpers\RoleHelper::normalize($user->role);
+        }
+        return response()->json($user);
     }
 
     public function register(Request $request): JsonResponse

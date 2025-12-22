@@ -3,12 +3,14 @@ import { Users, Plus, Search, Trash2, Edit2, CheckCircle, Eye, EyeOff, Loader2, 
 import { usersApi } from '../lib/api/users';
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/ui/Modal';
+import { canManageOrganization, getRoleLabel, getRoleBadgeClass, normalizeRole } from '../lib/rbac';
 import type { User, UserRole } from '../types/database';
 
 const ORG_ROLES: { value: UserRole; label: string; description: string }[] = [
-  { value: 'org_admin', label: 'مدير', description: 'صلاحيات كاملة على المؤسسة' },
-  { value: 'org_operator', label: 'مشغل', description: 'ادارة الكاميرات والتنبيهات' },
-  { value: 'org_viewer', label: 'مشاهد', description: 'عرض البيانات فقط' },
+  { value: 'owner', label: 'مالك', description: 'صلاحيات كاملة على المؤسسة' },
+  { value: 'admin', label: 'مدير', description: 'صلاحيات كاملة على المؤسسة' },
+  { value: 'editor', label: 'محرر', description: 'ادارة الكاميرات والتنبيهات' },
+  { value: 'viewer', label: 'مشاهد', description: 'عرض البيانات فقط' },
 ];
 
 export function Team() {
@@ -22,7 +24,7 @@ export function Team() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const canManageUsers = profile?.role === 'org_owner' || profile?.role === 'org_admin';
+  const canManageUsers = canManageOrganization(profile?.role);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -139,25 +141,21 @@ export function Team() {
   );
 
   const getRoleBadge = (role: UserRole) => {
-    switch (role) {
-      case 'org_owner': return 'bg-stc-gold/20 text-stc-gold';
-      case 'org_admin': return 'bg-blue-500/20 text-blue-400';
-      case 'org_operator': return 'bg-emerald-500/20 text-emerald-400';
-      case 'org_viewer': return 'bg-gray-500/20 text-gray-400';
-      default: return '';
-    }
+    return getRoleBadgeClass(role);
   };
 
-  const getRoleLabel = (role: UserRole) => {
-    if (role === 'org_owner') return 'مالك المؤسسة';
-    return ORG_ROLES.find(r => r.value === role)?.label || role;
+  const getRoleLabelDisplay = (role: UserRole) => {
+    return getRoleLabel(role);
   };
 
   const stats = {
     total: users.length,
     active: users.filter(u => u.is_active).length,
-    admins: users.filter(u => u.role === 'org_admin' || u.role === 'org_owner').length,
-    operators: users.filter(u => u.role === 'org_operator').length,
+    admins: users.filter(u => {
+      const role = normalizeRole(u.role);
+      return role === 'admin' || role === 'owner';
+    }).length,
+    operators: users.filter(u => normalizeRole(u.role) === 'editor').length,
   };
 
   return (
@@ -261,7 +259,7 @@ export function Team() {
                     <p className="text-sm text-white/50" dir="ltr">{user.email}</p>
                   </div>
                 </div>
-                {canManageUsers && user.role !== 'org_owner' && user.id !== profile?.id && (
+                {canManageUsers && normalizeRole(user.role) !== 'owner' && user.id !== profile?.id && (
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => openEditModal(user)}
@@ -285,7 +283,7 @@ export function Team() {
                 <span className={`badge ${getRoleBadge(user.role)}`}>
                   {getRoleLabel(user.role)}
                 </span>
-                {canManageUsers && user.role !== 'org_owner' ? (
+                {canManageUsers && normalizeRole(user.role) !== 'owner' ? (
                   <button
                     onClick={() => toggleUserStatus(user.id, user.is_active)}
                     className={`badge ${user.is_active ? 'badge-success' : 'badge-danger'} cursor-pointer`}
