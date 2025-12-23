@@ -65,19 +65,29 @@ export function ModelTraining() {
     try {
       if (activeTab === 'datasets') {
         const data = await modelTrainingApi.getDatasets();
-        setDatasets(data);
+        setDatasets(Array.isArray(data) ? data : []);
       } else if (activeTab === 'jobs') {
         const data = await modelTrainingApi.getJobs();
-        setJobs(data);
+        setJobs(Array.isArray(data) ? data : []);
       } else if (activeTab === 'versions') {
         const data = await modelTrainingApi.getModelVersions();
-        setModelVersions(data);
+        setModelVersions(Array.isArray(data) ? data : []);
       } else if (activeTab === 'deployments' && selectedModel) {
         const data = await modelTrainingApi.getDeployments(selectedModel.id);
-        setDeployments(data);
+        setDeployments(Array.isArray(data) ? data : []);
+      } else if (activeTab === 'deployments' && !selectedModel) {
+        setDeployments([]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Set empty arrays to prevent crashes
+      if (activeTab === 'datasets') setDatasets([]);
+      else if (activeTab === 'jobs') setJobs([]);
+      else if (activeTab === 'versions') setModelVersions([]);
+      else if (activeTab === 'deployments') setDeployments([]);
+      
+      // Show user-friendly error message
+      alert('حدث خطأ في تحميل البيانات. قد تكون واجهة برمجة التطبيقات غير متاحة بعد.');
     } finally {
       setLoading(false);
     }

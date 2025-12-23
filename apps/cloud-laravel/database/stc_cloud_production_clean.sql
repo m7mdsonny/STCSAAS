@@ -730,13 +730,13 @@ INSERT INTO sms_quotas (organization_id, monthly_limit, used_this_month, resets_
 -- 11. SYSTEM SETTINGS
 -- ============================================
 INSERT INTO system_settings (platform_name, platform_tagline, support_email, support_phone, default_timezone, default_language) VALUES
-('STC AI-VAP', 'منصة تحليل الفيديو بالذكاء الاصطناعي', 'support@stc-solutions.com', '+966 11 000 0000', 'Asia/Riyadh', 'ar');
+('STC AI-VAP', 'منصة تحليل الفيديو بالذكاء الاصطناعي', 'support@stc-solutions.com', '+20 2 0000 0000', 'Africa/Cairo', 'ar');
 
 -- ============================================
 -- 12. PLATFORM CONTENTS (Landing Page)
 -- ============================================
 INSERT INTO platform_contents (key, value, section, published) VALUES
-('landing_settings', '{"hero_title": "منصة تحليل الفيديو بالذكاء الاصطناعي", "hero_subtitle": "حول كاميرات المراقبة الى عيون ذكية تحمي منشاتك وتحلل بياناتك في الوقت الفعلي", "hero_button_text": "ابدا تجربتك المجانية - 14 يوم", "about_title": "عن المنصة", "about_description": "حل متكامل لادارة المراقبة بالفيديو والذكاء الاصطناعي مع تكاملات جاهزة.", "contact_email": "info@stc-solutions.com", "contact_phone": "+966 11 000 0000", "contact_address": "الرياض، المملكة العربية السعودية", "whatsapp_number": "+966500000000", "show_whatsapp_button": true, "footer_text": "STC Solutions. جميع الحقوق محفوظة", "social_twitter": null, "social_linkedin": null, "social_instagram": null}', 'landing', true);
+('landing_settings', '{"hero_title": "منصة تحليل الفيديو بالذكاء الاصطناعي", "hero_subtitle": "حول كاميرات المراقبة الى عيون ذكية تحمي منشاتك وتحلل بياناتك في الوقت الفعلي", "hero_button_text": "ابدا تجربتك المجانية - 14 يوم", "about_title": "عن المنصة", "about_description": "حل متكامل لادارة المراقبة بالفيديو والذكاء الاصطناعي مع تكاملات جاهزة.", "contact_email": "info@stc-solutions.com", "contact_phone": "+20 2 0000 0000", "contact_address": "القاهرة، جمهورية مصر العربية", "whatsapp_number": "+201000000000", "show_whatsapp_button": true, "footer_text": "STC Solutions. جميع الحقوق محفوظة", "social_twitter": null, "social_linkedin": null, "social_instagram": null}', 'landing', true);
 
 -- ============================================
 -- 13. SAMPLE EVENTS

@@ -21,8 +21,10 @@ use App\Http\Controllers\AiPolicyController;
 use App\Http\Controllers\UpdateAnnouncementController;
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\AiCommandController;
+use App\Http\Controllers\AiModuleController;
 use App\Http\Controllers\CameraController;
 use App\Http\Controllers\IntegrationController;
+use App\Http\Controllers\PlatformWordingController;
 
 Route::prefix('v1')->group(function () {
     Route::get('/public/landing', [PublicContentController::class, 'landing']);
@@ -57,6 +59,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/organizations/{organization}/toggle-active', [OrganizationController::class, 'toggleActive']);
         Route::put('/organizations/{organization}/plan', [OrganizationController::class, 'updatePlan']);
         Route::get('/organizations/{organization}/stats', [OrganizationController::class, 'stats']);
+        Route::post('/organizations/{organization}/upload-logo', [OrganizationController::class, 'uploadLogo']);
         Route::post('/organizations/{organization}/sms-quota/consume', [SmsQuotaController::class, 'consume']);
 
         Route::get('/users', [UserController::class, 'index']);
@@ -168,6 +171,7 @@ Route::prefix('v1')->group(function () {
         Route::put('/analytics/dashboards/{dashboard}/widgets/{widget}', [AnalyticsController::class, 'updateWidget']);
         Route::delete('/analytics/dashboards/{dashboard}/widgets/{widget}', [AnalyticsController::class, 'deleteWidget']);
         Route::get('/analytics/export', [AnalyticsController::class, 'export']);
+        Route::post('/analytics/export-pdf', [AnalyticsController::class, 'exportPdf']);
 
         Route::get('/ai-policies', [AiPolicyController::class, 'index']);
         Route::post('/ai-policies', [AiPolicyController::class, 'store']);
@@ -176,6 +180,30 @@ Route::prefix('v1')->group(function () {
         Route::delete('/ai-policies/{aiPolicy}', [AiPolicyController::class, 'destroy']);
         Route::post('/ai-policies/{aiPolicy}/events', [AiPolicyController::class, 'addEvent']);
         Route::get('/ai-policies/effective', [AiPolicyController::class, 'effective']);
+
+        // AI Modules (Super Admin can manage, Organization users can view configs)
+        Route::get('/ai-modules', [AiModuleController::class, 'index']);
+        Route::get('/ai-modules/{aiModule}', [AiModuleController::class, 'show']);
+        Route::put('/ai-modules/{aiModule}', [AiModuleController::class, 'update']);
+        
+        // Organization AI Module Configurations
+        Route::get('/ai-modules/configs', [AiModuleController::class, 'getConfigs']);
+        Route::get('/ai-modules/configs/{moduleId}', [AiModuleController::class, 'getConfig']);
+        Route::put('/ai-modules/configs/{moduleId}', [AiModuleController::class, 'updateConfig']);
+        Route::post('/ai-modules/configs/{moduleId}/enable', [AiModuleController::class, 'enableModule']);
+        Route::post('/ai-modules/configs/{moduleId}/disable', [AiModuleController::class, 'disableModule']);
+
+        // Platform Wordings (Super Admin manages, Organizations can customize)
+        Route::get('/wordings', [PlatformWordingController::class, 'index']);
+        Route::get('/wordings/{wording}', [PlatformWordingController::class, 'show']);
+        Route::post('/wordings', [PlatformWordingController::class, 'store']);
+        Route::put('/wordings/{wording}', [PlatformWordingController::class, 'update']);
+        Route::delete('/wordings/{wording}', [PlatformWordingController::class, 'destroy']);
+        
+        // Organization-specific wordings
+        Route::get('/wordings/organization', [PlatformWordingController::class, 'getForOrganization']);
+        Route::post('/wordings/{wording}/customize', [PlatformWordingController::class, 'customizeForOrganization']);
+        Route::delete('/wordings/{wording}/customize', [PlatformWordingController::class, 'removeCustomization']);
 
         Route::get('/updates', [UpdateAnnouncementController::class, 'index']);
         Route::post('/updates', [UpdateAnnouncementController::class, 'store']);

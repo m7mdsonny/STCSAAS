@@ -28,7 +28,9 @@ import {
   Shield,
   Sliders,
   Database,
-  UploadCloud
+  UploadCloud,
+  Type,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { canManageOrganization, canEdit, normalizeRole } from '../../lib/rbac';
@@ -61,10 +63,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/admin/sms', icon: MessageSquare, label: 'الرسائل' },
     { to: '/admin/landing', icon: Globe, label: 'صفحة الهبوط' },
     { to: '/admin/notifications', icon: Bell, label: 'الاشعارات' },
-    { to: '/admin/branding', icon: Palette, label: 'الهوية البصرية' },
     { to: '/admin/settings', icon: Settings, label: 'الاعدادات' },
     { to: '/admin/super-admins', icon: Shield, label: 'السوبر ادمن' },
     { to: '/admin/super-settings', icon: Sliders, label: 'تحكمات السوبر ادمن' },
+    { to: '/admin/wordings', icon: Type, label: 'نصوص المنصة' },
     { to: '/admin/updates', icon: UploadCloud, label: 'التحديثات' },
     { to: '/admin/backups', icon: Database, label: 'النسخ الاحتياطية' },
   ];
@@ -80,6 +82,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/attendance', icon: UserCheck, label: 'الحضور', roles: ['owner', 'admin', 'editor', 'viewer'] },
     { to: '/automation', icon: Zap, label: 'اوامر الذكاء الاصطناعي', roles: ['owner', 'admin', 'editor', 'viewer'] },
     { to: '/team', icon: UserCog, label: 'فريق العمل', roles: ['owner', 'admin'] }, // Only owners and admins
+    { to: '/guide', icon: BookOpen, label: 'دليل المالك', roles: ['owner', 'admin'] },
     { to: '/settings', icon: Settings, label: 'الاعدادات', roles: ['owner', 'admin', 'editor', 'viewer'] },
   ];
 

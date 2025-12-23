@@ -20,9 +20,9 @@ class LandingContentSeeder extends Seeder
                     'about_title' => 'عن المنصة',
                     'about_description' => 'حل متكامل لادارة المراقبة بالفيديو والذكاء الاصطناعي مع تكاملات جاهزة.',
                     'contact_email' => 'info@stc-solutions.com',
-                    'contact_phone' => '+966 11 000 0000',
-                    'contact_address' => 'الرياض، المملكة العربية السعودية',
-                    'whatsapp_number' => '+966500000000',
+                    'contact_phone' => '+20 2 0000 0000',
+                    'contact_address' => 'القاهرة، جمهورية مصر العربية',
+                    'whatsapp_number' => '+201000000000',
                     'show_whatsapp_button' => true,
                     'footer_text' => 'STC Solutions. جميع الحقوق محفوظة',
                 ]),
@@ -39,4 +39,5 @@ class LandingContentSeeder extends Seeder
         $this->command->info('Landing content seeded successfully!');
     }
 }
+
 

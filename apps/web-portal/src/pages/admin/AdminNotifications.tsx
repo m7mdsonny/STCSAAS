@@ -41,19 +41,30 @@ export function AdminNotifications() {
   };
 
   const fetchPriorities = async () => {
+    if (!selectedOrg) {
+      setPriorities([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await notificationsApi.getNotificationPriorities(selectedOrg);
-      setPriorities(data);
+      setPriorities(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching priorities', error);
+      setPriorities([]);
+      alert('حدث خطأ في تحميل قواعد الأولوية. يرجى المحاولة مرة أخرى.');
     } finally {
       setLoading(false);
     }
   };
 
   const addPriority = async () => {
-    if (!newRule.notification_type) return;
+    if (!newRule.notification_type || !selectedOrg) {
+      alert('يرجى اختيار المؤسسة وإدخال نوع الإشعار');
+      return;
+    }
     setSaving(true);
     try {
       const created = await notificationsApi.createNotificationPriority({
@@ -62,8 +73,11 @@ export function AdminNotifications() {
       });
       setPriorities((prev) => [...prev, created]);
       setNewRule({ notification_type: '', priority: 'medium', is_critical: false });
+      alert('تم إضافة القاعدة بنجاح');
     } catch (error) {
       console.error('Error creating priority', error);
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ في إضافة القاعدة';
+      alert(`فشل إضافة القاعدة: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -75,6 +89,7 @@ export function AdminNotifications() {
       setPriorities((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     } catch (error) {
       console.error('Error updating priority', error);
+      alert('حدث خطأ في تحديث القاعدة. يرجى المحاولة مرة أخرى.');
     }
   };
 
@@ -83,8 +98,10 @@ export function AdminNotifications() {
     try {
       await notificationsApi.deleteNotificationPriority(id);
       setPriorities((prev) => prev.filter((p) => p.id !== id));
+      alert('تم حذف القاعدة بنجاح');
     } catch (error) {
       console.error('Error deleting priority', error);
+      alert('حدث خطأ في حذف القاعدة. يرجى المحاولة مرة أخرى.');
     }
   };
 

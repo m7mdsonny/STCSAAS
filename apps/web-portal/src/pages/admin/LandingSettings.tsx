@@ -245,7 +245,7 @@ export function LandingSettingsPage() {
                   value={form.contact_address}
                   onChange={(e) => setForm({ ...form, contact_address: e.target.value })}
                   className="input pr-12"
-                  placeholder="الرياض، المملكة العربية السعودية"
+                  placeholder="القاهرة، جمهورية مصر العربية"
                 />
               </div>
             </div>

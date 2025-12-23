@@ -18,6 +18,7 @@ export function SuperAdminSettings() {
       setSettings(data);
     } catch (error) {
       console.error('Error fetching settings:', error);
+      alert('حدث خطأ في تحميل الإعدادات. يرجى المحاولة مرة أخرى.');
     } finally {
       setLoading(false);
     }
@@ -29,10 +30,13 @@ export function SuperAdminSettings() {
     setSaving(true);
     try {
       await superAdminApi.updateSystemSettings(settings);
-      alert('Settings saved successfully');
+      alert('تم حفظ الإعدادات بنجاح');
+      // Refresh settings after save
+      await fetchSettings();
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Failed to save settings');
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ في حفظ الإعدادات';
+      alert(`فشل في حفظ الإعدادات: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -55,7 +59,7 @@ export function SuperAdminSettings() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-white/60">Loading settings...</div>
+        <div className="text-white/60">جاري تحميل الإعدادات...</div>
       </div>
     );
   }
@@ -63,7 +67,7 @@ export function SuperAdminSettings() {
   if (!settings) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-white/60">Failed to load settings</div>
+        <div className="text-white/60">فشل تحميل الإعدادات</div>
       </div>
     );
   }
@@ -71,8 +75,8 @@ export function SuperAdminSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">System Settings</h1>
-        <p className="text-white/60">Configure platform-wide system settings</p>
+        <h1 className="text-2xl font-bold">إعدادات النظام</h1>
+        <p className="text-white/60">تكوين إعدادات النظام على مستوى المنصة</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -98,11 +102,11 @@ export function SuperAdminSettings() {
         <div className="flex-1">
           {activeTab === 'general' && (
             <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
-              <h2 className="text-lg font-semibold mb-6">General Settings</h2>
+              <h2 className="text-lg font-semibold mb-6">الإعدادات العامة</h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-white/80 mb-2">
-                    Platform Name
+                    اسم المنصة
                   </label>
                   <input
                     type="text"
@@ -114,7 +118,7 @@ export function SuperAdminSettings() {
 
                 <div>
                   <label className="block text-sm font-medium text-white/80 mb-2">
-                    Platform Tagline
+                    شعار المنصة
                   </label>
                   <input
                     type="text"
@@ -127,7 +131,7 @@ export function SuperAdminSettings() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
-                      Support Email
+                      بريد الدعم
                     </label>
                     <input
                       type="email"
@@ -139,7 +143,7 @@ export function SuperAdminSettings() {
 
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
-                      Support Phone
+                      هاتف الدعم
                     </label>
                     <input
                       type="tel"
@@ -153,7 +157,7 @@ export function SuperAdminSettings() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
-                      Default Timezone
+                      المنطقة الزمنية الافتراضية
                     </label>
                     <select
                       value={settings.default_timezone}
@@ -161,11 +165,11 @@ export function SuperAdminSettings() {
                       className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="UTC">UTC</option>
-                      <option value="America/New_York">Eastern Time</option>
-                      <option value="America/Chicago">Central Time</option>
-                      <option value="America/Denver">Mountain Time</option>
-                      <option value="America/Los_Angeles">Pacific Time</option>
-                      <option value="Europe/London">London</option>
+                      <option value="America/New_York">الوقت الشرقي (UTC-5)</option>
+                      <option value="America/Chicago">الوقت المركزي (UTC-6)</option>
+                      <option value="America/Denver">الوقت الجبلي (UTC-7)</option>
+                      <option value="America/Los_Angeles">الوقت الهادئ (UTC-8)</option>
+                      <option value="Europe/London">لندن (UTC+0)</option>
                       <option value="Europe/Paris">Paris</option>
                       <option value="Asia/Dubai">Dubai</option>
                       <option value="Asia/Tokyo">Tokyo</option>
@@ -174,18 +178,18 @@ export function SuperAdminSettings() {
 
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
-                      Default Language
+                      اللغة الافتراضية
                     </label>
                     <select
                       value={settings.default_language}
                       onChange={(e) => updateSettings({ default_language: e.target.value })}
                       className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
+                      <option value="ar">العربية</option>
                       <option value="en">English</option>
-                      <option value="ar">Arabic</option>
-                      <option value="es">Spanish</option>
-                      <option value="fr">French</option>
-                      <option value="de">German</option>
+                      <option value="es">Español</option>
+                      <option value="fr">Français</option>
+                      <option value="de">Deutsch</option>
                     </select>
                   </div>
                 </div>
@@ -195,12 +199,12 @@ export function SuperAdminSettings() {
 
           {activeTab === 'security' && (
             <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
-              <h2 className="text-lg font-semibold mb-6">Security Settings</h2>
+              <h2 className="text-lg font-semibold mb-6">إعدادات الأمان</h2>
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
-                      Session Timeout (minutes)
+                      انتهاء الجلسة (بالدقائق)
                     </label>
                     <input
                       type="number"
@@ -215,7 +219,7 @@ export function SuperAdminSettings() {
 
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
-                      Max Login Attempts
+                      الحد الأقصى لمحاولات تسجيل الدخول
                     </label>
                     <input
                       type="number"
@@ -266,7 +270,7 @@ export function SuperAdminSettings() {
 
           {activeTab === 'registration' && (
             <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
-              <h2 className="text-lg font-semibold mb-6">Registration Settings</h2>
+              <h2 className="text-lg font-semibold mb-6">إعدادات التسجيل</h2>
               <div className="space-y-4">
                 <label className="flex items-start gap-3 cursor-pointer p-4 rounded-lg hover:bg-white/5 transition-colors">
                   <input
@@ -276,7 +280,7 @@ export function SuperAdminSettings() {
                     className="w-5 h-5 mt-0.5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-2 focus:ring-blue-500"
                   />
                   <div>
-                    <p className="font-medium">Allow New User Registration</p>
+                    <p className="font-medium">السماح بتسجيل مستخدمين جدد</p>
                     <p className="text-sm text-white/50 mt-1">
                       Enable public registration for new users
                     </p>
@@ -291,7 +295,7 @@ export function SuperAdminSettings() {
                     className="w-5 h-5 mt-0.5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-2 focus:ring-blue-500"
                   />
                   <div>
-                    <p className="font-medium">Require Email Verification</p>
+                    <p className="font-medium">يتطلب التحقق من البريد الإلكتروني</p>
                     <p className="text-sm text-white/50 mt-1">
                       Users must verify their email address before accessing the platform
                     </p>
@@ -303,12 +307,12 @@ export function SuperAdminSettings() {
 
           {activeTab === 'maintenance' && (
             <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
-              <h2 className="text-lg font-semibold mb-6">Maintenance Mode</h2>
+              <h2 className="text-lg font-semibold mb-6">وضع الصيانة</h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                   <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-yellow-500">Maintenance Mode</p>
+                    <p className="font-medium text-yellow-500">وضع الصيانة</p>
                     <p className="text-sm text-white/70 mt-1">
                       When enabled, only super admins can access the platform. All other users will see a maintenance message.
                     </p>
@@ -323,7 +327,7 @@ export function SuperAdminSettings() {
                     className="w-5 h-5 mt-0.5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-2 focus:ring-blue-500"
                   />
                   <div>
-                    <p className="font-medium">Enable Maintenance Mode</p>
+                    <p className="font-medium">تفعيل وضع الصيانة</p>
                     <p className="text-sm text-white/50 mt-1">
                       Put the platform into maintenance mode
                     </p>
@@ -332,7 +336,7 @@ export function SuperAdminSettings() {
 
                 <div>
                   <label className="block text-sm font-medium text-white/80 mb-2">
-                    Maintenance Message
+                    رسالة الصيانة
                   </label>
                   <textarea
                     value={settings.maintenance_message}
@@ -380,13 +384,13 @@ export function SuperAdminSettings() {
                       placeholder="AAAA..."
                     />
                     <p className="text-xs text-white/50 mt-1">
-                      Get this from Firebase Console → Project Settings → Cloud Messaging → Server Key
+                      احصل على هذا من Firebase Console → Project Settings → Cloud Messaging → Server Key
                     </p>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
-                      Firebase Project ID
+                      معرف مشروع Firebase
                     </label>
                     <input
                       type="text"

@@ -137,3 +137,5 @@ class LoiteringDetectionModule(BaseAIModule):
         distance = ((loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2)**0.5
         return distance < threshold
 
+
+

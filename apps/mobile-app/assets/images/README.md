@@ -16,3 +16,5 @@ Place all image assets here.
 - `placeholder_avatar.png` - User avatar placeholder
 - `empty_state.png` - Empty state illustration
 
+
+

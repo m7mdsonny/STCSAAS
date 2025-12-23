@@ -66,6 +66,28 @@ export interface SystemBackup {
 export interface UpdateAnnouncement {
   id: number;
   title: string;
+  version?: string;
+  version_type?: 'major' | 'minor' | 'patch' | 'hotfix';
+  body?: string | null;
+  release_notes?: string | null;
+  changelog?: string | null;
+  affected_modules?: string[];
+  requires_manual_update?: boolean;
+  download_url?: string | null;
+  checksum?: string | null;
+  file_size_mb?: number | null;
+  is_published: boolean;
+  organization_id?: number | null;
+  published_at?: string | null;
+  release_date?: string | null;
+  end_of_support_date?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateAnnouncementOld {
+  id: number;
+  title: string;
   body: string | null;
   is_published: boolean;
   organization_id: string | null;

@@ -9,6 +9,7 @@ use App\Models\SubscriptionPlan;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class OrganizationController extends Controller
 {
@@ -98,6 +99,7 @@ class OrganizationController extends Controller
             'is_active' => 'nullable|boolean',
             'reseller_id' => 'nullable|exists:resellers,id',
             'distributor_id' => 'nullable|exists:distributors,id',
+            'logo_url' => 'nullable|string|max:500',
         ]);
 
         $organization->update($data);
@@ -151,6 +153,32 @@ class OrganizationController extends Controller
             'cameras_count' => 0,
             'alerts_today' => License::where('organization_id', $organization->id)->count(),
             'storage_used_gb' => 0,
+        ]);
+    }
+
+    public function uploadLogo(Request $request, Organization $organization): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Check if user can manage this organization
+        if (!$user->is_super_admin && $user->organization_id !== $organization->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'logo' => 'required|file|mimes:png,jpg,jpeg,svg|max:5120', // 5MB max
+        ]);
+
+        $file = $request->file('logo');
+        $path = $file->store('public/organizations/logos');
+        $url = Storage::url($path);
+
+        $organization->update(['logo_url' => $url]);
+
+        return response()->json([
+            'url' => $url,
+            'logo_url' => $url,
+            'organization' => $organization->fresh(),
         ]);
     }
 }

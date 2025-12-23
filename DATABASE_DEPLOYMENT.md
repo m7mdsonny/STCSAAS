@@ -8,10 +8,12 @@ This guide provides step-by-step instructions for deploying a clean, production-
 
 ## 🎯 Prerequisites
 
-- PostgreSQL 12+ installed and running
-- Database user with CREATE DATABASE privileges
+- PostgreSQL 12+ installed and running (including custom builds like aaPanel)
+- Database user with CREATE DATABASE and CREATE EXTENSION privileges
 - Access to the server via SSH or direct database access
 - Laravel application configured with database credentials
+
+**Note:** This schema uses `pgcrypto` extension (not `uuid-ossp`), making it compatible with custom PostgreSQL builds that don't include uuid-ossp.
 
 ---
 
@@ -183,6 +185,20 @@ sudo systemctl start postgresql
 ```sql
 CREATE DATABASE stc_cloud_production WITH ENCODING 'UTF8';
 ```
+
+### Issue: Extension Not Found (pgcrypto)
+
+**Solution:** Install pgcrypto extension:
+```sql
+-- For standard PostgreSQL
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- If extension doesn't exist, install it:
+-- On Ubuntu/Debian: sudo apt-get install postgresql-contrib
+-- On CentOS/RHEL: sudo yum install postgresql-contrib
+```
+
+**Note:** The schema uses `pgcrypto` instead of `uuid-ossp` for better compatibility with custom PostgreSQL builds (like aaPanel). If you need UUID generation, use `gen_random_uuid()` from pgcrypto.
 
 ---
 

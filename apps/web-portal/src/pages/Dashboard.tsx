@@ -38,22 +38,34 @@ export function Dashboard() {
   }, [organization]);
 
   const fetchData = async () => {
+    if (!organization?.id) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const [camerasRes, serversRes, alertsRes, effectivePolicy] = await Promise.all([
-        camerasApi.getCameras({ per_page: 100 }),
-        edgeServersApi.getEdgeServers({ per_page: 100 }),
-        alertsApi.getAlerts({ per_page: 10 }),
-        aiPoliciesApi.getEffective(organization?.id),
+        camerasApi.getCameras({ per_page: 100 }).catch(() => ({ data: [] })),
+        edgeServersApi.getEdgeServers({ per_page: 100 }).catch(() => ({ data: [] })),
+        alertsApi.getAlerts({ per_page: 10 }).catch(() => ({ data: [] })),
+        aiPoliciesApi.getEffective(organization.id).catch(() => null),
       ]);
 
-      setCameras(camerasRes.data || []);
-      setServers(serversRes.data || []);
-      setAlerts(alertsRes.data || []);
+      setCameras(Array.isArray(camerasRes.data) ? camerasRes.data : []);
+      setServers(Array.isArray(serversRes.data) ? serversRes.data : []);
+      setAlerts(Array.isArray(alertsRes.data) ? alertsRes.data : []);
       setPolicy(effectivePolicy);
-    } catch {
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      // Set empty arrays to prevent crashes
+      setCameras([]);
+      setServers([]);
+      setAlerts([]);
+      setPolicy(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const onlineCameras = cameras.filter(c => c.status === 'online').length;

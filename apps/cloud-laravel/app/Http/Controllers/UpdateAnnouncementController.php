@@ -31,16 +31,30 @@ class UpdateAnnouncementController extends Controller
         $this->ensureSuperAdmin($request);
         $data = $request->validate([
             'title' => 'required|string|max:255',
+            'version' => 'required|string|max:50|regex:/^\d+\.\d+\.\d+(-[a-zA-Z0-9]+)?$/',
+            'version_type' => 'required|in:major,minor,patch,hotfix',
             'body' => 'nullable|string|max:5000',
+            'release_notes' => 'nullable|string|max:10000',
+            'changelog' => 'nullable|string|max:20000',
+            'affected_modules' => 'nullable|array',
+            'requires_manual_update' => 'nullable|boolean',
+            'download_url' => 'nullable|url|max:500',
+            'checksum' => 'nullable|string|max:128',
+            'file_size_mb' => 'nullable|integer|min:0',
             'organization_id' => 'nullable|exists:organizations,id',
             'is_published' => 'nullable|boolean',
+            'release_date' => 'nullable|date',
+            'end_of_support_date' => 'nullable|date|after:release_date',
         ]);
 
         $data['body'] = $this->sanitizeBody($data['body'] ?? null);
+        $data['release_notes'] = $this->sanitizeBody($data['release_notes'] ?? null);
+        $data['changelog'] = $this->sanitizeBody($data['changelog'] ?? null);
 
         $update = UpdateAnnouncement::create([
             ...$data,
             'published_at' => ($data['is_published'] ?? false) ? now() : null,
+            'release_date' => $data['release_date'] ?? now(),
         ]);
 
         return response()->json($update, 201);
@@ -51,13 +65,30 @@ class UpdateAnnouncementController extends Controller
         $this->ensureSuperAdmin($request);
         $data = $request->validate([
             'title' => 'sometimes|string|max:255',
+            'version' => 'sometimes|string|max:50|regex:/^\d+\.\d+\.\d+(-[a-zA-Z0-9]+)?$/',
+            'version_type' => 'sometimes|in:major,minor,patch,hotfix',
             'body' => 'nullable|string|max:5000',
+            'release_notes' => 'nullable|string|max:10000',
+            'changelog' => 'nullable|string|max:20000',
+            'affected_modules' => 'nullable|array',
+            'requires_manual_update' => 'nullable|boolean',
+            'download_url' => 'nullable|url|max:500',
+            'checksum' => 'nullable|string|max:128',
+            'file_size_mb' => 'nullable|integer|min:0',
             'organization_id' => 'nullable|exists:organizations,id',
             'is_published' => 'nullable|boolean',
+            'release_date' => 'nullable|date',
+            'end_of_support_date' => 'nullable|date|after:release_date',
         ]);
 
         if (array_key_exists('body', $data)) {
             $data['body'] = $this->sanitizeBody($data['body']);
+        }
+        if (array_key_exists('release_notes', $data)) {
+            $data['release_notes'] = $this->sanitizeBody($data['release_notes']);
+        }
+        if (array_key_exists('changelog', $data)) {
+            $data['changelog'] = $this->sanitizeBody($data['changelog']);
         }
 
         if (array_key_exists('is_published', $data)) {

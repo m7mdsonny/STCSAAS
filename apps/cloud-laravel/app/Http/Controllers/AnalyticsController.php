@@ -332,6 +332,79 @@ class AnalyticsController extends Controller
         ]);
     }
 
+    public function exportPdf(Request $request): \Illuminate\Http\Response
+    {
+        $user = $request->user();
+        $organizationId = $user->organization_id;
+
+        if (!$organizationId) {
+            return response()->json(['message' => 'No organization assigned'], 403);
+        }
+
+        $data = $request->validate([
+            'organization' => 'nullable|string',
+            'dateRange' => 'nullable|string',
+            'startDate' => 'nullable|string',
+            'endDate' => 'nullable|string',
+            'stats' => 'nullable|array',
+            'totalVisitors' => 'nullable|integer',
+            'totalVehicles' => 'nullable|integer',
+            'totalAlerts' => 'nullable|integer',
+            'ageDistribution' => 'nullable|array',
+            'genderDistribution' => 'nullable|array',
+            'alertsByModule' => 'nullable|array',
+        ]);
+
+        // Generate simple PDF using basic HTML to PDF conversion
+        // For production, consider using a library like dompdf or barryvdh/laravel-dompdf
+        $html = $this->generatePdfHtml($data);
+
+        // For now, return HTML that can be printed/saved as PDF
+        // In production, use a proper PDF library
+        return response($html, 200)
+            ->header('Content-Type', 'text/html; charset=utf-8')
+            ->header('Content-Disposition', 'inline; filename="analytics-report.html"');
+    }
+
+    protected function generatePdfHtml(array $data): string
+    {
+        $orgName = $data['organization'] ?? 'غير محدد';
+        $dateRange = $data['dateRange'] ?? 'غير محدد';
+        $stats = $data['stats'] ?? [];
+
+        return "
+<!DOCTYPE html>
+<html dir='rtl' lang='ar'>
+<head>
+    <meta charset='UTF-8'>
+    <title>تقرير التحليلات</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; direction: rtl; }
+        h1 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>تقرير التحليلات - {$orgName}</h1>
+    <p><strong>الفترة:</strong> {$dateRange}</p>
+    <h2>الإحصائيات</h2>
+    <table>
+        <tr><th>المؤشر</th><th>القيمة</th></tr>
+        <tr><td>إجمالي الزوار</td><td>" . ($stats['totalVisitors'] ?? 0) . "</td></tr>
+        <tr><td>إجمالي المركبات</td><td>" . ($stats['totalVehicles'] ?? 0) . "</td></tr>
+        <tr><td>إجمالي التنبيهات</td><td>" . ($stats['totalAlerts'] ?? 0) . "</td></tr>
+        <tr><td>معدل الكشف</td><td>" . ($stats['detectionRate'] ?? 0) . "%</td></tr>
+    </table>
+    <p style='margin-top: 30px; color: #666; font-size: 12px;'>
+        تم إنشاء هذا التقرير في: " . now()->format('Y-m-d H:i:s') . "
+    </p>
+    <script>window.print();</script>
+</body>
+</html>";
+    }
+
     protected function applyFilters($query, Request $request)
     {
         if ($orgId = $request->get('organization_id')) {

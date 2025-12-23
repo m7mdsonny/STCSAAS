@@ -75,9 +75,11 @@ export function AlertPrioritySettings() {
       }
     } catch (error) {
       console.error('Error fetching alert priorities:', error);
+      setAlertPriorities([]);
+      setAvailableChannels([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const getPriorityForAlert = (module: string, alertType: string): AlertPriority | undefined => {

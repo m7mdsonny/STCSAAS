@@ -171,3 +171,5 @@ class PairingManager:
         self._save()
         logger.info("Pairing data cleared")
 
+
+

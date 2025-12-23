@@ -18,9 +18,11 @@ export function SuperAdminManagement() {
   const fetchAdmins = async () => {
     try {
       const data = await superAdminApi.getSuperAdmins();
-      setAdmins(data);
+      setAdmins(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching super admins:', error);
+      setAdmins([]);
+      alert('حدث خطأ في تحميل قائمة السوبر أدمن. يرجى المحاولة مرة أخرى.');
     } finally {
       setLoading(false);
     }

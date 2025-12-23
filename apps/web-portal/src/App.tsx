@@ -16,6 +16,7 @@ import { Attendance } from './pages/Attendance';
 import { LiveView } from './pages/LiveView';
 import { Settings } from './pages/Settings';
 import { Team } from './pages/Team';
+import { OwnerGuide } from './pages/OwnerGuide';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { Organizations } from './pages/admin/Organizations';
 import { Users } from './pages/admin/Users';
@@ -31,7 +32,6 @@ import { AdminBackups } from './pages/admin/AdminBackups';
 import { AiCommandCenter } from './pages/admin/AiCommandCenter';
 import { AIModulesAdmin } from './pages/admin/AIModulesAdmin';
 import { ModelTraining } from './pages/admin/ModelTraining';
-import { PlatformBrandingPage } from './pages/admin/PlatformBranding';
 import { SuperAdminManagement } from './pages/admin/SuperAdminManagement';
 import { SuperAdminSettings } from './pages/admin/SuperAdminSettings';
 import { EdgeServers } from './pages/admin/EdgeServers';
@@ -153,10 +153,10 @@ function AppRoutes() {
         <Route path="/admin/integrations" element={<AdminIntegrations />} />
         <Route path="/admin/sms" element={<AdminSmsSettings />} />
         <Route path="/admin/notifications" element={<AdminNotifications />} />
-        <Route path="/admin/branding" element={<PlatformBrandingPage />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/super-admins" element={<SuperAdminManagement />} />
         <Route path="/admin/super-settings" element={<SuperAdminSettings />} />
+        <Route path="/admin/wordings" element={<PlatformWordings />} />
         <Route path="/admin/landing" element={<LandingSettingsPage />} />
         <Route path="/admin/updates" element={<AdminUpdates />} />
         <Route path="/admin/backups" element={<AdminBackups />} />
@@ -184,6 +184,14 @@ function AppRoutes() {
           element={
             <PrivateRoute requireManage>
               <Team />
+            </PrivateRoute>
+          } 
+        />
+        <Route 
+          path="/guide" 
+          element={
+            <PrivateRoute>
+              <OwnerGuide />
             </PrivateRoute>
           } 
         />

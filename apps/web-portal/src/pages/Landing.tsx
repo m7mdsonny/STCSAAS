@@ -352,7 +352,7 @@ export function Landing() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-white mb-1">العنوان</h3>
-                    <p className="text-white/60">{settings?.contact_address || 'الرياض، المملكة العربية السعودية'}</p>
+                    <p className="text-white/60">{settings?.contact_address || 'القاهرة، جمهورية مصر العربية'}</p>
                   </div>
                 </div>
               </div>

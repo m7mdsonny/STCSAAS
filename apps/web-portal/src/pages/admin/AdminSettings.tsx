@@ -117,7 +117,7 @@ export function AdminSettings() {
                       className="input"
                     >
                       <option value="Africa/Cairo">القاهرة (UTC+2)</option>
-                      <option value="Asia/Riyadh">الرياض (UTC+3)</option>
+                      <option value="Africa/Cairo">القاهرة (UTC+2)</option>
                       <option value="Asia/Dubai">دبي (UTC+4)</option>
                     </select>
                   </div>

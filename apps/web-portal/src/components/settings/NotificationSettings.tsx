@@ -57,7 +57,7 @@ export function NotificationSettings() {
           quiet_hours_end: '07:00',
           quiet_hours_exceptions: ['critical'],
           language: 'ar',
-          timezone: 'Asia/Riyadh',
+          timezone: 'Africa/Cairo',
         };
         setConfig(defaultConfig as OrganizationNotificationConfig);
       }

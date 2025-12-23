@@ -52,8 +52,13 @@ export interface SuperAdmin {
 
 export const superAdminApi = {
   getSystemSettings: async (): Promise<SystemSettings> => {
-    const response = await apiClient.get('/api/v1/super-admin/settings');
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/v1/super-admin/settings');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching system settings:', error);
+      throw error;
+    }
   },
 
   updateSystemSettings: async (data: Partial<SystemSettings>): Promise<SystemSettings> => {
@@ -82,8 +87,13 @@ export const superAdminApi = {
   },
 
   getSuperAdmins: async (): Promise<SuperAdmin[]> => {
-    const response = await apiClient.get('/api/v1/super-admin/admins');
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/v1/super-admin/admins');
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error('Error fetching super admins:', error);
+      return [];
+    }
   },
 
   addSuperAdmin: async (userId: number): Promise<SuperAdmin> => {

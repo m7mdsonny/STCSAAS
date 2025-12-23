@@ -114,8 +114,13 @@ export interface ModelDeployment {
 
 export const modelTrainingApi = {
   getDatasets: async (): Promise<TrainingDataset[]> => {
-    const response = await apiClient.get('/api/v1/training/datasets');
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/v1/training/datasets');
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error('Error fetching datasets:', error);
+      return [];
+    }
   },
 
   getDataset: async (id: string): Promise<TrainingDataset> => {
@@ -177,8 +182,13 @@ export const modelTrainingApi = {
   },
 
   getJobs: async (params?: { status?: string; ai_module?: string }): Promise<TrainingJob[]> => {
-    const response = await apiClient.get('/api/v1/training/jobs', { params });
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/v1/training/jobs', { params });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+      return [];
+    }
   },
 
   getJob: async (id: string): Promise<TrainingJob> => {
@@ -202,8 +212,13 @@ export const modelTrainingApi = {
   },
 
   getModelVersions: async (params?: { ai_module?: string; status?: string }): Promise<AiModelVersion[]> => {
-    const response = await apiClient.get('/api/v1/training/models', { params });
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/v1/training/models', { params });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error('Error fetching model versions:', error);
+      return [];
+    }
   },
 
   getModelVersion: async (id: string): Promise<AiModelVersion> => {
@@ -232,8 +247,13 @@ export const modelTrainingApi = {
   },
 
   getDeployments: async (modelVersionId: string): Promise<ModelDeployment[]> => {
-    const response = await apiClient.get(`/api/v1/training/models/${modelVersionId}/deployments`);
-    return response.data;
+    try {
+      const response = await apiClient.get(`/api/v1/training/models/${modelVersionId}/deployments`);
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error('Error fetching deployments:', error);
+      return [];
+    }
   },
 
   deployToEdgeServer: async (modelVersionId: string, edgeServerId: number): Promise<ModelDeployment> => {

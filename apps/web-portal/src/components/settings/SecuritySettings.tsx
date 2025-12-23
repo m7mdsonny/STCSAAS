@@ -326,7 +326,7 @@ export function SecuritySettings() {
                   <p className="text-xs text-white/50">الان</p>
                 </div>
               </div>
-              <span className="text-xs text-white/40">الرياض، SA</span>
+              <span className="text-xs text-white/40">القاهرة، مصر</span>
             </div>
           </div>
         </div>

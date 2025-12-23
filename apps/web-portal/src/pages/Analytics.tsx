@@ -220,8 +220,78 @@ export function Analytics() {
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
+      // Set default data to prevent crashes
+      setData(defaultAnalyticsData);
+      alert('حدث خطأ في تحميل البيانات. يرجى المحاولة مرة أخرى.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      // Create PDF content
+      const { start, end } = getDateRange();
+      const reportData = {
+        organization: organization?.name || 'غير محدد',
+        dateRange: dateRange,
+        startDate: start.toLocaleDateString('ar-EG'),
+        endDate: end.toLocaleDateString('ar-EG'),
+        stats: data.stats,
+        totalVisitors: data.stats.totalVisitors,
+        totalVehicles: data.stats.totalVehicles,
+        totalAlerts: data.stats.totalAlerts,
+        ageDistribution: data.ageDistribution,
+        genderDistribution: data.genderDistribution,
+        alertsByModule: data.alertsByModule,
+      };
+
+      // Call backend to generate PDF
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/analytics/export-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(reportData),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `analytics-report-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        alert('تم تصدير التقرير بنجاح');
+      } else {
+        throw new Error('فشل تصدير التقرير');
+      }
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      // Fallback: Create simple text report
+      const reportText = `
+تقرير التحليلات - ${organization?.name || 'غير محدد'}
+الفترة: ${dateRange}
+إجمالي الزوار: ${data.stats.totalVisitors}
+إجمالي المركبات: ${data.stats.totalVehicles}
+إجمالي التنبيهات: ${data.stats.totalAlerts}
+      `.trim();
+      
+      const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analytics-report-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      alert('تم تصدير التقرير كنص. سيتم إضافة تصدير PDF قريباً.');
     }
   };
 
@@ -255,9 +325,13 @@ export function Analytics() {
             <option value="month">هذا الشهر</option>
             <option value="year">هذا العام</option>
           </select>
-          <button className="btn-secondary flex items-center gap-2">
+          <button 
+            onClick={handleExportPDF}
+            className="btn-secondary flex items-center gap-2"
+            disabled={loading}
+          >
             <Download className="w-5 h-5" />
-            <span>تصدير</span>
+            <span>تصدير PDF</span>
           </button>
         </div>
       </div>

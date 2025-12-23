@@ -134,3 +134,5 @@ class AttendanceModule(BaseAIModule):
         hours_since_last = (timestamp - last_check).total_seconds() / 3600
         return hours_since_last > 4
 
+
+

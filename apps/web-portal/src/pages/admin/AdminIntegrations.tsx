@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Key, Plus, Trash2, Building2, Server, Search, Filter } from 'lucide-react';
+import { Key, Plus, Trash2, Building2, Server, Search, Filter, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { integrationsApi, organizationsApi, edgeServersApi } from '../../lib/api';
 import { Modal } from '../../components/ui/Modal';
 import type { Integration, Organization, EdgeServer } from '../../types/database';
@@ -26,6 +26,8 @@ export function AdminIntegrations() {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterOrg, setFilterOrg] = useState<string>('');
+  const [testingConnection, setTestingConnection] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
 
   const [form, setForm] = useState({
     organization_id: '',
@@ -117,9 +119,43 @@ export function AdminIntegrations() {
     if (!confirm('هل انت متاكد من حذف هذا التكامل؟')) return;
     try {
       await integrationsApi.deleteIntegration(id);
-      fetchData();
+      await fetchData();
+      alert('تم حذف التكامل بنجاح');
     } catch (error) {
       console.error('Error deleting integration:', error);
+      alert(error instanceof Error ? error.message : 'حدث خطأ في حذف التكامل');
+    }
+  };
+
+  const testConnection = async (integration: Integration) => {
+    setTestingConnection(integration.id);
+    try {
+      const result = await integrationsApi.testConnection(integration.id);
+      setTestResults({
+        ...testResults,
+        [integration.id]: {
+          success: result.success,
+          message: result.message,
+        },
+      });
+      
+      if (result.success) {
+        alert(`✅ ${result.message}`);
+      } else {
+        alert(`❌ ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error testing connection:', error);
+      setTestResults({
+        ...testResults,
+        [integration.id]: {
+          success: false,
+          message: error instanceof Error ? error.message : 'فشل اختبار الاتصال',
+        },
+      });
+      alert(`❌ فشل اختبار الاتصال: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
+    } finally {
+      setTestingConnection(null);
     }
   };
 
@@ -225,6 +261,30 @@ export function AdminIntegrations() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => testConnection(integration)}
+                        disabled={testingConnection === integration.id}
+                        className={`p-2 rounded-lg transition-colors ${
+                          testingConnection === integration.id
+                            ? 'bg-blue-500/20 cursor-wait'
+                            : testResults[integration.id]?.success
+                            ? 'bg-emerald-500/20 hover:bg-emerald-500/30'
+                            : testResults[integration.id]
+                            ? 'bg-red-500/20 hover:bg-red-500/30'
+                            : 'bg-white/10 hover:bg-white/20'
+                        }`}
+                        title="اختبار الاتصال"
+                      >
+                        {testingConnection === integration.id ? (
+                          <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                        ) : testResults[integration.id]?.success ? (
+                          <Wifi className="w-4 h-4 text-emerald-400" />
+                        ) : testResults[integration.id] ? (
+                          <WifiOff className="w-4 h-4 text-red-400" />
+                        ) : (
+                          <Wifi className="w-4 h-4 text-white/60" />
+                        )}
+                      </button>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
