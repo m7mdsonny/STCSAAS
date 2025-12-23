@@ -56,9 +56,11 @@ export function AIModulesAdmin() {
     setLoading(true);
     try {
       const data = await aiModulesApi.getModules();
-      setModules(data);
+      setModules(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching modules:', error);
+      setModules([]);
+      alert('حدث خطأ في تحميل وحدات الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.');
     } finally {
       setLoading(false);
     }
@@ -104,12 +106,13 @@ export function AIModulesAdmin() {
     }
   };
 
-  const categories = ['all', ...new Set(modules.map(m => m.category))];
+  const categories = ['all', ...new Set(modules.map(m => m.category || 'uncategorized').filter(Boolean))];
 
   const filteredModules = modules.filter(module => {
-    const matchesSearch = module.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      module.module_key.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || module.category === categoryFilter;
+    if (!module) return false;
+    const matchesSearch = (module.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (module.module_key || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || (module.category || 'uncategorized') === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
@@ -260,8 +263,8 @@ export function AIModulesAdmin() {
                 </p>
 
                 <div className="flex flex-wrap gap-2 mb-4">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${getCategoryBadgeColor(module.category)}`}>
-                    {module.category}
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${getCategoryBadgeColor(module.category || 'uncategorized')}`}>
+                    {module.category || 'غير مصنف'}
                   </span>
                   {module.is_premium && (
                     <span className="px-2 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-400">

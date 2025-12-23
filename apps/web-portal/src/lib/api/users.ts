@@ -24,6 +24,7 @@ interface UpdateUserData {
   phone?: string;
   role?: UserRole;
   is_active?: boolean;
+  organization_id?: string;
 }
 
 export const usersApi = {

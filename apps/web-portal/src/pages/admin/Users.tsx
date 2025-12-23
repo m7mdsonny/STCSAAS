@@ -73,6 +73,7 @@ export function Users() {
           name: formData.name,
           phone: formData.phone || undefined,
           role: formData.role,
+          organization_id: formData.role === 'super_admin' ? undefined : formData.organization_id || undefined,
         });
       } else {
         await usersApi.createUser({

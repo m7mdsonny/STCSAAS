@@ -121,6 +121,7 @@ class UserController extends Controller
             'phone' => 'nullable|string|max:50',
             'role' => 'sometimes|string|in:' . implode(',', RoleHelper::VALID_ROLES),
             'is_active' => 'nullable|boolean',
+            'organization_id' => 'nullable|exists:organizations,id',
         ]);
 
         // Normalize role if provided
@@ -132,6 +133,17 @@ class UserController extends Controller
                 !RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
                 return response()->json(['message' => 'Cannot assign super admin role'], 403);
             }
+            
+            // Super admin users should not have organization_id
+            if ($data['role'] === RoleHelper::SUPER_ADMIN) {
+                $data['organization_id'] = null;
+            }
+        }
+
+        // Only super admin can change organization_id
+        if (isset($data['organization_id']) && 
+            !RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
+            unset($data['organization_id']);
         }
 
         $user->update($data);

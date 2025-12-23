@@ -56,8 +56,13 @@ export interface SubscriptionPlan {
 
 export const aiModulesApi = {
   getModules: async (): Promise<AiModule[]> => {
-    const response = await apiClient.get('/api/v1/ai-modules');
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/v1/ai-modules');
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error('Error fetching AI modules:', error);
+      return [];
+    }
   },
 
   getModule: async (id: number): Promise<AiModule> => {
