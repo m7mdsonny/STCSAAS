@@ -25,6 +25,7 @@ use App\Http\Controllers\AiModuleController;
 use App\Http\Controllers\CameraController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\PlatformWordingController;
+use App\Http\Controllers\AlertController;
 
 Route::prefix('v1')->group(function () {
     Route::get('/public/landing', [PublicContentController::class, 'landing']);
@@ -103,6 +104,12 @@ Route::prefix('v1')->group(function () {
         Route::delete('/cameras/{camera}', [CameraController::class, 'destroy']);
         Route::get('/cameras/{camera}/snapshot', [CameraController::class, 'getSnapshot']);
         Route::get('/cameras/{camera}/stream', [CameraController::class, 'getStreamUrl']);
+
+        Route::get('/alerts', [AlertController::class, 'index']);
+        Route::get('/alerts/{alert}', [AlertController::class, 'show']);
+        Route::post('/alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);
+        Route::post('/alerts/{alert}/resolve', [AlertController::class, 'resolve']);
+        Route::post('/alerts/{alert}/false-alarm', [AlertController::class, 'markFalseAlarm']);
 
         Route::get('/settings/landing', [SettingsController::class, 'getLanding']);
         Route::put('/settings/landing', [SettingsController::class, 'updateLanding']);

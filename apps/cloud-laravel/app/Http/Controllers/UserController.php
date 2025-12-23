@@ -77,7 +77,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8',
+            'password' => 'required|string|min:6',
             'phone' => 'nullable|string|max:50',
             'role' => 'required|string|in:' . implode(',', RoleHelper::VALID_ROLES),
             'organization_id' => 'nullable|exists:organizations,id',
@@ -88,12 +88,25 @@ class UserController extends Controller
 
         // Non-super-admin users can only create users for their organization
         if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
-            $data['organization_id'] = $currentUser->organization_id;
+            // Use provided organization_id if valid, otherwise use current user's organization
+            if (empty($data['organization_id']) || $data['organization_id'] != $currentUser->organization_id) {
+                $data['organization_id'] = $currentUser->organization_id;
+            }
             
             // Non-super-admin cannot create super_admin users
             if ($data['role'] === RoleHelper::SUPER_ADMIN) {
                 return response()->json(['message' => 'Cannot create super admin users'], 403);
             }
+        } else {
+            // Super admin: if role is super_admin, remove organization_id
+            if ($data['role'] === RoleHelper::SUPER_ADMIN) {
+                $data['organization_id'] = null;
+            }
+        }
+        
+        // Ensure organization_id is set for non-super-admin roles
+        if ($data['role'] !== RoleHelper::SUPER_ADMIN && empty($data['organization_id'])) {
+            return response()->json(['message' => 'Organization is required for this role'], 422);
         }
 
         $user = User::create([

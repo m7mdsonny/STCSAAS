@@ -414,6 +414,7 @@ export function Users() {
                   dir="ltr"
                   required
                   minLength={6}
+                  maxLength={255}
                 />
                 <button
                   type="button"

@@ -203,10 +203,10 @@ export function Dashboard() {
             </Link>
           </div>
           <div className="space-y-2">
-            {alerts.length === 0 ? (
+            {!alerts || alerts.length === 0 ? (
               <p className="text-center text-white/50 py-6 text-sm">لا توجد تنبيهات</p>
             ) : (
-              alerts.slice(0, 5).map((alert) => (
+              (alerts || []).slice(0, 5).map((alert) => (
                 <div key={alert.id} className="p-2.5 bg-white/5 rounded-lg">
                   <div className="flex items-start gap-2">
                     <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${getSeverityColor(alert.severity)}`} />
