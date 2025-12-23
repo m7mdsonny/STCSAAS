@@ -34,6 +34,7 @@ import { AIModulesAdmin } from './pages/admin/AIModulesAdmin';
 import { ModelTraining } from './pages/admin/ModelTraining';
 import { SuperAdminManagement } from './pages/admin/SuperAdminManagement';
 import { SuperAdminSettings } from './pages/admin/SuperAdminSettings';
+import { PlatformWordings } from './pages/admin/PlatformWordings';
 import { EdgeServers } from './pages/admin/EdgeServers';
 import { Resellers } from './pages/admin/Resellers';
 import { SystemMonitor } from './pages/admin/SystemMonitor';
