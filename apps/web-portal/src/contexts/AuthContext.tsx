@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { authApi } from '../lib/api/auth';
 import { organizationsApi } from '../lib/api/organizations';
+import { apiClient } from '../lib/apiClient';
 import { normalizeRole } from '../lib/rbac';
 import type { User, Organization } from '../types/database';
 
@@ -162,14 +163,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear all state first
     clearStoredUser();
     setUser(null);
     setProfile(null);
     setOrganization(null);
+    
+    // Clear token from localStorage
+    apiClient.setToken(null);
+    localStorage.removeItem('auth_token');
+    
+    // Clear all localStorage items related to auth
+    localStorage.removeItem(USER_STORAGE_KEY);
+    
     try {
-      await authApi.logout();
+      // Try to revoke token on server (but don't wait if it fails)
+      await authApi.logout().catch(() => {
+        // Ignore errors - we're logging out anyway
+      });
     } catch (error) {
       console.error('Failed to revoke session during sign out', error);
+    } finally {
+      // Force redirect to login page
+      window.location.href = '/login';
     }
   };
 

@@ -119,9 +119,18 @@ export const authApi = {
   },
 
   async logout(): Promise<void> {
-    await apiClient.post('/auth/logout', undefined, { skipAuthRedirect: true });
-    apiClient.setToken(null);
-    window.location.href = '/login';
+    try {
+      // Try to revoke token on server
+      await apiClient.post('/auth/logout', undefined, { skipAuthRedirect: true });
+    } catch (error) {
+      // Ignore errors - we're logging out anyway
+      console.error('Logout API error (ignored):', error);
+    } finally {
+      // Always clear token locally
+      apiClient.setToken(null);
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+    }
   },
 
   clearSession() {

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { getDetailedErrorMessage } from '../lib/errorMessages';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, UserPlus, CheckCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Home } from 'lucide-react';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -11,9 +11,8 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [creatingDemo, setCreatingDemo] = useState(false);
-  const [demoMessage, setDemoMessage] = useState('');
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
+  const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,51 +64,6 @@ export function Login() {
     }
   };
 
-  const createDemoAccount = async (type: 'admin' | 'org') => {
-    setCreatingDemo(true);
-    setError('');
-    setDemoMessage('');
-
-    const demoEmail = type === 'admin' ? 'admin@stc-demo.com' : 'owner@company-demo.com';
-    const demoPassword = type === 'admin' ? 'Admin@123' : 'Owner@123';
-    const demoName = type === 'admin' ? 'Super Admin' : 'Organization Owner';
-
-    try {
-      // Try to sign in first to check if account exists
-      const { error: signInError } = await signIn(demoEmail, demoPassword);
-
-      if (!signInError) {
-        // Account exists, sign out and show message
-        setEmail(demoEmail);
-        setPassword(demoPassword);
-        setDemoMessage('الحساب موجود! اضغط تسجيل الدخول.');
-        setCreatingDemo(false);
-        return;
-      }
-
-      // Account doesn't exist, create it
-      const { error: signUpError } = await signUp(demoEmail, demoPassword, demoName);
-
-      if (signUpError) {
-        if (signUpError.message.includes('already registered')) {
-          setError('البريد مسجل مسبقا. جرب تسجيل الدخول.');
-          setEmail(demoEmail);
-          setPassword(demoPassword);
-        } else {
-          setError(`خطأ: ${signUpError.message}`);
-        }
-      } else {
-        setEmail(demoEmail);
-        setPassword(demoPassword);
-        setDemoMessage('تم انشاء الحساب! اضغط تسجيل الدخول.');
-      }
-    } catch (err) {
-      setError(`خطأ غير متوقع: ${err}`);
-    }
-
-    setCreatingDemo(false);
-  };
-
   return (
     <div className="min-h-screen bg-stc-bg-dark flex flex-col lg:flex-row-reverse">
       <div className="flex-1 flex items-center justify-center p-6 sm:p-8">
@@ -128,13 +82,6 @@ export function Login() {
               <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
                 <p className="text-red-400 text-sm">{error}</p>
-              </div>
-            )}
-
-            {demoMessage && (
-              <div className="mb-6 p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-lg flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                <p className="text-emerald-400 text-sm">{demoMessage}</p>
               </div>
             )}
 
@@ -203,34 +150,13 @@ export function Login() {
             </form>
 
             <div className="mt-8 pt-6 border-t border-white/10">
-              <p className="text-white/60 text-sm text-center mb-4">انشاء حساب تجريبي</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => createDemoAccount('admin')}
-                  disabled={creatingDemo}
-                  className="btn-secondary flex items-center justify-center gap-2 text-sm py-3"
-                >
-                  {creatingDemo ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <UserPlus className="w-4 h-4" />
-                  )}
-                  <span>Super Admin</span>
-                </button>
-                <button
-                  onClick={() => createDemoAccount('org')}
-                  disabled={creatingDemo}
-                  className="btn-secondary flex items-center justify-center gap-2 text-sm py-3"
-                >
-                  {creatingDemo ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <UserPlus className="w-4 h-4" />
-                  )}
-                  <span>Org Owner</span>
-                </button>
-              </div>
-              <p className="text-white/40 text-xs text-center mt-3">اضغط لانشاء حساب تجريبي جاهز للاستخدام</p>
+              <Link
+                to="/"
+                className="btn-secondary w-full flex items-center justify-center gap-2 text-sm py-3"
+              >
+                <Home className="w-4 h-4" />
+                <span>العودة للصفحة الرئيسية</span>
+              </Link>
             </div>
           </div>
 
