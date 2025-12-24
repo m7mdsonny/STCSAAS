@@ -84,22 +84,35 @@ export function Automation() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!organization) {
+      alert('يرجى التأكد من تسجيل الدخول');
+      return;
+    }
+
+    if (!formData.name.trim()) {
+      alert('يرجى إدخال اسم القاعدة');
+      return;
+    }
+
     const ruleData = {
       ...formData,
-      organization_id: organization?.id,
+      organization_id: organization.id,
     };
 
     try {
       if (editingRule) {
         await automationRulesApi.updateRule(editingRule.id, ruleData);
-        setEditingRule(null);
+        alert('تم تحديث القاعدة بنجاح');
       } else {
         await automationRulesApi.createRule(ruleData);
+        alert('تم إضافة القاعدة بنجاح');
       }
       fetchRules();
       setShowModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving automation rule:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'حدث خطأ في حفظ القاعدة';
+      alert(`خطأ: ${errorMessage}`);
     }
   };
 

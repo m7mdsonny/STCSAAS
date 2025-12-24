@@ -83,26 +83,41 @@ export function People() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!organization) return;
+    if (!organization) {
+      alert('يرجى التأكد من تسجيل الدخول');
+      return;
+    }
+
+    if (!formData.person_name.trim()) {
+      alert('يرجى إدخال اسم الشخص');
+      return;
+    }
 
     try {
       let faceId: string | null = null;
 
       if (selectedFile && !editingPerson) {
         setEncodingStatus('encoding');
-        faceId = await edgeServerService.encodeFace(
-          formData.person_name,
-          formData.category,
-          selectedFile,
-          formData.employee_id || undefined,
-          formData.department || undefined
-        );
+        try {
+          faceId = await edgeServerService.encodeFace(
+            formData.person_name,
+            formData.category,
+            selectedFile,
+            formData.employee_id || undefined,
+            formData.department || undefined
+          );
 
-        if (!faceId) {
+          if (!faceId) {
+            setEncodingStatus('error');
+            alert('فشل في معالجة الصورة. يرجى المحاولة مرة أخرى.');
+            return;
+          }
+          setEncodingStatus('success');
+        } catch (faceError) {
+          console.error('Face encoding error:', faceError);
           setEncodingStatus('error');
-          return;
+          // Continue without face encoding if Edge Server is unavailable
         }
-        setEncodingStatus('success');
       }
 
       const payload = {
@@ -115,17 +130,24 @@ export function People() {
 
       if (editingPerson) {
         await peopleApi.updatePerson(editingPerson.id, payload);
+        alert('تم تحديث الشخص بنجاح');
       } else {
         await peopleApi.createPerson(payload);
+        alert('تم إضافة الشخص بنجاح');
       }
 
       setShowModal(false);
       setEditingPerson(null);
       resetForm();
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setEncodingStatus('idle');
       fetchPeople();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save person:', error);
       setEncodingStatus('error');
+      const errorMessage = error?.response?.data?.message || error?.message || 'حدث خطأ في حفظ الشخص';
+      alert(`خطأ: ${errorMessage}`);
     }
   };
 

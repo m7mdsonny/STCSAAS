@@ -61,7 +61,15 @@ export function Vehicles() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!organization) return;
+    if (!organization) {
+      alert('يرجى التأكد من تسجيل الدخول');
+      return;
+    }
+
+    if (!formData.plate_number.trim()) {
+      alert('يرجى إدخال رقم اللوحة');
+      return;
+    }
 
     try {
       const payload = {
@@ -75,16 +83,20 @@ export function Vehicles() {
 
       if (editingVehicle) {
         await vehiclesApi.updateVehicle(editingVehicle.id, payload);
+        alert('تم تحديث المركبة بنجاح');
       } else {
         await vehiclesApi.createVehicle(payload);
+        alert('تم إضافة المركبة بنجاح');
       }
 
       setShowModal(false);
       setEditingVehicle(null);
       resetForm();
       fetchVehicles();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save vehicle:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'حدث خطأ في حفظ المركبة';
+      alert(`خطأ: ${errorMessage}`);
     }
   };
 

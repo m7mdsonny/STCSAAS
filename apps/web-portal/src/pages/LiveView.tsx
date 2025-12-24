@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MonitorPlay, Grid, Maximize2, Volume2, VolumeX, Camera, AlertTriangle, Settings } from 'lucide-react';
 import { camerasApi } from '../lib/api/cameras';
+import { edgeServersApi } from '../lib/api/edgeServers';
+import { edgeServerService } from '../lib/edgeServer';
 import { useAuth } from '../contexts/AuthContext';
 import type { Camera as CameraType } from '../types/database';
 
@@ -20,12 +22,28 @@ export function LiveView() {
   const [layout, setLayout] = useState<LayoutType>('2x2');
   const [selectedCamera, setSelectedCamera] = useState<CameraType | null>(null);
   const [mutedCameras, setMutedCameras] = useState<Set<string>>(new Set());
+  const [streamUrls, setStreamUrls] = useState<Record<string, string>>({});
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
 
   useEffect(() => {
     if (organization) {
       fetchCameras();
+      setupEdgeServer();
     }
   }, [organization]);
+
+  const setupEdgeServer = async () => {
+    try {
+      const result = await edgeServersApi.getEdgeServers({ status: 'online', per_page: 1 });
+      const servers = result.data || [];
+      if (servers.length > 0 && servers[0].ip_address) {
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        await edgeServerService.setServerUrl(`${protocol}//${servers[0].ip_address}:8000`);
+      }
+    } catch (error) {
+      console.error('Failed to setup edge server:', error);
+    }
+  };
 
   const fetchCameras = async () => {
     setLoading(true);
@@ -33,7 +51,22 @@ export function LiveView() {
       const result = await camerasApi.getCameras({
         status: 'online',
       });
-      setCameras(result.data || []);
+      const camerasList = result.data || [];
+      setCameras(camerasList);
+      
+      // Fetch stream URLs for each camera
+      const urls: Record<string, string> = {};
+      for (const camera of camerasList) {
+        try {
+          const streamUrl = await camerasApi.getStreamUrl(camera.id);
+          if (streamUrl) {
+            urls[camera.id] = streamUrl;
+          }
+        } catch (error) {
+          console.error(`Failed to get stream URL for camera ${camera.id}:`, error);
+        }
+      }
+      setStreamUrls(urls);
     } catch (error) {
       console.error('Failed to fetch cameras:', error);
     }
@@ -106,12 +139,28 @@ export function LiveView() {
               className="relative bg-black rounded-lg overflow-hidden group"
               style={{ aspectRatio: '16/9' }}
             >
-              <div className="absolute inset-0 flex items-center justify-center bg-stc-navy/50">
-                <div className="text-center">
-                  <Camera className="w-12 h-12 text-white/30 mx-auto mb-2" />
-                  <p className="text-white/50 text-sm">جاري الاتصال...</p>
+              {streamUrls[camera.id] ? (
+                <video
+                  ref={(el) => { videoRefs.current[camera.id] = el; }}
+                  src={streamUrls[camera.id]}
+                  autoPlay
+                  muted={mutedCameras.has(camera.id)}
+                  playsInline
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error(`Stream error for camera ${camera.id}:`, e);
+                    delete streamUrls[camera.id];
+                    setStreamUrls({ ...streamUrls });
+                  }}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-stc-navy/50">
+                  <div className="text-center">
+                    <Camera className="w-12 h-12 text-white/30 mx-auto mb-2" />
+                    <p className="text-white/50 text-sm">جاري الاتصال...</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="absolute top-0 left-0 right-0 p-2 bg-gradient-to-b from-black/70 to-transparent">
                 <div className="flex items-center justify-between">
@@ -183,13 +232,27 @@ export function LiveView() {
         >
           <div className="w-full max-w-6xl" onClick={(e) => e.stopPropagation()}>
             <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <Camera className="w-16 h-16 text-white/30 mx-auto mb-2" />
-                  <p className="text-white/50">{selectedCamera.name}</p>
-                  <p className="text-white/30 text-sm mt-1">جاري الاتصال...</p>
+              {selectedCamera && streamUrls[selectedCamera.id] ? (
+                <video
+                  src={streamUrls[selectedCamera.id]}
+                  autoPlay
+                  muted={mutedCameras.has(selectedCamera.id)}
+                  playsInline
+                  controls
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    console.error(`Stream error for camera ${selectedCamera.id}:`, e);
+                  }}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <Camera className="w-16 h-16 text-white/30 mx-auto mb-2" />
+                    <p className="text-white/50">{selectedCamera?.name}</p>
+                    <p className="text-white/30 text-sm mt-1">جاري الاتصال...</p>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />

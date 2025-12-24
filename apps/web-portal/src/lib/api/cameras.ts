@@ -79,4 +79,17 @@ export const camerasApi = {
     }
     return data.snapshot_url;
   },
+
+  async getStreamUrl(id: string): Promise<string | null> {
+    try {
+      const { data, error } = await apiClient.get<{ stream_url: string }>(`/cameras/${id}/stream`);
+      if (error || !data) {
+        return null;
+      }
+      return data.stream_url;
+    } catch (error) {
+      console.error(`Failed to get stream URL for camera ${id}:`, error);
+      return null;
+    }
+  },
 };

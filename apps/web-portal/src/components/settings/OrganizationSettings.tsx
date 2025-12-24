@@ -67,29 +67,45 @@ export function OrganizationSettings() {
     const file = e.target.files?.[0];
     if (!file || !organization || !canManage) return;
 
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('يرجى اختيار ملف صورة صحيح');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('حجم الملف كبير جداً. الحد الأقصى 5 ميجابايت');
+      return;
+    }
+
     setUploadingLogo(true);
     try {
       const formData = new FormData();
       formData.append('logo', file);
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/organizations/${organization.id}/upload-logo`, {
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://stcsolutions.online/api/v1';
+      
+      const response = await fetch(`${apiUrl}/organizations/${organization.id}/upload-logo`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: formData,
       });
 
       if (response.ok) {
         const data = await response.json();
-        setLogoUrl(data.logo_url || data.url);
+        setLogoUrl(data.url || data.logo_url);
         alert('تم رفع الشعار بنجاح');
       } else {
-        throw new Error('فشل رفع الشعار');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'فشل رفع الشعار');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading logo:', error);
-      alert('حدث خطأ في رفع الشعار');
+      alert(`حدث خطأ في رفع الشعار: ${error.message || 'خطأ غير معروف'}`);
     } finally {
       setUploadingLogo(false);
     }

@@ -24,10 +24,32 @@ export function Login() {
 
       if (loginError) {
         setError(loginError.message || 'البريد الالكتروني او كلمة المرور غير صحيحة');
+        setLoading(false);
         return;
       }
 
-      navigate('/dashboard');
+      // Wait a bit to ensure user state is set
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Navigate based on user role from stored user
+      try {
+        const storedUserStr = localStorage.getItem('auth_user');
+        if (storedUserStr) {
+          const storedUser = JSON.parse(storedUserStr);
+          const userRole = storedUser.role || '';
+          const isSuperAdmin = userRole === 'super_admin' || storedUser.is_super_admin === true;
+          
+          if (isSuperAdmin) {
+            navigate('/admin');
+          } else {
+            navigate('/dashboard');
+          }
+        } else {
+          navigate('/dashboard');
+        }
+      } catch {
+        navigate('/dashboard');
+      }
     } catch (err) {
       const fallbackMessage = err instanceof Error
         ? err.message

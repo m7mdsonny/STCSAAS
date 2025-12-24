@@ -141,7 +141,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { error: null };
     } catch (err) {
-      return { error: err instanceof Error ? err : new Error('Login failed') };
+      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      return { error: new Error(errorMessage) };
     }
   };
 
