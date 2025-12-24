@@ -13,7 +13,7 @@ return new class extends Migration
             $table->id();
             $table->string('version')->unique();
             $table->string('update_id')->unique(); // Folder name in updates/
-            $table->jsonb('manifest'); // Full manifest.json content
+            $table->json('manifest'); // Full manifest.json content (MySQL compatible)
             $table->enum('status', ['pending', 'installing', 'installed', 'failed', 'rollback'])->default('pending');
             $table->string('backup_id')->nullable(); // Backup identifier for rollback
             $table->timestamp('installed_at')->nullable();
