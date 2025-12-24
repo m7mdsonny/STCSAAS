@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Car, Plus, Search, Trash2, Edit2, CheckCircle, XCircle, Shield, Star, Truck } from 'lucide-react';
 import { vehiclesApi } from '../lib/api/vehicles';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { getDetailedErrorMessage } from '../lib/errorMessages';
 import { Modal } from '../components/ui/Modal';
 import type { RegisteredVehicle } from '../types/database';
 
@@ -24,6 +26,7 @@ const VEHICLE_TYPES = [
 
 export function Vehicles() {
   const { organization, canManage } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [vehicles, setVehicles] = useState<RegisteredVehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -62,12 +65,12 @@ export function Vehicles() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!organization) {
-      alert('يرجى التأكد من تسجيل الدخول');
+      showError('خطأ في تسجيل الدخول', 'يرجى التأكد من تسجيل الدخول بشكل صحيح');
       return;
     }
 
     if (!formData.plate_number.trim()) {
-      alert('يرجى إدخال رقم اللوحة');
+      showError('بيانات غير مكتملة', 'يرجى إدخال رقم اللوحة');
       return;
     }
 
@@ -83,10 +86,10 @@ export function Vehicles() {
 
       if (editingVehicle) {
         await vehiclesApi.updateVehicle(editingVehicle.id, payload);
-        alert('تم تحديث المركبة بنجاح');
+        showSuccess('تم التحديث بنجاح', `تم تحديث بيانات المركبة ${formData.plate_number} بنجاح`);
       } else {
         await vehiclesApi.createVehicle(payload);
-        alert('تم إضافة المركبة بنجاح');
+        showSuccess('تم الإضافة بنجاح', `تم إضافة المركبة ${formData.plate_number} إلى النظام بنجاح`);
       }
 
       setShowModal(false);
@@ -95,27 +98,35 @@ export function Vehicles() {
       fetchVehicles();
     } catch (error: any) {
       console.error('Failed to save vehicle:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'حدث خطأ في حفظ المركبة';
-      alert(`خطأ: ${errorMessage}`);
+      const { title, message } = getDetailedErrorMessage(error, 'حفظ المركبة', 'حدث خطأ في حفظ المركبة');
+      showError(title, message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('هل انت متاكد من حذف هذه المركبة؟')) return;
+    const vehicle = vehicles.find(v => v.id === id);
+    if (!confirm(`هل أنت متأكد من حذف المركبة ${vehicle?.plate_number || ''}؟`)) return;
     try {
       await vehiclesApi.deleteVehicle(id);
+      showSuccess('تم الحذف بنجاح', `تم حذف المركبة ${vehicle?.plate_number || ''} من النظام`);
       fetchVehicles();
     } catch (error) {
       console.error('Failed to delete vehicle:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'حذف المركبة', 'حدث خطأ في حذف المركبة');
+      showError(title, message);
     }
   };
 
   const toggleActive = async (vehicle: RegisteredVehicle) => {
     try {
       await vehiclesApi.toggleActive(vehicle.id);
+      const newStatus = vehicle.is_active ? 'تعطيل' : 'تفعيل';
+      showSuccess('تم التحديث', `تم ${newStatus} المركبة ${vehicle.plate_number} بنجاح`);
       fetchVehicles();
     } catch (error) {
       console.error('Failed to toggle vehicle status:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'تغيير حالة المركبة', 'حدث خطأ في تغيير حالة المركبة');
+      showError(title, message);
     }
   };
 

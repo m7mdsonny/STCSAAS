@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { getDetailedErrorMessage } from '../lib/errorMessages';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, UserPlus, CheckCircle } from 'lucide-react';
 
 export function Login() {
@@ -23,10 +25,14 @@ export function Login() {
       const { error: loginError } = await signIn(email, password);
 
       if (loginError) {
-        setError(loginError.message || 'البريد الالكتروني او كلمة المرور غير صحيحة');
+        const errorMsg = getDetailedErrorMessage(loginError, 'تسجيل الدخول', 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
+        setError(errorMsg.message);
+        showError(errorMsg.title, errorMsg.message);
         setLoading(false);
         return;
       }
+      
+      showSuccess('تم تسجيل الدخول بنجاح', 'مرحباً بك في النظام');
 
       // Wait a bit to ensure user state is set
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -51,10 +57,9 @@ export function Login() {
         navigate('/dashboard');
       }
     } catch (err) {
-      const fallbackMessage = err instanceof Error
-        ? err.message
-        : 'تعذر تسجيل الدخول حالياً، حاول مرة أخرى';
-      setError(fallbackMessage);
+      const { title, message } = getDetailedErrorMessage(err, 'تسجيل الدخول', 'تعذر تسجيل الدخول حالياً، حاول مرة أخرى');
+      setError(message);
+      showError(title, message);
     } finally {
       setLoading(false);
     }

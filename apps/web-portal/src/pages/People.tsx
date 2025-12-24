@@ -4,6 +4,8 @@ import { peopleApi } from '../lib/api/people';
 import { edgeServersApi } from '../lib/api/edgeServers';
 import { edgeServerService } from '../lib/edgeServer';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { getDetailedErrorMessage } from '../lib/errorMessages';
 import { Modal } from '../components/ui/Modal';
 import type { RegisteredFace } from '../types/database';
 
@@ -16,6 +18,7 @@ const CATEGORIES = [
 
 export function People() {
   const { organization, canManage } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [people, setPeople] = useState<RegisteredFace[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -84,12 +87,12 @@ export function People() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!organization) {
-      alert('يرجى التأكد من تسجيل الدخول');
+      showError('خطأ في تسجيل الدخول', 'يرجى التأكد من تسجيل الدخول بشكل صحيح');
       return;
     }
 
     if (!formData.person_name.trim()) {
-      alert('يرجى إدخال اسم الشخص');
+      showError('بيانات غير مكتملة', 'يرجى إدخال اسم الشخص');
       return;
     }
 
@@ -109,13 +112,14 @@ export function People() {
 
           if (!faceId) {
             setEncodingStatus('error');
-            alert('فشل في معالجة الصورة. يرجى المحاولة مرة أخرى.');
+            showError('فشل معالجة الصورة', 'فشل في معالجة الصورة. يرجى المحاولة مرة أخرى أو التحقق من اتصال Edge Server');
             return;
           }
           setEncodingStatus('success');
         } catch (faceError) {
           console.error('Face encoding error:', faceError);
           setEncodingStatus('error');
+          showError('تحذير', 'فشل معالجة الصورة في Edge Server، سيتم حفظ البيانات بدون معالجة الوجه');
           // Continue without face encoding if Edge Server is unavailable
         }
       }
@@ -130,10 +134,10 @@ export function People() {
 
       if (editingPerson) {
         await peopleApi.updatePerson(editingPerson.id, payload);
-        alert('تم تحديث الشخص بنجاح');
+        showSuccess('تم التحديث بنجاح', `تم تحديث بيانات ${formData.person_name} بنجاح`);
       } else {
         await peopleApi.createPerson(payload);
-        alert('تم إضافة الشخص بنجاح');
+        showSuccess('تم الإضافة بنجاح', `تم إضافة ${formData.person_name} إلى النظام بنجاح`);
       }
 
       setShowModal(false);
@@ -146,27 +150,35 @@ export function People() {
     } catch (error: any) {
       console.error('Failed to save person:', error);
       setEncodingStatus('error');
-      const errorMessage = error?.response?.data?.message || error?.message || 'حدث خطأ في حفظ الشخص';
-      alert(`خطأ: ${errorMessage}`);
+      const { title, message } = getDetailedErrorMessage(error, 'حفظ الشخص', 'حدث خطأ في حفظ الشخص');
+      showError(title, message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('هل انت متاكد من حذف هذا الشخص؟')) return;
+    const person = people.find(p => p.id === id);
+    if (!confirm(`هل أنت متأكد من حذف ${person?.person_name || 'هذا الشخص'}؟`)) return;
     try {
       await peopleApi.deletePerson(id);
+      showSuccess('تم الحذف بنجاح', `تم حذف ${person?.person_name || 'الشخص'} من النظام`);
       fetchPeople();
     } catch (error) {
       console.error('Failed to delete person:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'حذف الشخص', 'حدث خطأ في حذف الشخص');
+      showError(title, message);
     }
   };
 
   const toggleActive = async (person: RegisteredFace) => {
     try {
       await peopleApi.toggleActive(person.id);
+      const newStatus = person.is_active ? 'تعطيل' : 'تفعيل';
+      showSuccess('تم التحديث', `تم ${newStatus} ${person.person_name} بنجاح`);
       fetchPeople();
     } catch (error) {
       console.error('Failed to toggle person status:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'تغيير حالة الشخص', 'حدث خطأ في تغيير حالة الشخص');
+      showError(title, message);
     }
   };
 

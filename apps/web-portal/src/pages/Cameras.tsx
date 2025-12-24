@@ -4,6 +4,8 @@ import { camerasApi } from '../lib/api/cameras';
 import { edgeServersApi } from '../lib/api/edgeServers';
 import { edgeServerService, CameraSnapshot } from '../lib/edgeServer';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { getDetailedErrorMessage } from '../lib/errorMessages';
 import { Modal } from '../components/ui/Modal';
 import type { Camera as CameraType, EdgeServer } from '../types/database';
 import { AI_MODULES } from '../types/database';
@@ -96,7 +98,7 @@ export function Cameras() {
     if (!organization) return;
 
     if (!formData.edge_server_id) {
-      alert('يرجى اختيار سيرفر Edge');
+      showError('بيانات غير مكتملة', 'يرجى اختيار سيرفر Edge');
       return;
     }
 
@@ -108,10 +110,10 @@ export function Cameras() {
     try {
       if (editingCamera) {
         await camerasApi.updateCamera(editingCamera.id, payload);
-        alert('تم تحديث الكاميرا بنجاح');
+        showSuccess('تم التحديث بنجاح', `تم تحديث بيانات الكاميرا ${formData.name} بنجاح`);
       } else {
         await camerasApi.createCamera(payload);
-        alert('تم إضافة الكاميرا بنجاح وربطها بالسيرفر المحلي');
+        showSuccess('تم الإضافة بنجاح', `تم إضافة الكاميرا ${formData.name} وربطها بالسيرفر المحلي بنجاح`);
       }
 
       setShowModal(false);
@@ -120,18 +122,22 @@ export function Cameras() {
       fetchData();
     } catch (error: any) {
       console.error('Error saving camera:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'حدث خطأ في حفظ الكاميرا';
-      alert(`خطأ: ${errorMessage}`);
+      const { title, message } = getDetailedErrorMessage(error, 'حفظ الكاميرا', 'حدث خطأ في حفظ الكاميرا');
+      showError(title, message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('هل انت متاكد من حذف هذه الكاميرا؟')) return;
+    const camera = cameras.find(c => c.id === id);
+    if (!confirm(`هل أنت متأكد من حذف الكاميرا ${camera?.name || ''}؟`)) return;
     try {
       await camerasApi.deleteCamera(id);
+      showSuccess('تم الحذف بنجاح', `تم حذف الكاميرا ${camera?.name || ''} من النظام`);
       fetchData();
     } catch (error) {
       console.error('Error deleting camera:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'حذف الكاميرا', 'حدث خطأ في حذف الكاميرا');
+      showError(title, message);
     }
   };
 

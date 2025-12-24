@@ -3,6 +3,8 @@ import { Building2, Save, MapPin, Phone, Mail, FileText, Calendar, CreditCard, C
 import { organizationsApi } from '../../lib/api/organizations';
 import { settingsApi } from '../../lib/api/settings';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
+import { getDetailedErrorMessage } from '../../lib/errorMessages';
 import type { SubscriptionPlan } from '../../types/database';
 
 export function OrganizationSettings() {
@@ -98,14 +100,15 @@ export function OrganizationSettings() {
       if (response.ok) {
         const data = await response.json();
         setLogoUrl(data.url || data.logo_url);
-        alert('تم رفع الشعار بنجاح');
+        showSuccess('تم رفع الشعار بنجاح', 'تم تحديث شعار المؤسسة بنجاح');
       } else {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'فشل رفع الشعار');
       }
     } catch (error: any) {
       console.error('Error uploading logo:', error);
-      alert(`حدث خطأ في رفع الشعار: ${error.message || 'خطأ غير معروف'}`);
+      const { title, message } = getDetailedErrorMessage(error, 'رفع الشعار', 'حدث خطأ في رفع الشعار');
+      showError(title, message);
     } finally {
       setUploadingLogo(false);
     }
@@ -117,10 +120,11 @@ export function OrganizationSettings() {
     try {
       await organizationsApi.updateOrganization(organization.id, { logo_url: null });
       setLogoUrl(null);
-      alert('تم حذف الشعار بنجاح');
+      showSuccess('تم الحذف بنجاح', 'تم حذف شعار المؤسسة بنجاح');
     } catch (error) {
       console.error('Error removing logo:', error);
-      alert('حدث خطأ في حذف الشعار');
+      const { title, message } = getDetailedErrorMessage(error, 'حذف الشعار', 'حدث خطأ في حذف الشعار');
+      showError(title, message);
     }
   };
 
@@ -130,10 +134,11 @@ export function OrganizationSettings() {
 
     try {
       await organizationsApi.updateOrganization(organization.id, form);
-      alert('تم حفظ الإعدادات بنجاح');
+      showSuccess('تم الحفظ بنجاح', 'تم تحديث إعدادات المؤسسة بنجاح');
     } catch (error) {
       console.error('Error saving organization settings:', error);
-      alert('حدث خطأ في حفظ الإعدادات');
+      const { title, message } = getDetailedErrorMessage(error, 'حفظ الإعدادات', 'حدث خطأ في حفظ الإعدادات');
+      showError(title, message);
     }
 
     setSaving(false);

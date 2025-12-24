@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { automationRulesApi } from '../lib/api/automationRules';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { getDetailedErrorMessage } from '../lib/errorMessages';
 import { Modal } from '../components/ui/Modal';
 import { AI_MODULES, MODULE_EVENTS, ACTION_TYPES, type AutomationRule } from '../types/database';
 
@@ -85,12 +87,12 @@ export function Automation() {
     e.preventDefault();
 
     if (!organization) {
-      alert('يرجى التأكد من تسجيل الدخول');
+      showError('خطأ في تسجيل الدخول', 'يرجى التأكد من تسجيل الدخول بشكل صحيح');
       return;
     }
 
     if (!formData.name.trim()) {
-      alert('يرجى إدخال اسم القاعدة');
+      showError('بيانات غير مكتملة', 'يرجى إدخال اسم القاعدة');
       return;
     }
 
@@ -102,17 +104,17 @@ export function Automation() {
     try {
       if (editingRule) {
         await automationRulesApi.updateRule(editingRule.id, ruleData);
-        alert('تم تحديث القاعدة بنجاح');
+        showSuccess('تم التحديث بنجاح', `تم تحديث قاعدة ${formData.name} بنجاح`);
       } else {
         await automationRulesApi.createRule(ruleData);
-        alert('تم إضافة القاعدة بنجاح');
+        showSuccess('تم الإضافة بنجاح', `تم إضافة قاعدة ${formData.name} بنجاح`);
       }
       fetchRules();
       setShowModal(false);
     } catch (error: any) {
       console.error('Error saving automation rule:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'حدث خطأ في حفظ القاعدة';
-      alert(`خطأ: ${errorMessage}`);
+      const { title, message } = getDetailedErrorMessage(error, 'حفظ القاعدة', 'حدث خطأ في حفظ القاعدة');
+      showError(title, message);
     }
   };
 
@@ -138,20 +140,28 @@ export function Automation() {
   const handleToggle = async (rule: AutomationRule) => {
     try {
       await automationRulesApi.updateRule(rule.id, { is_active: !rule.is_active });
+      const newStatus = rule.is_active ? 'تعطيل' : 'تفعيل';
+      showSuccess('تم التحديث', `تم ${newStatus} القاعدة ${rule.name} بنجاح`);
       fetchRules();
     } catch (error) {
       console.error('Error toggling automation rule:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'تغيير حالة القاعدة', 'حدث خطأ في تغيير حالة القاعدة');
+      showError(title, message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('هل انت متاكد من حذف هذا الامر؟')) return;
+    const rule = rules.find(r => r.id === id);
+    if (!confirm(`هل أنت متأكد من حذف القاعدة ${rule?.name || ''}؟`)) return;
 
     try {
       await automationRulesApi.deleteRule(id);
+      showSuccess('تم الحذف بنجاح', `تم حذف القاعدة ${rule?.name || ''} من النظام`);
       fetchRules();
     } catch (error) {
       console.error('Error deleting automation rule:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'حذف القاعدة', 'حدث خطأ في حذف القاعدة');
+      showError(title, message);
     }
   };
 

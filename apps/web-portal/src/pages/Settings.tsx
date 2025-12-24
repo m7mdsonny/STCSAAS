@@ -3,6 +3,8 @@ import { Settings as SettingsIcon, Building2, Bell, Shield, Server, Plus, Trash2
 import { edgeServersApi } from '../lib/api/edgeServers';
 import { edgeServerService, EdgeServerStatus } from '../lib/edgeServer';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { getDetailedErrorMessage } from '../lib/errorMessages';
 import { Modal } from '../components/ui/Modal';
 import { OrganizationSettings } from '../components/settings/OrganizationSettings';
 import { NotificationSettings } from '../components/settings/NotificationSettings';
@@ -69,13 +71,16 @@ export function Settings() {
           name: serverForm.name,
           location: serverForm.location || undefined,
         });
-        alert('تم تحديث السيرفر بنجاح');
+        showSuccess('تم التحديث بنجاح', `تم تحديث بيانات السيرفر ${serverForm.name} بنجاح`);
       } else {
         const newServer = await edgeServersApi.createEdgeServer({
           name: serverForm.name,
           location: serverForm.location || undefined,
         });
-        alert(`تم إضافة السيرفر بنجاح. معرف السيرفر: ${newServer.edge_id || newServer.id}\n\nيرجى استخدام هذا المعرف في Edge Server للربط.`);
+        showSuccess(
+          'تم الإضافة بنجاح',
+          `تم إضافة السيرفر ${serverForm.name} بنجاح. معرف السيرفر: ${newServer.edge_id || newServer.id}\nيرجى استخدام هذا المعرف في Edge Server للربط.`
+        );
       }
 
       setShowServerModal(false);
@@ -84,8 +89,8 @@ export function Settings() {
       fetchData();
     } catch (error: any) {
       console.error('Failed to save edge server:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'حدث خطأ في حفظ السيرفر';
-      alert(`خطأ: ${errorMessage}`);
+      const { title, message } = getDetailedErrorMessage(error, 'حفظ السيرفر', 'حدث خطأ في حفظ السيرفر');
+      showError(title, message);
     }
   };
 
@@ -100,12 +105,16 @@ export function Settings() {
   };
 
   const deleteServer = async (id: string) => {
-    if (!confirm('هل انت متاكد من حذف هذا السيرفر؟ سيتم حذف جميع الكاميرات المرتبطة به.')) return;
+    const server = servers.find(s => s.id === id);
+    if (!confirm(`هل أنت متأكد من حذف السيرفر ${server?.name || ''}؟ سيتم حذف جميع الكاميرات المرتبطة به.`)) return;
     try {
       await edgeServersApi.deleteEdgeServer(id);
+      showSuccess('تم الحذف بنجاح', `تم حذف السيرفر ${server?.name || ''} من النظام`);
       fetchData();
     } catch (error) {
       console.error('Failed to delete edge server:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'حذف السيرفر', 'حدث خطأ في حذف السيرفر');
+      showError(title, message);
     }
   };
 
@@ -122,11 +131,16 @@ export function Settings() {
       // but we can trigger a sync if needed
       if (status) {
         await edgeServersApi.syncConfig(server.id);
+        showSuccess('اتصال ناجح', `تم الاتصال بسيرفر ${server.name} بنجاح`);
+      } else {
+        showError('فشل الاتصال', `فشل الاتصال بسيرفر ${server.name}. تأكد من تشغيل Edge Server`);
       }
 
       fetchData();
     } catch (error) {
       console.error('Failed to test server connection:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'اختبار الاتصال', 'فشل اختبار الاتصال بالسيرفر');
+      showError(title, message);
     }
     setTestingServer(null);
   };

@@ -40,6 +40,8 @@ import { Resellers } from './pages/admin/Resellers';
 import { SystemMonitor } from './pages/admin/SystemMonitor';
 import { Loader2 } from 'lucide-react';
 import { BrandingProvider } from './contexts/BrandingContext';
+import { ToastProvider, useToast } from './contexts/ToastContext';
+import { ToastContainer } from './components/ui/Toast';
 
 function PrivateRoute({ 
   children, 
@@ -106,9 +108,12 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AppRoutes() {
+function AppRoutesWithToast() {
+  const { toasts, removeToast } = useToast();
+  
   return (
-    <Routes>
+    <>
+      <Routes>
       <Route 
         path="/" 
         element={
@@ -200,17 +205,25 @@ function AppRoutes() {
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+    </>
   );
+}
+
+function AppRoutes() {
+  return <AppRoutesWithToast />;
 }
 
 export default function App() {
   return (
     <BrowserRouter>
       <BrandingProvider>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </ToastProvider>
       </BrandingProvider>
     </BrowserRouter>
   );
