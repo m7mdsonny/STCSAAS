@@ -25,7 +25,9 @@ export function EdgeServerStatus() {
       if (response.data && response.data.length > 0) {
         const server = response.data[0];
         if (server.ip_address) {
-          const url = `http://${server.ip_address}:8000`;
+          // Use same protocol as current page to avoid Mixed Content errors
+          const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+          const url = `${protocol}//${server.ip_address}:8000`;
           await edgeServerService.setServerUrl(url);
 
           const serverStatus = await edgeServerService.getStatus();

@@ -47,7 +47,8 @@ export function People() {
       const servers = result.data || [];
 
       if (servers.length > 0 && servers[0].ip_address) {
-        await edgeServerService.setServerUrl(`http://${servers[0].ip_address}:8000`);
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        await edgeServerService.setServerUrl(`${protocol}//${servers[0].ip_address}:8000`);
       }
     } catch (error) {
       console.error('Failed to setup edge server:', error);

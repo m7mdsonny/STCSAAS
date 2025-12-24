@@ -158,10 +158,21 @@ class CameraController extends Controller
         // Sync camera configuration to Edge Server
         try {
             $edgeService = new EdgeServerService();
-            $edgeService->syncCameraToEdge($camera);
+            $syncResult = $edgeService->syncCameraToEdge($camera);
+            
+            if (!$syncResult) {
+                \Log::warning("Camera {$camera->id} created but failed to sync to Edge Server");
+                // Don't fail the request, but log the issue
+            } else {
+                \Log::info("Camera {$camera->id} successfully synced to Edge Server {$camera->edge_server_id}");
+            }
         } catch (\Exception $e) {
             // Log error but don't fail the request
-            \Log::warning("Failed to sync camera to Edge: {$e->getMessage()}");
+            \Log::error("Failed to sync camera to Edge: {$e->getMessage()}", [
+                'camera_id' => $camera->id,
+                'edge_server_id' => $camera->edge_server_id,
+                'exception' => $e
+            ]);
         }
 
         return response()->json($camera, 201);
@@ -232,9 +243,19 @@ class CameraController extends Controller
         // Sync updated camera configuration to Edge Server
         try {
             $edgeService = new EdgeServerService();
-            $edgeService->syncCameraToEdge($camera);
+            $syncResult = $edgeService->syncCameraToEdge($camera);
+            
+            if (!$syncResult) {
+                \Log::warning("Camera {$camera->id} updated but failed to sync to Edge Server");
+            } else {
+                \Log::info("Camera {$camera->id} update successfully synced to Edge Server");
+            }
         } catch (\Exception $e) {
-            \Log::warning("Failed to sync camera update to Edge: {$e->getMessage()}");
+            \Log::error("Failed to sync camera update to Edge: {$e->getMessage()}", [
+                'camera_id' => $camera->id,
+                'edge_server_id' => $camera->edge_server_id,
+                'exception' => $e
+            ]);
         }
 
         return response()->json($camera);

@@ -54,7 +54,8 @@ export function Cameras() {
       setServers(serversData);
       const onlineServer = serversData.find(s => s.status === 'online' && s.ip_address);
       if (onlineServer?.ip_address) {
-        await edgeServerService.setServerUrl(`http://${onlineServer.ip_address}:8000`);
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        await edgeServerService.setServerUrl(`${protocol}//${onlineServer.ip_address}:8000`);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -94,6 +95,11 @@ export function Cameras() {
     e.preventDefault();
     if (!organization) return;
 
+    if (!formData.edge_server_id) {
+      alert('يرجى اختيار سيرفر Edge');
+      return;
+    }
+
     const payload = {
       ...formData,
       organization_id: organization.id,
@@ -102,16 +108,20 @@ export function Cameras() {
     try {
       if (editingCamera) {
         await camerasApi.updateCamera(editingCamera.id, payload);
+        alert('تم تحديث الكاميرا بنجاح');
       } else {
         await camerasApi.createCamera(payload);
+        alert('تم إضافة الكاميرا بنجاح وربطها بالسيرفر المحلي');
       }
 
       setShowModal(false);
       setEditingCamera(null);
       resetForm();
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving camera:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'حدث خطأ في حفظ الكاميرا';
+      alert(`خطأ: ${errorMessage}`);
     }
   };
 

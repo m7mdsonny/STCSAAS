@@ -58,25 +58,34 @@ export function Settings() {
     e.preventDefault();
     if (!organization) return;
 
+    if (!serverForm.name.trim()) {
+      alert('يرجى إدخال اسم السيرفر');
+      return;
+    }
+
     try {
       if (editingServer) {
         await edgeServersApi.updateEdgeServer(editingServer.id, {
           name: serverForm.name,
           location: serverForm.location || undefined,
         });
+        alert('تم تحديث السيرفر بنجاح');
       } else {
-        await edgeServersApi.createEdgeServer({
+        const newServer = await edgeServersApi.createEdgeServer({
           name: serverForm.name,
           location: serverForm.location || undefined,
         });
+        alert(`تم إضافة السيرفر بنجاح. معرف السيرفر: ${newServer.edge_id || newServer.id}\n\nيرجى استخدام هذا المعرف في Edge Server للربط.`);
       }
 
       setShowServerModal(false);
       setServerForm({ name: '', ip_address: '', location: '' });
       setEditingServer(null);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save edge server:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'حدث خطأ في حفظ السيرفر';
+      alert(`خطأ: ${errorMessage}`);
     }
   };
 
@@ -104,7 +113,8 @@ export function Settings() {
     if (!server.ip_address) return;
     setTestingServer(server.id);
     try {
-      await edgeServerService.setServerUrl(`http://${server.ip_address}:8000`);
+      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+      await edgeServerService.setServerUrl(`${protocol}//${server.ip_address}:8000`);
       const status = await edgeServerService.getStatus();
       setServerStatuses(prev => ({ ...prev, [server.id]: status }));
 
@@ -125,7 +135,8 @@ export function Settings() {
     if (!server.ip_address) return;
     setSyncingServer(server.id);
     try {
-      await edgeServerService.setServerUrl(`http://${server.ip_address}:8000`);
+      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+      await edgeServerService.setServerUrl(`${protocol}//${server.ip_address}:8000`);
       await edgeServerService.forceSync();
       await edgeServersApi.syncConfig(server.id);
     } catch (error) {

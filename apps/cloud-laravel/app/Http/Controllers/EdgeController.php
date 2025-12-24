@@ -48,16 +48,28 @@ class EdgeController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
+        
+        // Auto-set organization_id for non-super-admin users
+        $organizationId = $user->organization_id;
+        if (RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false) && $request->filled('organization_id')) {
+            $organizationId = $request->get('organization_id');
+        }
+        
+        if (!$organizationId) {
+            return response()->json(['message' => 'Organization ID is required'], 422);
+        }
+        
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'organization_id' => 'required|exists:organizations,id',
+            'organization_id' => 'sometimes|exists:organizations,id',
             'license_id' => 'nullable|exists:licenses,id',
             'edge_id' => 'nullable|string|unique:edge_servers,edge_id',
             'location' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
         ]);
 
-        $organizationId = $data['organization_id'];
+        // Override organization_id with auto-detected value
+        $data['organization_id'] = $organizationId;
 
         // Organization users can only create edge servers for their organization
         if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {

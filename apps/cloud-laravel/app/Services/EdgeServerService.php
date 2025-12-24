@@ -20,7 +20,19 @@ class EdgeServerService
     {
         $edgeServer = $camera->edgeServer;
         
-        if (!$edgeServer || !$edgeServer->ip_address) {
+        if (!$edgeServer) {
+            Log::warning("Camera {$camera->id} has no associated Edge Server");
+            return false;
+        }
+        
+        if (!$edgeServer->ip_address) {
+            Log::warning("Edge Server {$edgeServer->id} has no IP address");
+            return false;
+        }
+
+        // Check if Edge Server is online
+        if (!$edgeServer->online) {
+            Log::warning("Edge Server {$edgeServer->id} is offline, cannot sync camera");
             return false;
         }
 
@@ -37,6 +49,25 @@ class EdgeServerService
                 }
             }
 
+            // Map module IDs to Edge Server module names if needed
+            $enabledModules = $config['enabled_modules'] ?? [];
+            $moduleMapping = [
+                'fire_detection' => 'fire',
+                'face_recognition' => 'face',
+                'vehicle_detection' => 'vehicle',
+                'crowd_analysis' => 'crowd',
+                'intrusion_detection' => 'intrusion',
+                'loitering_detection' => 'loitering',
+                'abandoned_object' => 'object',
+                'people_counting' => 'counter',
+                'license_plate' => 'vehicle',
+            ];
+            
+            // Convert module IDs to Edge Server module names
+            $edgeModules = array_map(function($moduleId) use ($moduleMapping) {
+                return $moduleMapping[$moduleId] ?? $moduleId;
+            }, $enabledModules);
+            
             $payload = [
                 'id' => $camera->camera_id,
                 'name' => $camera->name,
@@ -46,7 +77,7 @@ class EdgeServerService
                 'password' => $password,
                 'resolution' => $config['resolution'] ?? '1920x1080',
                 'fps' => $config['fps'] ?? 15,
-                'enabled_modules' => $config['enabled_modules'] ?? [],
+                'enabled_modules' => $edgeModules, // Send mapped module names
             ];
 
             $edgeUrl = $this->getEdgeServerUrl($edgeServer);
@@ -54,18 +85,45 @@ class EdgeServerService
                 return false;
             }
 
-            $response = Http::timeout(5)
+            Log::info("Syncing camera to Edge Server", [
+                'camera_id' => $camera->camera_id,
+                'edge_url' => $edgeUrl,
+                'modules' => $edgeModules
+            ]);
+
+            $response = Http::timeout(10)
+                ->retry(2, 100)
                 ->post("{$edgeUrl}/api/v1/cameras", $payload);
 
             if ($response->successful()) {
-                Log::info("Camera {$camera->id} synced to Edge Server {$edgeServer->id}");
+                $responseData = $response->json();
+                Log::info("Camera {$camera->id} synced to Edge Server {$edgeServer->id}", [
+                    'camera_id' => $camera->camera_id,
+                    'edge_response' => $responseData
+                ]);
+                
+                // Update camera status to online if sync successful
+                $camera->update(['status' => 'online']);
                 return true;
             } else {
-                Log::warning("Failed to sync camera to Edge: {$response->status()} - {$response->body()}");
+                $errorBody = $response->body();
+                Log::warning("Failed to sync camera to Edge: {$response->status()} - {$errorBody}", [
+                    'camera_id' => $camera->camera_id,
+                    'edge_url' => $edgeUrl,
+                    'payload' => $payload
+                ]);
+                
+                // Update camera status to error if sync failed
+                $camera->update(['status' => 'error']);
                 return false;
             }
         } catch (\Exception $e) {
-            Log::error("Error syncing camera to Edge: {$e->getMessage()}");
+            Log::error("Error syncing camera to Edge: {$e->getMessage()}", [
+                'camera_id' => $camera->id,
+                'edge_server_id' => $edgeServer->id,
+                'exception' => $e->getTraceAsString()
+            ]);
+            $camera->update(['status' => 'error']);
             return false;
         }
     }
@@ -174,6 +232,16 @@ class EdgeServerService
                 ->get("{$edgeUrl}/api/v1/cameras/{$camera->camera_id}/snapshot");
 
             if ($response->successful()) {
+                // If response is an image, return base64 encoded
+                $contentType = $response->header('Content-Type');
+                if (str_contains($contentType, 'image')) {
+                    $imageData = base64_encode($response->body());
+                    return [
+                        'image' => "data:{$contentType};base64,{$imageData}",
+                        'timestamp' => now()->toIso8601String(),
+                        'camera_id' => $camera->camera_id,
+                    ];
+                }
                 return $response->json();
             } else {
                 return null;
@@ -238,14 +306,17 @@ class EdgeServerService
     private function getEdgeServerUrl(EdgeServer $edgeServer): ?string
     {
         if (!$edgeServer->ip_address) {
+            Log::warning("Edge Server {$edgeServer->id} has no IP address");
             return null;
         }
 
-        // Default Edge Server port is 8080
+        // Default Edge Server port is 8080 (not 8000)
         $port = $edgeServer->port ?? 8080;
-        $protocol = $edgeServer->use_https ? 'https' : 'http';
+        $protocol = ($edgeServer->use_https ?? false) ? 'https' : 'http';
         
-        return "{$protocol}://{$edgeServer->ip_address}:{$port}";
+        $url = "{$protocol}://{$edgeServer->ip_address}:{$port}";
+        Log::debug("Edge Server URL: {$url}");
+        return $url;
     }
 
     /**
@@ -271,4 +342,3 @@ class EdgeServerService
         }
     }
 }
-
