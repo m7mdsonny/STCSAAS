@@ -28,6 +28,7 @@ import { LandingSettingsPage } from './pages/admin/LandingSettings';
 import { AdminIntegrations } from './pages/admin/AdminIntegrations';
 import { AdminSmsSettings } from './pages/admin/AdminSmsSettings';
 import { AdminUpdates } from './pages/admin/AdminUpdates';
+import { SystemUpdates } from './pages/admin/SystemUpdates';
 import { AdminBackups } from './pages/admin/AdminBackups';
 import { AiCommandCenter } from './pages/admin/AiCommandCenter';
 import { AIModulesAdmin } from './pages/admin/AIModulesAdmin';
@@ -165,6 +166,7 @@ function AppRoutesWithToast() {
         <Route path="/admin/wordings" element={<PlatformWordings />} />
         <Route path="/admin/landing" element={<LandingSettingsPage />} />
         <Route path="/admin/updates" element={<AdminUpdates />} />
+        <Route path="/admin/system-updates" element={<SystemUpdates />} />
         <Route path="/admin/backups" element={<AdminBackups />} />
         <Route path="/admin/ai-commands" element={<AiCommandCenter />} />
       </Route>

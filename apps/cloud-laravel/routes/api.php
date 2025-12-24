@@ -19,6 +19,7 @@ use App\Http\Controllers\SystemBackupController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AiPolicyController;
 use App\Http\Controllers\UpdateAnnouncementController;
+use App\Http\Controllers\SystemUpdateController;
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\AiCommandController;
 use App\Http\Controllers\AiModuleController;
@@ -236,6 +237,13 @@ Route::prefix('v1')->group(function () {
         Route::put('/updates/{update}', [UpdateAnnouncementController::class, 'update']);
         Route::delete('/updates/{update}', [UpdateAnnouncementController::class, 'destroy']);
         Route::post('/updates/{update}/toggle', [UpdateAnnouncementController::class, 'togglePublish']);
+
+        // System Updates (Real Update System)
+        Route::get('/system-updates', [SystemUpdateController::class, 'index']);
+        Route::post('/system-updates/upload', [SystemUpdateController::class, 'upload']);
+        Route::post('/system-updates/{updateId}/install', [SystemUpdateController::class, 'install']);
+        Route::post('/system-updates/rollback/{backupId}', [SystemUpdateController::class, 'rollback']);
+        Route::get('/system-updates/current-version', [SystemUpdateController::class, 'currentVersion']);
 
         Route::get('/ai-commands', [AiCommandController::class, 'index']);
         Route::post('/ai-commands', [AiCommandController::class, 'store']);

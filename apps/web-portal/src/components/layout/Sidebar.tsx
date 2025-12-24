@@ -67,7 +67,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/admin/super-admins', icon: Shield, label: 'السوبر ادمن' },
     { to: '/admin/super-settings', icon: Sliders, label: 'تحكمات السوبر ادمن' },
     { to: '/admin/wordings', icon: Type, label: 'نصوص المنصة' },
-    { to: '/admin/updates', icon: UploadCloud, label: 'التحديثات' },
+    { to: '/admin/updates', icon: UploadCloud, label: 'إعلانات التحديثات' },
+    { to: '/admin/system-updates', icon: UploadCloud, label: 'نظام التحديثات' },
     { to: '/admin/backups', icon: Database, label: 'النسخ الاحتياطية' },
   ];
 

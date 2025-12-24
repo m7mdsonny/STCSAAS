@@ -1,0 +1,13 @@
+{
+  "version": "1.2.0",
+  "version_type": "minor",
+  "title": "تحديث الميزات الجديدة - يناير 2025",
+  "description": "إضافة نظام الإشعارات الشامل وتحسينات على الأداء",
+  "release_notes": "تم إضافة:\n- نظام Toast Notifications\n- تحسينات على الأداء\n- إصلاحات للأخطاء",
+  "changelog": "- إضافة نظام Toast Notifications الشامل\n- إضافة Error Messages Helper\n- تحسين error handling في جميع الصفحات\n- إصلاح مشكلة تسجيل الدخول\n- إصلاح مشكلة رفع الشعار\n- تحسين الأداء العام",
+  "requires_version": "1.0.0",
+  "affected_modules": ["notifications", "authentication", "settings"],
+  "requires_manual_update": false,
+  "files": {}
+}
+
