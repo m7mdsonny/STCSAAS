@@ -48,11 +48,15 @@ export function Users() {
         organizationsApi.getOrganizations(),
       ]);
 
-      setOrganizations(orgsRes.data);
+      // Handle paginated response for organizations
+      const orgsData = Array.isArray(orgsRes.data) ? orgsRes.data : (orgsRes.data?.data || []);
+      setOrganizations(orgsData);
 
-      const enriched = usersRes.data.map(user => ({
+      // Handle paginated response for users
+      const usersData = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.data || []);
+      const enriched = usersData.map(user => ({
         ...user,
-        organization: orgsRes.data.find(o => o.id === user.organization_id),
+        organization: orgsData.find(o => o.id === user.organization_id),
       }));
       setUsers(enriched);
     } catch (error) {
@@ -88,9 +92,12 @@ export function Users() {
 
       setShowModal(false);
       resetForm();
-      fetchData();
+      await fetchData();
+      alert(editingUser ? 'تم تحديث المستخدم بنجاح' : 'تم إضافة المستخدم بنجاح');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ');
+      const errorMessage = err instanceof Error ? err.message : 'حدث خطأ';
+      setError(errorMessage);
+      alert(`فشل ${editingUser ? 'تحديث' : 'إضافة'} المستخدم: ${errorMessage}`);
     } finally {
       setSubmitting(false);
     }

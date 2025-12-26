@@ -64,7 +64,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/admin/landing', icon: Globe, label: 'صفحة الهبوط' },
     { to: '/admin/notifications', icon: Bell, label: 'الاشعارات' },
     { to: '/admin/settings', icon: Settings, label: 'الاعدادات' },
-    { to: '/admin/super-admins', icon: Shield, label: 'السوبر ادمن' },
     { to: '/admin/super-settings', icon: Sliders, label: 'تحكمات السوبر ادمن' },
     { to: '/admin/wordings', icon: Type, label: 'نصوص المنصة' },
     { to: '/admin/updates', icon: UploadCloud, label: 'إعلانات التحديثات' },

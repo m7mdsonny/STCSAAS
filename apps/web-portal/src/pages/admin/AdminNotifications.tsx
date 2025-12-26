@@ -54,7 +54,10 @@ export function AdminNotifications() {
     } catch (error) {
       console.error('Error fetching priorities', error);
       setPriorities([]);
-      alert('حدث خطأ في تحميل قواعد الأولوية. يرجى المحاولة مرة أخرى.');
+      // Don't show alert on initial load if no org selected
+      if (selectedOrg) {
+        alert('حدث خطأ في تحميل قواعد الأولوية. يرجى المحاولة مرة أخرى.');
+      }
     } finally {
       setLoading(false);
     }

@@ -2,12 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\RoleHelper;
 use App\Models\NotificationPriority;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class NotificationPriorityController extends Controller
 {
+    private function ensureSuperAdmin(Request $request): void
+    {
+        $user = $request->user();
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            abort(403, 'Unauthorized');
+        }
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = NotificationPriority::query();

@@ -32,9 +32,17 @@ export function Organizations() {
     setLoading(true);
     try {
       const response = await organizationsApi.getOrganizations();
-      setOrganizations(response.data);
+      // Handle paginated response
+      if (Array.isArray(response.data)) {
+        setOrganizations(response.data);
+      } else if (response.data && Array.isArray(response.data.data)) {
+        setOrganizations(response.data.data);
+      } else {
+        setOrganizations([]);
+      }
     } catch (error) {
       console.error('Error fetching organizations:', error);
+      setOrganizations([]);
     } finally {
       setLoading(false);
     }
