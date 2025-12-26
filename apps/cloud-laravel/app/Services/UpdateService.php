@@ -442,7 +442,7 @@ class UpdateService
      */
     private function backupDatabaseSchema(string $backupDir): void
     {
-        // Export current schema using pg_dump or mysqldump
+        // Export current schema using mysqldump
         $schemaPath = $backupDir . '/schema.sql';
         $connection = config('database.default');
         $config = config("database.connections.{$connection}");
