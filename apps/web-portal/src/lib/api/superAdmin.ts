@@ -123,7 +123,7 @@ export const superAdminApi = {
   },
 
   testEmail: async (data: { email: string }): Promise<{ success: boolean; message: string }> => {
-    const response = await apiClient.post('/api/v1/super-admin/test-email', data);
+    const response = await apiClient.post('/api/v1/super-admin/test-email', { to: data.email });
     return response.data;
   },
 };

@@ -46,25 +46,26 @@ export function AdminSettings() {
       if (settings) {
         setGeneralSettings({
           platformName: settings.platform_name || 'STC AI-VAP',
-          platformNameAr: settings.platform_name_ar || 'منصة تحليل الفيديو بالذكاء الاصطناعي',
+          platformNameAr: settings.platform_tagline || 'منصة تحليل الفيديو بالذكاء الاصطناعي',
           defaultLanguage: settings.default_language || 'ar',
-          timezone: settings.timezone || 'Africa/Cairo',
-          trialDays: settings.trial_days || 14,
+          timezone: settings.default_timezone || 'Africa/Cairo',
+          trialDays: 14, // Not in SystemSettings
         });
         setSecuritySettings({
-          sessionTimeout: settings.session_timeout || 60,
+          sessionTimeout: settings.session_timeout_minutes || 60,
           maxLoginAttempts: settings.max_login_attempts || 5,
-          requireMfa: settings.require_mfa || false,
+          requireMfa: settings.require_2fa || false,
           passwordMinLength: settings.password_min_length || 8,
-          passwordRequireSpecial: settings.password_require_special !== false,
+          passwordRequireSpecial: true, // Not in SystemSettings
         });
+        const emailSettingsData = (settings as any).email_settings || {};
         setEmailSettings({
-          smtpHost: settings.smtp_host || '',
-          smtpPort: settings.smtp_port || 587,
-          smtpUser: settings.smtp_user || '',
+          smtpHost: emailSettingsData.smtp_host || '',
+          smtpPort: emailSettingsData.smtp_port || 587,
+          smtpUser: emailSettingsData.smtp_user || '',
           smtpPassword: '', // Don't load password
-          fromEmail: settings.smtp_from_email || 'noreply@stc-solutions.com',
-          fromName: settings.smtp_from_name || 'STC AI-VAP',
+          fromEmail: emailSettingsData.from_email || 'noreply@stc-solutions.com',
+          fromName: emailSettingsData.from_name || 'STC AI-VAP',
         });
       }
     } catch (error) {
@@ -78,27 +79,27 @@ export function AdminSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const settingsData: Partial<SystemSettings> = {
+      const settingsData: any = {
         platform_name: generalSettings.platformName,
-        platform_name_ar: generalSettings.platformNameAr,
+        platform_tagline: generalSettings.platformNameAr,
         default_language: generalSettings.defaultLanguage,
-        timezone: generalSettings.timezone,
-        trial_days: generalSettings.trialDays,
-        session_timeout: securitySettings.sessionTimeout,
+        default_timezone: generalSettings.timezone,
+        session_timeout_minutes: securitySettings.sessionTimeout,
         max_login_attempts: securitySettings.maxLoginAttempts,
-        require_mfa: securitySettings.requireMfa,
+        require_2fa: securitySettings.requireMfa,
         password_min_length: securitySettings.passwordMinLength,
-        password_require_special: securitySettings.passwordRequireSpecial,
-        smtp_host: emailSettings.smtpHost,
-        smtp_port: emailSettings.smtpPort,
-        smtp_user: emailSettings.smtpUser,
-        smtp_from_email: emailSettings.fromEmail,
-        smtp_from_name: emailSettings.fromName,
+        email_settings: {
+          smtp_host: emailSettings.smtpHost,
+          smtp_port: emailSettings.smtpPort,
+          smtp_user: emailSettings.smtpUser,
+          from_email: emailSettings.fromEmail,
+          from_name: emailSettings.fromName,
+        },
       };
 
       // Only include password if it was changed
       if (emailSettings.smtpPassword) {
-        settingsData.smtp_password = emailSettings.smtpPassword;
+        settingsData.email_settings.smtp_password = emailSettings.smtpPassword;
       }
 
       await superAdminApi.updateSystemSettings(settingsData as SystemSettings);

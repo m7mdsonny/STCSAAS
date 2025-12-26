@@ -78,22 +78,24 @@ class SystemBackupController extends Controller
         Storage::makeDirectory('backups');
 
         if ($config['driver'] === 'mysql') {
-            $command = [
-                'mysqldump',
-                '-h', $config['host'],
-                '-P', (string) $config['port'],
-                '-u', $config['username'],
-                '-p' . ($config['password'] ?? ''),
-                $config['database'],
-            ];
+            $password = $config['password'] ?? '';
+            $command = sprintf(
+                'mysqldump -h %s -P %s -u %s %s %s > %s',
+                escapeshellarg($config['host']),
+                escapeshellarg((string) $config['port']),
+                escapeshellarg($config['username']),
+                $password ? '-p' . escapeshellarg($password) : '',
+                escapeshellarg($config['database']),
+                escapeshellarg(Storage::path($filename))
+            );
 
-            $process = new Process($command);
+            $process = Process::fromShellCommandline($command);
+            $process->setTimeout(300); // 5 minutes
             $process->run();
+            
             if (!$process->isSuccessful()) {
-                throw new \RuntimeException($process->getErrorOutput());
+                throw new \RuntimeException('Backup failed: ' . $process->getErrorOutput());
             }
-
-            file_put_contents(Storage::path($filename), $process->getOutput());
         } elseif ($config['driver'] === 'sqlite') {
             $dbPath = $this->resolveSqlitePath($config);
             copy($dbPath, Storage::path($filename));
@@ -110,21 +112,23 @@ class SystemBackupController extends Controller
         $config = config("database.connections.$connection");
 
         if ($config['driver'] === 'mysql') {
-            $command = [
-                'mysql',
-                '-h', $config['host'],
-                '-P', (string) $config['port'],
-                '-u', $config['username'],
-                '-p' . ($config['password'] ?? ''),
-                $config['database'],
-            ];
+            $password = $config['password'] ?? '';
+            $command = sprintf(
+                'mysql -h %s -P %s -u %s %s %s < %s',
+                escapeshellarg($config['host']),
+                escapeshellarg((string) $config['port']),
+                escapeshellarg($config['username']),
+                $password ? '-p' . escapeshellarg($password) : '',
+                escapeshellarg($config['database']),
+                escapeshellarg($path)
+            );
 
-            $process = new Process($command);
-            $process->setInput(file_get_contents($path));
+            $process = Process::fromShellCommandline($command);
+            $process->setTimeout(600); // 10 minutes
             $process->run();
 
             if (!$process->isSuccessful()) {
-                throw new \RuntimeException($process->getErrorOutput());
+                throw new \RuntimeException('Restore failed: ' . $process->getErrorOutput());
             }
         } elseif ($config['driver'] === 'sqlite') {
             $dbPath = $this->resolveSqlitePath($config);

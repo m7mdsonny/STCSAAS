@@ -10,26 +10,17 @@ export interface SystemBackup {
 
 export const backupsApi = {
   async list(): Promise<SystemBackup[]> {
-    const { data, error } = await apiClient.get<SystemBackup[]>('/backups');
-    if (error || !data) {
-      throw new Error(error || 'Failed to load backups');
-    }
-    return data;
+    const response = await apiClient.get<SystemBackup[]>('/api/v1/backups');
+    return Array.isArray(response.data) ? response.data : [];
   },
 
   async create(): Promise<SystemBackup> {
-    const { data, error } = await apiClient.post<SystemBackup>('/backups');
-    if (error || !data) {
-      throw new Error(error || 'Failed to start backup');
-    }
-    return data;
+    const response = await apiClient.post<SystemBackup>('/api/v1/backups');
+    return response.data;
   },
 
-  async restore(id: number): Promise<{ status: string }> {
-    const { data, error } = await apiClient.post<{ status: string }>(`/backups/${id}/restore`);
-    if (error || !data) {
-      throw new Error(error || 'Failed to restore backup');
-    }
-    return data;
+  async restore(id: number): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>(`/api/v1/backups/${id}/restore`);
+    return response.data;
   },
 };
