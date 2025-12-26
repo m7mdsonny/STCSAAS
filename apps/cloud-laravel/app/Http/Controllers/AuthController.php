@@ -38,7 +38,7 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $user->forceFill(['last_login' => now()])->save();
+        $user->forceFill(['last_login_at' => now()])->save();
 
         // Ensure role is normalized in response
         $user->role = \App\Helpers\RoleHelper::normalize($user->role);
