@@ -41,9 +41,9 @@ class PersonController extends Controller
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
-                $q->where('person_name', 'ILIKE', "%{$search}%")
-                    ->orWhere('employee_id', 'ILIKE', "%{$search}%")
-                    ->orWhere('department', 'ILIKE', "%{$search}%");
+                $q->where('person_name', 'LIKE', "%{$search}%")
+                    ->orWhere('employee_id', 'LIKE', "%{$search}%")
+                    ->orWhere('department', 'LIKE', "%{$search}%");
             });
         }
 

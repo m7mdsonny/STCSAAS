@@ -107,6 +107,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/cameras/{camera}', [CameraController::class, 'destroy']);
         Route::get('/cameras/{camera}/snapshot', [CameraController::class, 'getSnapshot']);
         Route::get('/cameras/{camera}/stream', [CameraController::class, 'getStreamUrl']);
+        Route::post('/cameras/test-connection', [CameraController::class, 'testConnection']);
 
         Route::get('/alerts', [AlertController::class, 'index']);
         Route::get('/alerts/{alert}', [AlertController::class, 'show']);

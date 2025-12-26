@@ -39,9 +39,9 @@ class CameraController extends Controller
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'ILIKE', "%{$search}%")
-                    ->orWhere('location', 'ILIKE', "%{$search}%")
-                    ->orWhere('camera_id', 'ILIKE', "%{$search}%");
+                $q->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('location', 'LIKE', "%{$search}%")
+                    ->orWhere('camera_id', 'LIKE', "%{$search}%");
             });
         }
 
@@ -301,7 +301,12 @@ class CameraController extends Controller
             $snapshot = $edgeService->getCameraSnapshot($camera);
             
             if ($snapshot) {
-                return response()->json($snapshot);
+                // Ensure snapshot_url is present for frontend compatibility
+                $response = $snapshot;
+                if (isset($snapshot['image']) && !isset($snapshot['snapshot_url'])) {
+                    $response['snapshot_url'] = $snapshot['image'];
+                }
+                return response()->json($response);
             }
         } catch (\Exception $e) {
             \Log::warning("Failed to get camera snapshot: {$e->getMessage()}");
@@ -333,10 +338,45 @@ class CameraController extends Controller
         $webrtcEndpoint = $edgeService->getWebRtcEndpoint($camera);
 
         return response()->json([
+            'stream_url' => $hlsUrl, // For frontend compatibility
             'hls_url' => $hlsUrl,
             'webrtc_endpoint' => $webrtcEndpoint,
             'camera_id' => $camera->camera_id,
         ]);
+    }
+
+    /**
+     * Test camera connection
+     */
+    public function testConnection(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'rtsp_url' => 'required|string|url',
+            'username' => 'nullable|string',
+            'password' => 'nullable|string',
+        ]);
+
+        // Basic validation - in production, you might want to actually test the RTSP connection
+        // For now, we'll just validate the URL format
+        try {
+            $parsedUrl = parse_url($data['rtsp_url']);
+            if (!$parsedUrl || !isset($parsedUrl['scheme']) || !in_array($parsedUrl['scheme'], ['rtsp', 'http', 'https'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid RTSP URL format',
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'RTSP URL format is valid',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to validate RTSP URL: ' . $e->getMessage(),
+            ], 422);
+        }
     }
 }
 
