@@ -1,9 +1,14 @@
-import { useState } from 'react';
-import { Settings, Shield, Database, Globe, Mail, Server, Save } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings, Shield, Database, Globe, Mail, Server, Save, Loader2 } from 'lucide-react';
+import { superAdminApi, SystemSettings } from '../../lib/api/superAdmin';
+import { useToast } from '../../contexts/ToastContext';
+import { apiClient } from '../../lib/apiClient';
 
 export function AdminSettings() {
   const [activeTab, setActiveTab] = useState<'general' | 'security' | 'email' | 'system'>('general');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { showSuccess, showError } = useToast();
 
   const [generalSettings, setGeneralSettings] = useState({
     platformName: 'STC AI-VAP',
@@ -30,11 +35,108 @@ export function AdminSettings() {
     fromName: 'STC AI-VAP',
   });
 
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    try {
+      const settings = await superAdminApi.getSystemSettings();
+      if (settings) {
+        setGeneralSettings({
+          platformName: settings.platform_name || 'STC AI-VAP',
+          platformNameAr: settings.platform_name_ar || 'منصة تحليل الفيديو بالذكاء الاصطناعي',
+          defaultLanguage: settings.default_language || 'ar',
+          timezone: settings.timezone || 'Africa/Cairo',
+          trialDays: settings.trial_days || 14,
+        });
+        setSecuritySettings({
+          sessionTimeout: settings.session_timeout || 60,
+          maxLoginAttempts: settings.max_login_attempts || 5,
+          requireMfa: settings.require_mfa || false,
+          passwordMinLength: settings.password_min_length || 8,
+          passwordRequireSpecial: settings.password_require_special !== false,
+        });
+        setEmailSettings({
+          smtpHost: settings.smtp_host || '',
+          smtpPort: settings.smtp_port || 587,
+          smtpUser: settings.smtp_user || '',
+          smtpPassword: '', // Don't load password
+          fromEmail: settings.smtp_from_email || 'noreply@stc-solutions.com',
+          fromName: settings.smtp_from_name || 'STC AI-VAP',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      showError('خطأ في التحميل', 'فشل تحميل الإعدادات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSaving(false);
-    alert('تم حفظ الاعدادات بنجاح');
+    try {
+      const settingsData: Partial<SystemSettings> = {
+        platform_name: generalSettings.platformName,
+        platform_name_ar: generalSettings.platformNameAr,
+        default_language: generalSettings.defaultLanguage,
+        timezone: generalSettings.timezone,
+        trial_days: generalSettings.trialDays,
+        session_timeout: securitySettings.sessionTimeout,
+        max_login_attempts: securitySettings.maxLoginAttempts,
+        require_mfa: securitySettings.requireMfa,
+        password_min_length: securitySettings.passwordMinLength,
+        password_require_special: securitySettings.passwordRequireSpecial,
+        smtp_host: emailSettings.smtpHost,
+        smtp_port: emailSettings.smtpPort,
+        smtp_user: emailSettings.smtpUser,
+        smtp_from_email: emailSettings.fromEmail,
+        smtp_from_name: emailSettings.fromName,
+      };
+
+      // Only include password if it was changed
+      if (emailSettings.smtpPassword) {
+        settingsData.smtp_password = emailSettings.smtpPassword;
+      }
+
+      await superAdminApi.updateSystemSettings(settingsData as SystemSettings);
+      showSuccess('تم الحفظ', 'تم حفظ الإعدادات بنجاح');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ في حفظ الإعدادات';
+      showError('خطأ في الحفظ', errorMessage);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClearCache = async () => {
+    try {
+      await apiClient.post('/api/v1/super-admin/clear-cache');
+      showSuccess('تم التنظيف', 'تم تنظيف الذاكرة المؤقتة بنجاح');
+    } catch (error) {
+      showError('خطأ', 'فشل تنظيف الذاكرة المؤقتة');
+    }
+  };
+
+  const handleCreateBackup = async () => {
+    try {
+      await apiClient.post('/api/v1/system-backups');
+      showSuccess('تم الإنشاء', 'تم إنشاء النسخة الاحتياطية بنجاح');
+    } catch (error) {
+      showError('خطأ', 'فشل إنشاء النسخة الاحتياطية');
+    }
+  };
+
+  const handleTestEmail = async () => {
+    try {
+      await superAdminApi.testEmail({ email: emailSettings.fromEmail });
+      showSuccess('تم الإرسال', 'تم إرسال بريد تجريبي بنجاح');
+    } catch (error) {
+      showError('خطأ', 'فشل إرسال البريد التجريبي');
+    }
   };
 
   const tabs = [
@@ -43,6 +145,14 @@ export function AdminSettings() {
     { id: 'email', label: 'البريد', icon: Mail },
     { id: 'system', label: 'النظام', icon: Server },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 text-stc-gold animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -277,7 +387,7 @@ export function AdminSettings() {
                     />
                   </div>
                 </div>
-                <button className="btn-secondary">
+                <button onClick={handleTestEmail} className="btn-secondary">
                   ارسال بريد تجريبي
                 </button>
               </div>
@@ -295,7 +405,7 @@ export function AdminSettings() {
                   </div>
                   <div className="p-4 bg-white/5 rounded-lg">
                     <p className="text-sm text-white/50 mb-1">اصدار قاعدة البيانات</p>
-                    <p className="font-mono font-medium">PostgreSQL 15.4</p>
+                    <p className="font-mono font-medium">MySQL 8.0</p>
                   </div>
                   <div className="p-4 bg-white/5 rounded-lg">
                     <p className="text-sm text-white/50 mb-1">مساحة التخزين</p>
@@ -310,9 +420,8 @@ export function AdminSettings() {
                 <div className="pt-4 border-t border-white/10">
                   <h3 className="font-medium mb-3">صيانة النظام</h3>
                   <div className="flex flex-wrap gap-3">
-                    <button className="btn-secondary">تنظيف الذاكرة المؤقتة</button>
-                    <button className="btn-secondary">انشاء نسخة احتياطية</button>
-                    <button className="btn-secondary text-red-400 hover:bg-red-500/20">اعادة تشغيل الخدمات</button>
+                    <button onClick={handleClearCache} className="btn-secondary">تنظيف الذاكرة المؤقتة</button>
+                    <button onClick={handleCreateBackup} className="btn-secondary">انشاء نسخة احتياطية</button>
                   </div>
                 </div>
               </div>
@@ -320,8 +429,8 @@ export function AdminSettings() {
           )}
 
           <div className="mt-6">
-            <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">
-              <Save className="w-5 h-5" />
+            <button onClick={handleSave} disabled={saving || loading} className="btn-primary flex items-center gap-2">
+              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
               <span>{saving ? 'جاري الحفظ...' : 'حفظ التغييرات'}</span>
             </button>
           </div>

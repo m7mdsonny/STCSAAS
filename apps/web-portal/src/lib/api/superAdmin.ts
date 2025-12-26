@@ -121,4 +121,9 @@ export const superAdminApi = {
     const response = await apiClient.post(url);
     return response.data;
   },
+
+  testEmail: async (data: { email: string }): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.post('/api/v1/super-admin/test-email', data);
+    return response.data;
+  },
 };

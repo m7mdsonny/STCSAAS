@@ -20,10 +20,10 @@ class PlatformWordingController extends Controller
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
-                $q->where('key', 'ILIKE', "%{$search}%")
-                  ->orWhere('label', 'ILIKE', "%{$search}%")
-                  ->orWhere('value_ar', 'ILIKE', "%{$search}%")
-                  ->orWhere('value_en', 'ILIKE', "%{$search}%");
+                $q->where('key', 'LIKE', "%{$search}%")
+                  ->orWhere('label', 'LIKE', "%{$search}%")
+                  ->orWhere('value_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('value_en', 'LIKE', "%{$search}%");
             });
         }
 

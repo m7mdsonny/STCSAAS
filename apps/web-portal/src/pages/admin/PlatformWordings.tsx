@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Type, Plus, Trash2, Save, Search, Tag, Globe } from 'lucide-react';
+import { Type, Plus, Trash2, Save, Search, Tag, Globe, Loader2, Filter } from 'lucide-react';
 import { apiClient } from '../../lib/apiClient';
+import { useToast } from '../../contexts/ToastContext';
 
 interface PlatformWording {
   id: number;
@@ -21,10 +22,22 @@ export function PlatformWordings() {
   const [category, setCategory] = useState('');
   const [editing, setEditing] = useState<number | null>(null);
   const [form, setForm] = useState<Partial<PlatformWording>>({});
+  const [saving, setSaving] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     fetchWordings();
   }, [category]);
+
+  useEffect(() => {
+    // Debounce search
+    const timer = setTimeout(() => {
+      if (search !== undefined) {
+        fetchWordings();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const fetchWordings = async () => {
     setLoading(true);
@@ -38,21 +51,26 @@ export function PlatformWordings() {
     } catch (error) {
       console.error('Error fetching wordings:', error);
       setWordings([]);
+      showError('خطأ في التحميل', 'فشل تحميل النصوص');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async (id: number) => {
+    setSaving(true);
     try {
       await apiClient.put(`/api/v1/wordings/${id}`, form);
       setEditing(null);
       setForm({});
       await fetchWordings();
-      alert('تم حفظ التغييرات بنجاح');
+      showSuccess('تم الحفظ', 'تم حفظ التغييرات بنجاح');
     } catch (error) {
       console.error('Error saving wording:', error);
-      alert('حدث خطأ في حفظ التغييرات');
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ في حفظ التغييرات';
+      showError('خطأ في الحفظ', errorMessage);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -61,23 +79,30 @@ export function PlatformWordings() {
     try {
       await apiClient.delete(`/api/v1/wordings/${id}`);
       await fetchWordings();
-      alert('تم الحذف بنجاح');
+      showSuccess('تم الحذف', 'تم حذف النص بنجاح');
     } catch (error) {
       console.error('Error deleting wording:', error);
-      alert('حدث خطأ في الحذف');
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ في الحذف';
+      showError('خطأ في الحذف', errorMessage);
     }
   };
 
-  const categories = Array.from(new Set(wordings.map(w => w.category)));
+  const categories = Array.from(new Set(wordings.map(w => w.category).filter(Boolean))).sort();
 
-  const filteredWordings = wordings.filter(w => {
-    if (search && !w.key.toLowerCase().includes(search.toLowerCase()) &&
-        !w.label?.toLowerCase().includes(search.toLowerCase()) &&
-        !w.value_ar?.toLowerCase().includes(search.toLowerCase())) {
-      return false;
+  // Filter wordings based on category filter
+  const filteredWordings = category 
+    ? wordings.filter(w => w.category === category)
+    : wordings;
+
+  // Group filtered wordings by category for better organization
+  const groupedWordings = filteredWordings.reduce((acc, wording) => {
+    const cat = wording.category || 'غير مصنف';
+    if (!acc[cat]) {
+      acc[cat] = [];
     }
-    return true;
-  });
+    acc[cat].push(wording);
+    return acc;
+  }, {} as Record<string, PlatformWording[]>);
 
   return (
     <div className="space-y-6">
@@ -116,12 +141,22 @@ export function PlatformWordings() {
         </div>
 
         {loading ? (
-          <p className="text-white/60 text-center py-8">جاري التحميل...</p>
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 text-stc-gold animate-spin" />
+          </div>
         ) : filteredWordings.length === 0 ? (
           <p className="text-white/60 text-center py-8">لا توجد نصوص.</p>
         ) : (
-          <div className="space-y-3">
-            {filteredWordings.map((wording) => (
+          <div className="space-y-6">
+            {Object.entries(groupedWordings).map(([cat, catWordings]) => (
+              <div key={cat}>
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-stc-gold" />
+                  {cat}
+                  <span className="text-sm text-white/50 font-normal">({catWordings.length})</span>
+                </h3>
+                <div className="space-y-3">
+                  {catWordings.map((wording) => (
               <div
                 key={wording.id}
                 className="p-4 bg-white/5 rounded-lg border border-white/10"
@@ -141,9 +176,10 @@ export function PlatformWordings() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleSave(wording.id)}
+                          disabled={saving}
                           className="btn-primary text-sm flex items-center gap-1"
                         >
-                          <Save className="w-4 h-4" />
+                          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                           حفظ
                         </button>
                         <button
@@ -151,6 +187,7 @@ export function PlatformWordings() {
                             setEditing(null);
                             setForm({});
                           }}
+                          disabled={saving}
                           className="btn-secondary text-sm"
                         >
                           إلغاء
@@ -243,6 +280,9 @@ export function PlatformWordings() {
                     </div>
                   </div>
                 )}
+              </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

@@ -88,6 +88,22 @@ class SystemSettingsController extends Controller
         return response()->json(['success' => true, 'message' => 'SMS provider configuration saved']);
     }
 
+    public function clearCache(): JsonResponse
+    {
+        $this->ensureSuperAdmin(request());
+
+        try {
+            \Artisan::call('config:clear');
+            \Artisan::call('cache:clear');
+            \Artisan::call('route:clear');
+            \Artisan::call('view:clear');
+
+            return response()->json(['success' => true, 'message' => 'Cache cleared successfully']);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function testFcm(Request $request): JsonResponse
     {
         $this->ensureSuperAdmin($request);

@@ -151,6 +151,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/super-admin/test-email', [SystemSettingsController::class, 'testEmail']);
         Route::post('/super-admin/test-sms', [SystemSettingsController::class, 'testSms']);
         Route::post('/super-admin/test-fcm', [SystemSettingsController::class, 'testFcm']);
+        Route::post('/super-admin/clear-cache', [SystemSettingsController::class, 'clearCache']);
         Route::get('/super-admin/check', [SystemSettingsController::class, 'check']);
 
         Route::get('/super-admin/branding', [BrandingController::class, 'showGlobal']);
