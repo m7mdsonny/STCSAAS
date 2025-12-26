@@ -29,6 +29,7 @@ use App\Http\Controllers\PlatformWordingController;
 use App\Http\Controllers\AlertController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\AutomationRuleController;
 
 Route::prefix('v1')->group(function () {
     Route::get('/public/landing', [PublicContentController::class, 'landing']);
@@ -52,6 +53,17 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/register-fcm-token', [NotificationController::class, 'registerDevice']); // Alias for mobile app compatibility
         Route::delete('/notifications/unregister-device', [NotificationController::class, 'unregisterDevice']);
         Route::get('/notifications/devices', [NotificationController::class, 'getDevices']);
+        Route::get('/notifications/settings', [NotificationController::class, 'getSettings']);
+        Route::put('/notifications/settings/{id}', [NotificationController::class, 'updateSetting']);
+        Route::get('/notifications/config', [NotificationController::class, 'getOrgConfig']);
+        Route::put('/notifications/config', [NotificationController::class, 'updateOrgConfig']);
+        Route::get('/notifications/alert-priorities', [NotificationController::class, 'getAlertPriorities']);
+        Route::post('/notifications/alert-priorities', [NotificationController::class, 'createAlertPriority']);
+        Route::put('/notifications/alert-priorities/{id}', [NotificationController::class, 'updateAlertPriority']);
+        Route::delete('/notifications/alert-priorities/{id}', [NotificationController::class, 'deleteAlertPriority']);
+        Route::get('/notifications/logs', [NotificationController::class, 'getLogs']);
+        Route::post('/notifications/test', [NotificationController::class, 'sendTest']);
+        Route::get('/notifications/quota', [NotificationController::class, 'getQuota']);
 
         Route::get('/dashboard/admin', [DashboardController::class, 'admin']);
 
@@ -114,6 +126,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);
         Route::post('/alerts/{alert}/resolve', [AlertController::class, 'resolve']);
         Route::post('/alerts/{alert}/false-alarm', [AlertController::class, 'markFalseAlarm']);
+        Route::post('/alerts/bulk-acknowledge', [AlertController::class, 'bulkAcknowledge']);
+        Route::post('/alerts/bulk-resolve', [AlertController::class, 'bulkResolve']);
 
         Route::get('/people', [PersonController::class, 'index']);
         Route::post('/people', [PersonController::class, 'store']);
@@ -262,5 +276,17 @@ Route::prefix('v1')->group(function () {
         Route::post('/integrations/{integration}/toggle-active', [IntegrationController::class, 'toggleActive']);
         Route::post('/integrations/{integration}/test', [IntegrationController::class, 'testConnection']);
         Route::get('/integrations/types', [IntegrationController::class, 'getAvailableTypes']);
+
+        // Automation Rules
+        Route::get('/automation-rules', [AutomationRuleController::class, 'index']);
+        Route::post('/automation-rules', [AutomationRuleController::class, 'store']);
+        Route::get('/automation-rules/{automationRule}', [AutomationRuleController::class, 'show']);
+        Route::put('/automation-rules/{automationRule}', [AutomationRuleController::class, 'update']);
+        Route::delete('/automation-rules/{automationRule}', [AutomationRuleController::class, 'destroy']);
+        Route::post('/automation-rules/{automationRule}/toggle-active', [AutomationRuleController::class, 'toggleActive']);
+        Route::post('/automation-rules/{automationRule}/test', [AutomationRuleController::class, 'test']);
+        Route::get('/automation-rules/{automationRule}/logs', [AutomationRuleController::class, 'getLogs']);
+        Route::get('/automation-rules/triggers', [AutomationRuleController::class, 'getAvailableTriggers']);
+        Route::get('/automation-rules/actions', [AutomationRuleController::class, 'getAvailableActions']);
     });
 });

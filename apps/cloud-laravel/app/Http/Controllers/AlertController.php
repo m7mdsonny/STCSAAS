@@ -7,6 +7,7 @@ use App\Helpers\RoleHelper;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AlertController extends Controller
 {
@@ -102,12 +103,23 @@ class AlertController extends Controller
 
     public function acknowledge(string $id): JsonResponse
     {
+        $user = request()->user();
         $event = Event::where('event_type', 'alert')->findOrFail($id);
+        
+        // Check ownership
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            if ($event->organization_id !== (int) $user->organization_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+        }
+        
         $meta = is_array($event->meta) ? $event->meta : [];
+        if (!is_array($meta)) {
+            $meta = [];
+        }
         $meta['status'] = 'acknowledged';
+        $meta['acknowledged_by'] = $user->id;
         $event->update([
-            'acknowledged_at' => now(),
-            'acknowledged_by' => request()->user()->id,
             'meta' => $meta,
         ]);
 
@@ -116,12 +128,23 @@ class AlertController extends Controller
 
     public function resolve(string $id): JsonResponse
     {
+        $user = request()->user();
         $event = Event::where('event_type', 'alert')->findOrFail($id);
+        
+        // Check ownership
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            if ($event->organization_id !== (int) $user->organization_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+        }
+        
         $meta = is_array($event->meta) ? $event->meta : [];
+        if (!is_array($meta)) {
+            $meta = [];
+        }
         $meta['status'] = 'resolved';
+        $meta['resolved_by'] = $user->id;
         $event->update([
-            'resolved_at' => now(),
-            'resolved_by' => request()->user()->id,
             'meta' => $meta,
         ]);
 
@@ -136,6 +159,82 @@ class AlertController extends Controller
         $event->update(['meta' => $meta]);
 
         return response()->json(['message' => 'Alert marked as false alarm']);
+    }
+
+    public function bulkAcknowledge(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $data = $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'required|integer|exists:events,id',
+        ]);
+
+        $query = Event::whereIn('id', $data['ids'])
+            ->where('event_type', 'alert');
+
+        // Filter by organization
+        if ($user->organization_id) {
+            $query->where('organization_id', $user->organization_id);
+        } elseif (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Update meta field for each event
+        $events = $query->get();
+        $updated = 0;
+        foreach ($events as $event) {
+            $meta = is_array($event->meta) ? $event->meta : [];
+            if (!is_array($meta)) {
+                $meta = [];
+            }
+            $meta['status'] = 'acknowledged';
+            $meta['acknowledged_by'] = $user->id;
+            $event->update(['meta' => $meta]);
+            $updated++;
+        }
+
+        return response()->json([
+            'message' => "{$updated} alerts acknowledged",
+            'count' => $updated,
+        ]);
+    }
+
+    public function bulkResolve(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $data = $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'required|integer|exists:events,id',
+        ]);
+
+        $query = Event::whereIn('id', $data['ids'])
+            ->where('event_type', 'alert');
+
+        // Filter by organization
+        if ($user->organization_id) {
+            $query->where('organization_id', $user->organization_id);
+        } elseif (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Update meta field for each event
+        $events = $query->get();
+        $updated = 0;
+        foreach ($events as $event) {
+            $meta = is_array($event->meta) ? $event->meta : [];
+            if (!is_array($meta)) {
+                $meta = [];
+            }
+            $meta['status'] = 'resolved';
+            $meta['resolved_by'] = $user->id;
+            $event->update(['meta' => $meta]);
+            $updated++;
+        }
+
+        return response()->json([
+            'message' => "{$updated} alerts resolved",
+            'count' => $updated,
+        ]);
     }
 }
 
