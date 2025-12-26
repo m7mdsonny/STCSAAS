@@ -81,13 +81,8 @@ python main.py
 
 ## 📚 الدوكومنتات
 
-- [دليل التنصيب الكامل](INSTALLATION.md)
-- [دليل Authentication](AUTHENTICATION.md)
-- [دليل Firebase](FIREBASE_SETUP.md)
-- [دليل Integration](INTEGRATION.md)
-- [دليل API](API_DOCUMENTATION.md)
-- [دليل المميزات](FEATURES.md)
-- [دليل النشر](DEPLOYMENT.md)
+- [دليل النشر على MySQL](MYSQL_DEPLOYMENT_GUIDE.md)
+- [دليل تثبيت السيرفر المحلي](LOCAL_SERVER_INSTALLATION_GUIDE.md)
 
 ---
 
