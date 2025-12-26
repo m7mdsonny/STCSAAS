@@ -7,12 +7,14 @@ import {
 } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { modelTrainingApi } from '../../lib/api/modelTraining';
+import { useToast } from '../../contexts/ToastContext';
 import type { TrainingDataset, TrainingJob, AiModelVersion, ModelDeployment } from '../../lib/api/modelTraining';
 import { formatDistanceToNow } from 'date-fns';
 
 type TabType = 'datasets' | 'jobs' | 'versions' | 'deployments';
 
 export function ModelTraining() {
+  const { showSuccess, showError } = useToast();
   const [activeTab, setActiveTab] = useState<TabType>('datasets');
   const [loading, setLoading] = useState(true);
 
@@ -87,7 +89,7 @@ export function ModelTraining() {
       else if (activeTab === 'deployments') setDeployments([]);
       
       // Show user-friendly error message
-      alert('حدث خطأ في تحميل البيانات. قد تكون واجهة برمجة التطبيقات غير متاحة بعد.');
+      showError('خطأ في التحميل', 'فشل تحميل البيانات. قد تكون واجهة برمجة التطبيقات غير متاحة بعد.');
     } finally {
       setLoading(false);
     }
@@ -96,6 +98,7 @@ export function ModelTraining() {
   const handleCreateDataset = async () => {
     try {
       await modelTrainingApi.createDataset(newDataset);
+      showSuccess('تم الإنشاء', 'تم إنشاء مجموعة البيانات بنجاح');
       setShowCreateDatasetModal(false);
       setNewDataset({
         name: '',
@@ -106,6 +109,8 @@ export function ModelTraining() {
       fetchData();
     } catch (error) {
       console.error('Error creating dataset:', error);
+      const errorMessage = error instanceof Error ? error.message : 'فشل إنشاء مجموعة البيانات';
+      showError('خطأ', errorMessage);
     }
   };
 
@@ -113,27 +118,34 @@ export function ModelTraining() {
     if (!uploadFile || !selectedDataset) return;
     try {
       await modelTrainingApi.uploadSample(selectedDataset.id, uploadFile);
+      showSuccess('تم الرفع', 'تم رفع العينة بنجاح');
       setShowUploadSampleModal(false);
       setUploadFile(null);
       fetchData();
     } catch (error) {
       console.error('Error uploading sample:', error);
+      const errorMessage = error instanceof Error ? error.message : 'فشل رفع العينة';
+      showError('خطأ', errorMessage);
     }
   };
 
   const handleDeleteDataset = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this dataset?')) return;
+    if (!confirm('هل أنت متأكد من حذف مجموعة البيانات هذه؟')) return;
     try {
       await modelTrainingApi.deleteDataset(id);
+      showSuccess('تم الحذف', 'تم حذف مجموعة البيانات بنجاح');
       fetchData();
     } catch (error) {
       console.error('Error deleting dataset:', error);
+      const errorMessage = error instanceof Error ? error.message : 'فشل حذف مجموعة البيانات';
+      showError('خطأ', errorMessage);
     }
   };
 
   const handleCreateJob = async () => {
     try {
       await modelTrainingApi.createJob(newJob);
+      showSuccess('تم الإنشاء', 'تم إنشاء مهمة التدريب بنجاح');
       setShowCreateJobModal(false);
       setNewJob({
         name: '',
@@ -150,16 +162,21 @@ export function ModelTraining() {
       fetchData();
     } catch (error) {
       console.error('Error creating job:', error);
+      const errorMessage = error instanceof Error ? error.message : 'فشل إنشاء مهمة التدريب';
+      showError('خطأ', errorMessage);
     }
   };
 
   const handleCancelJob = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this job?')) return;
+    if (!confirm('هل أنت متأكد من إلغاء هذه المهمة؟')) return;
     try {
       await modelTrainingApi.cancelJob(id);
+      showSuccess('تم الإلغاء', 'تم إلغاء المهمة بنجاح');
       fetchData();
     } catch (error) {
       console.error('Error canceling job:', error);
+      const errorMessage = error instanceof Error ? error.message : 'فشل إلغاء المهمة';
+      showError('خطأ', errorMessage);
     }
   };
 
@@ -177,9 +194,12 @@ export function ModelTraining() {
   const handleApproveModel = async (id: string) => {
     try {
       await modelTrainingApi.approveModelVersion(id);
+      showSuccess('تم الموافقة', 'تم الموافقة على النموذج بنجاح');
       fetchData();
     } catch (error) {
       console.error('Error approving model:', error);
+      const errorMessage = error instanceof Error ? error.message : 'فشل الموافقة على النموذج';
+      showError('خطأ', errorMessage);
     }
   };
 
@@ -187,17 +207,20 @@ export function ModelTraining() {
     if (!selectedModel) return;
     try {
       await modelTrainingApi.releaseModelVersion(selectedModel.id, releaseNotes);
+      showSuccess('تم الإصدار', 'تم إصدار النموذج بنجاح');
       setShowReleaseModal(false);
       setReleaseNotes('');
       setSelectedModel(null);
       fetchData();
     } catch (error) {
       console.error('Error releasing model:', error);
+      const errorMessage = error instanceof Error ? error.message : 'فشل إصدار النموذج';
+      showError('خطأ', errorMessage);
     }
   };
 
   const handleDeprecateModel = async (id: string) => {
-    if (!confirm('Are you sure you want to deprecate this model?')) return;
+    if (!confirm('هل أنت متأكد من إيقاف استخدام هذا النموذج؟')) return;
     try {
       await modelTrainingApi.deprecateModelVersion(id);
       fetchData();
@@ -656,15 +679,15 @@ export function ModelTraining() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">AI Model Training</h1>
-          <p className="text-white/60">Train and deploy custom AI models</p>
+          <h1 className="text-2xl font-bold">تدريب نماذج الذكاء الاصطناعي</h1>
+          <p className="text-white/60">تدريب ونشر نماذج الذكاء الاصطناعي المخصصة</p>
         </div>
         <button
           onClick={fetchData}
           className="btn-secondary flex items-center gap-2"
         >
           <RefreshCw className="w-4 h-4" />
-          Refresh
+          تحديث
         </button>
       </div>
 
@@ -679,7 +702,7 @@ export function ModelTraining() {
         >
           <div className="flex items-center gap-2">
             <Database className="w-4 h-4" />
-            Datasets
+            مجموعات البيانات
           </div>
         </button>
         <button
@@ -692,7 +715,7 @@ export function ModelTraining() {
         >
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4" />
-            Training Jobs
+            مهام التدريب
           </div>
         </button>
         <button

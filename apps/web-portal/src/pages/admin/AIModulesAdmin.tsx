@@ -13,10 +13,12 @@ import {
   HardHat,
   Factory,
   Package,
-  Waves
+  Waves,
+  Loader2
 } from 'lucide-react';
 import { aiModulesApi } from '../../lib/api/aiModules';
 import { Modal } from '../../components/ui/Modal';
+import { useToast } from '../../contexts/ToastContext';
 import type { AiModule } from '../../lib/api/aiModules';
 
 const moduleIcons: Record<string, any> = {
@@ -39,6 +41,7 @@ export function AIModulesAdmin() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingModule, setEditingModule] = useState<AiModule | null>(null);
   const [saving, setSaving] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   const [editForm, setEditForm] = useState({
     name: '',
@@ -60,7 +63,7 @@ export function AIModulesAdmin() {
     } catch (error) {
       console.error('Error fetching modules:', error);
       setModules([]);
-      alert('حدث خطأ في تحميل وحدات الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.');
+      showError('خطأ في التحميل', 'فشل تحميل وحدات الذكاء الاصطناعي');
     } finally {
       setLoading(false);
     }
@@ -71,9 +74,12 @@ export function AIModulesAdmin() {
       await aiModulesApi.updateModule(module.id, {
         is_enabled: !module.is_enabled,
       });
+      showSuccess('تم التحديث', `تم ${module.is_enabled ? 'تعطيل' : 'تفعيل'} الموديول بنجاح`);
       await fetchModules();
     } catch (error) {
       console.error('Error toggling module:', error);
+      const errorMessage = error instanceof Error ? error.message : 'فشل تحديث حالة الموديول';
+      showError('خطأ', errorMessage);
     }
   };
 
@@ -96,11 +102,14 @@ export function AIModulesAdmin() {
     setSaving(true);
     try {
       await aiModulesApi.updateModule(editingModule.id, editForm);
+      showSuccess('تم الحفظ', 'تم تحديث معلومات الموديول بنجاح');
       setShowEditModal(false);
       setEditingModule(null);
       await fetchModules();
     } catch (error) {
       console.error('Error updating module:', error);
+      const errorMessage = error instanceof Error ? error.message : 'فشل تحديث الموديول';
+      showError('خطأ في الحفظ', errorMessage);
     } finally {
       setSaving(false);
     }
@@ -125,10 +134,10 @@ export function AIModulesAdmin() {
 
   const getPlanLevelText = (level: number) => {
     switch (level) {
-      case 1: return 'Basic';
-      case 2: return 'Professional';
-      case 3: return 'Enterprise';
-      default: return `Level ${level}`;
+      case 1: return 'أساسي';
+      case 2: return 'احترافي';
+      case 3: return 'مؤسسي';
+      default: return `المستوى ${level}`;
     }
   };
 
@@ -146,8 +155,8 @@ export function AIModulesAdmin() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">AI Modules Management</h1>
-          <p className="text-white/60">Manage global AI module settings and availability</p>
+          <h1 className="text-2xl font-bold">إدارة موديولات الذكاء الاصطناعي</h1>
+          <p className="text-white/60">إدارة إعدادات وتوفر موديولات الذكاء الاصطناعي على مستوى المنصة</p>
         </div>
       </div>
 
@@ -159,7 +168,7 @@ export function AIModulesAdmin() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-sm text-white/60">Total Modules</p>
+              <p className="text-sm text-white/60">إجمالي الموديولات</p>
             </div>
           </div>
         </div>
@@ -170,7 +179,7 @@ export function AIModulesAdmin() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.enabled}</p>
-              <p className="text-sm text-white/60">Enabled</p>
+              <p className="text-sm text-white/60">مفعّل</p>
             </div>
           </div>
         </div>
@@ -181,7 +190,7 @@ export function AIModulesAdmin() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.premium}</p>
-              <p className="text-sm text-white/60">Premium</p>
+              <p className="text-sm text-white/60">مميز</p>
             </div>
           </div>
         </div>
@@ -192,7 +201,7 @@ export function AIModulesAdmin() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.free}</p>
-              <p className="text-sm text-white/60">Free</p>
+              <p className="text-sm text-white/60">مجاني</p>
             </div>
           </div>
         </div>
@@ -204,7 +213,7 @@ export function AIModulesAdmin() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
             <input
               type="text"
-              placeholder="Search modules..."
+              placeholder="بحث في الموديولات..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input pl-12 w-full"
@@ -217,7 +226,7 @@ export function AIModulesAdmin() {
           >
             {categories.map(cat => (
               <option key={cat} value={cat}>
-                {cat === 'all' ? 'All Categories' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                {cat === 'all' ? 'جميع الفئات' : cat === 'security' ? 'الأمان' : cat === 'safety' ? 'السلامة' : cat === 'analytics' ? 'التحليلات' : cat === 'operations' ? 'العمليات' : cat}
               </option>
             ))}
           </select>
@@ -226,13 +235,13 @@ export function AIModulesAdmin() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <Loader2 className="w-8 h-8 text-stc-gold animate-spin" />
         </div>
       ) : filteredModules.length === 0 ? (
         <div className="card p-12 text-center">
           <Brain className="w-16 h-16 mx-auto text-white/20 mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No modules found</h3>
-          <p className="text-white/60">No AI modules match your search criteria</p>
+          <h3 className="text-lg font-semibold mb-2">لا توجد موديولات</h3>
+          <p className="text-white/60">لا توجد موديولات ذكاء اصطناعي تطابق معايير البحث</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -268,7 +277,7 @@ export function AIModulesAdmin() {
                   </span>
                   {module.is_premium && (
                     <span className="px-2 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-400">
-                      Premium
+                      مميز
                     </span>
                   )}
                   <span className="px-2 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-400">
@@ -278,7 +287,7 @@ export function AIModulesAdmin() {
 
                 <div className="flex items-center justify-between pt-4 border-t border-white/10">
                   <span className="text-sm text-white/60">
-                    Status: {module.is_enabled ? 'Enabled' : 'Disabled'}
+                    الحالة: {module.is_enabled ? 'مفعّل' : 'معطّل'}
                   </span>
                   <button
                     onClick={() => handleToggleModule(module)}
@@ -305,11 +314,11 @@ export function AIModulesAdmin() {
           setShowEditModal(false);
           setEditingModule(null);
         }}
-        title="Edit AI Module"
+        title="تعديل موديول الذكاء الاصطناعي"
       >
         <form onSubmit={handleSaveEdit} className="space-y-4">
           <div>
-            <label className="label">Module Name</label>
+            <label className="label">اسم الموديول</label>
             <input
               type="text"
               value={editForm.name}
@@ -320,7 +329,7 @@ export function AIModulesAdmin() {
           </div>
 
           <div>
-            <label className="label">Description</label>
+            <label className="label">الوصف</label>
             <textarea
               value={editForm.description}
               onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
@@ -330,15 +339,15 @@ export function AIModulesAdmin() {
           </div>
 
           <div>
-            <label className="label">Minimum Plan Level</label>
+            <label className="label">الحد الأدنى لمستوى الخطة</label>
             <select
               value={editForm.min_plan_level}
               onChange={(e) => setEditForm({ ...editForm, min_plan_level: parseInt(e.target.value) })}
               className="input"
             >
-              <option value={1}>Basic (Level 1)</option>
-              <option value={2}>Professional (Level 2)</option>
-              <option value={3}>Enterprise (Level 3)</option>
+              <option value={1}>أساسي (المستوى 1)</option>
+              <option value={2}>احترافي (المستوى 2)</option>
+              <option value={3}>مؤسسي (المستوى 3)</option>
             </select>
           </div>
 
@@ -351,8 +360,8 @@ export function AIModulesAdmin() {
                 className="w-5 h-5 rounded border-white/20 bg-white/5"
               />
               <div>
-                <p className="font-medium">Premium Module</p>
-                <p className="text-sm text-white/50">Requires premium subscription</p>
+                <p className="font-medium">موديول مميز</p>
+                <p className="text-sm text-white/50">يتطلب اشتراك مميز</p>
               </div>
             </label>
 
@@ -364,8 +373,8 @@ export function AIModulesAdmin() {
                 className="w-5 h-5 rounded border-white/20 bg-white/5"
               />
               <div>
-                <p className="font-medium">Enable Module</p>
-                <p className="text-sm text-white/50">Make module available for organizations</p>
+                <p className="font-medium">تفعيل الموديول</p>
+                <p className="text-sm text-white/50">جعل الموديول متاحاً للمؤسسات</p>
               </div>
             </label>
           </div>
@@ -377,15 +386,15 @@ export function AIModulesAdmin() {
               className="btn-secondary flex items-center gap-2"
             >
               <X className="w-4 h-4" />
-              Cancel
+              إلغاء
             </button>
             <button
               type="submit"
               disabled={saving}
               className="btn-primary flex items-center gap-2"
             >
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
             </button>
           </div>
         </form>
