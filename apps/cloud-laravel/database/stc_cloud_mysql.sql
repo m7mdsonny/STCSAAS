@@ -97,6 +97,7 @@ CREATE TABLE `users` (
     `password` VARCHAR(255) NOT NULL,
     `role` VARCHAR(50) DEFAULT 'viewer',
     `is_super_admin` BOOLEAN DEFAULT FALSE,
+    `is_active` BOOLEAN DEFAULT TRUE,
     `phone` VARCHAR(50) NULL,
     `avatar_url` VARCHAR(500) NULL,
     `remember_token` VARCHAR(100) NULL,
@@ -423,12 +424,12 @@ INSERT INTO `organizations` (`id`, `distributor_id`, `name`, `slug`, `contact_em
 (1, 1, 'مؤسسة تجريبية', 'demo-org', 'admin@demo-org.com', '+20 100 000 0001', 'القاهرة، مصر', 'active');
 
 -- 3. Users (Super Admin)
-INSERT INTO `users` (`id`, `organization_id`, `name`, `email`, `password`, `role`, `is_super_admin`, `email_verified_at`) VALUES
-(1, NULL, 'Super Admin', 'superadmin@stc-solutions.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'super_admin', TRUE, NOW());
+INSERT INTO `users` (`id`, `organization_id`, `name`, `email`, `password`, `role`, `is_super_admin`, `is_active`, `email_verified_at`) VALUES
+(1, NULL, 'Super Admin', 'superadmin@stc-solutions.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'super_admin', TRUE, TRUE, NOW());
 
 -- 4. Users (Organization Owner)
-INSERT INTO `users` (`id`, `organization_id`, `name`, `email`, `password`, `role`, `is_super_admin`, `email_verified_at`) VALUES
-(2, 1, 'صاحب المؤسسة', 'owner@demo-org.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'owner', FALSE, NOW());
+INSERT INTO `users` (`id`, `organization_id`, `name`, `email`, `password`, `role`, `is_super_admin`, `is_active`, `email_verified_at`) VALUES
+(2, 1, 'صاحب المؤسسة', 'owner@demo-org.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'owner', FALSE, TRUE, NOW());
 
 -- 5. Licenses
 INSERT INTO `licenses` (`id`, `organization_id`, `license_key`, `expires_at`, `max_cameras`, `max_users`, `status`) VALUES
