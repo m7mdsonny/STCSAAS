@@ -19,21 +19,46 @@
 - **المشكلة**: `getSnapshot` لا يرجع `snapshot_url`
 - **الإصلاح**: تم إضافة `snapshot_url` في response
 
-## المشاكل المتبقية التي تحتاج إصلاح
+## المشاكل المصلحة ✅
 
-### 1. API Endpoints المفقودة في Routes
-- `/automation-rules/*` - موجود في frontend لكن غير موجود في routes
-- `/notifications/settings` - موجود في frontend لكن غير موجود في routes
-- `/notifications/config` - موجود في frontend لكن غير موجود في routes
-- `/notifications/alert-priorities` - موجود في frontend لكن غير موجود في routes
-- `/alerts/bulk-acknowledge` - موجود في frontend لكن غير موجود في routes
-- `/alerts/bulk-resolve` - موجود في frontend لكن غير موجود في routes
+### 1. Automation Rules System ✅
+- **المشكلة**: نظام automation rules غير موجود في backend
+- **الإصلاح**: 
+  - تم إنشاء migration `2025_01_20_000000_create_automation_rules_tables.php`
+  - تم إنشاء Models: `AutomationRule` و `AutomationLog`
+  - تم إنشاء Controller: `AutomationRuleController` مع جميع الـ endpoints
+  - تم إضافة routes في `api.php`
 
-### 2. Landing Page API
+### 2. Notification Endpoints ✅
+- **المشكلة**: `/notifications/settings`, `/notifications/config`, `/notifications/alert-priorities` غير موجودة
+- **الإصلاح**: 
+  - تم إضافة جميع الـ endpoints في `NotificationController`
+  - تم إضافة routes في `api.php`
+
+### 3. Bulk Alert Operations ✅
+- **المشكلة**: `/alerts/bulk-acknowledge` و `/alerts/bulk-resolve` غير موجودة
+- **الإصلاح**: 
+  - تم إضافة `bulkAcknowledge` و `bulkResolve` في `AlertController`
+  - تم إضافة routes في `api.php`
+  - تم إصلاح `acknowledge` و `resolve` لإضافة التحقق من الصلاحيات
+
+### 4. Alert Controller Authorization ✅
+- **المشكلة**: `acknowledge` و `resolve` لا تتحقق من الصلاحيات
+- **الإصلاح**: تم إضافة التحقق من الصلاحيات في جميع methods
+
+## المشاكل المتبقية
+
+### 1. Landing Page API
 - Frontend يستخدم `/api/v1/landing-page/*` لكن routes تستخدم `/settings/landing`
+- **الحل**: إما تعديل frontend لاستخدام `/settings/landing` أو إضافة routes جديدة
 
-### 3. Model Training API
+### 2. Model Training API
 - Frontend يستخدم `/api/v1/training/*` لكن يجب التحقق من وجود routes
+- **الحل**: التحقق من وجود routes أو إنشاؤها
+
+### 3. Notification Settings Table
+- `notification_settings` و `organization_notification_config` tables غير موجودة
+- **الحل**: إنشاء migrations و models لهذه الجداول
 
 ## التوصيات
 
