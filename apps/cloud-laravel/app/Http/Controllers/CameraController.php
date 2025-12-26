@@ -126,7 +126,7 @@ class CameraController extends Controller
         // Generate unique camera_id if not provided
         $cameraId = $request->get('camera_id', 'cam_' . Str::random(16));
 
-        // Store sensitive and config data in config JSONB field
+        // Store sensitive and config data in config JSON field
         $config = [
             'resolution' => $data['resolution'] ?? '1920x1080',
             'fps' => $data['fps'] ?? 15,
@@ -211,7 +211,7 @@ class CameraController extends Controller
             }
         }
 
-        // Update config JSONB field
+        // Update config JSON field
         $config = $camera->config ?? [];
         
         if (isset($data['resolution'])) {

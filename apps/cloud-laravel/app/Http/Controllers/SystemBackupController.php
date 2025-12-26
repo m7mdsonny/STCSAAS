@@ -77,19 +77,7 @@ class SystemBackupController extends Controller
 
         Storage::makeDirectory('backups');
 
-        if ($config['driver'] === 'pgsql') {
-            $command = [
-                'pg_dump',
-                '-h', $config['host'],
-                '-p', (string) $config['port'],
-                '-U', $config['username'],
-                '-d', $config['database'],
-                '-f', Storage::path($filename),
-            ];
-
-            $process = new Process($command, null, ['PGPASSWORD' => $config['password'] ?? '']);
-            $process->mustRun();
-        } elseif ($config['driver'] === 'mysql') {
+        if ($config['driver'] === 'mysql') {
             $command = [
                 'mysqldump',
                 '-h', $config['host'],
@@ -121,18 +109,7 @@ class SystemBackupController extends Controller
         $connection = config('database.default');
         $config = config("database.connections.$connection");
 
-        if ($config['driver'] === 'pgsql') {
-            $command = [
-                'psql',
-                '-h', $config['host'],
-                '-p', (string) $config['port'],
-                '-U', $config['username'],
-                '-d', $config['database'],
-                '-f', $path,
-            ];
-            $process = new Process($command, null, ['PGPASSWORD' => $config['password'] ?? '']);
-            $process->mustRun();
-        } elseif ($config['driver'] === 'mysql') {
+        if ($config['driver'] === 'mysql') {
             $command = [
                 'mysql',
                 '-h', $config['host'],

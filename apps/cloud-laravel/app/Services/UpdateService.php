@@ -448,17 +448,7 @@ class UpdateService
         $config = config("database.connections.{$connection}");
         
         try {
-            if ($config['driver'] === 'pgsql') {
-                $command = sprintf(
-                    'PGPASSWORD=%s pg_dump -h %s -U %s -d %s --schema-only --no-owner --no-privileges > %s',
-                    escapeshellarg($config['password'] ?? ''),
-                    escapeshellarg($config['host'] ?? 'localhost'),
-                    escapeshellarg($config['username'] ?? 'postgres'),
-                    escapeshellarg($config['database'] ?? ''),
-                    escapeshellarg($schemaPath)
-                );
-                exec($command);
-            } elseif ($config['driver'] === 'mysql') {
+            if ($config['driver'] === 'mysql') {
                 $command = sprintf(
                     'mysqldump -h %s -u %s -p%s %s --no-data --skip-triggers > %s',
                     escapeshellarg($config['host'] ?? 'localhost'),
