@@ -32,7 +32,7 @@ export function Users() {
     password: '',
     name: '',
     phone: '',
-    role: 'org_viewer' as UserRole,
+    role: 'viewer' as UserRole,
     organization_id: '',
   });
 
@@ -142,7 +142,7 @@ export function Users() {
       password: '',
       name: '',
       phone: '',
-      role: 'org_viewer',
+      role: 'viewer',
       organization_id: '',
     });
     setError('');

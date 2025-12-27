@@ -87,7 +87,7 @@ export const notificationsApi = {
   },
 
   async getNotificationPriorities(organizationId?: string): Promise<AlertPriority[]> {
-    const { data, error } = await apiClient.get<AlertPriority[]>('/notification-priorities', organizationId ? { organization_id: organizationId } : undefined);
+    const { data, error } = await apiClient.get<AlertPriority[]>('/notifications/alert-priorities', organizationId ? { organization_id: organizationId } : undefined);
     if (error || !data) {
       throw new Error(error || 'Failed to fetch notification priorities');
     }
@@ -95,7 +95,7 @@ export const notificationsApi = {
   },
 
   async createNotificationPriority(payload: { organization_id?: string; notification_type: string; priority: string; is_critical?: boolean }): Promise<AlertPriority> {
-    const { data, error } = await apiClient.post<AlertPriority>('/notification-priorities', payload);
+    const { data, error } = await apiClient.post<AlertPriority>('/notifications/alert-priorities', payload);
     if (error || !data) {
       throw new Error(error || 'Failed to create notification priority');
     }
@@ -103,7 +103,7 @@ export const notificationsApi = {
   },
 
   async updateNotificationPriority(id: string, payload: Partial<{ notification_type: string; priority: string; is_critical: boolean }>): Promise<AlertPriority> {
-    const { data, error } = await apiClient.put<AlertPriority>(`/notification-priorities/${id}`, payload);
+    const { data, error } = await apiClient.put<AlertPriority>(`/notifications/alert-priorities/${id}`, payload);
     if (error || !data) {
       throw new Error(error || 'Failed to update notification priority');
     }
@@ -111,7 +111,7 @@ export const notificationsApi = {
   },
 
   async deleteNotificationPriority(id: string): Promise<void> {
-    const { error } = await apiClient.delete(`/notification-priorities/${id}`);
+    const { error } = await apiClient.delete(`/notifications/alert-priorities/${id}`);
     if (error) {
       throw new Error(error);
     }

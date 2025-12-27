@@ -36,6 +36,10 @@ export function AiCommandCenter() {
   };
 
   const submit = async () => {
+    if (!form.title.trim()) {
+      alert('يرجى إدخال عنوان الأمر');
+      return;
+    }
     try {
       const payloadObj = form.payload ? JSON.parse(form.payload) : {};
       await aiCommandsApi.create({
@@ -44,9 +48,12 @@ export function AiCommandCenter() {
         payload: payloadObj,
       });
       setForm({ title: '', organization_id: '', payload: '{}' });
+      alert('تم إنشاء الأمر بنجاح');
       loadData();
     } catch (error) {
       console.error('Error creating command', error);
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ في إنشاء الأمر';
+      alert(`فشل إنشاء الأمر: ${errorMessage}`);
     }
   };
 

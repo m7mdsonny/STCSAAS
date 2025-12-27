@@ -1,0 +1,46 @@
+{
+  "version": "3.0.1",
+  "version_type": "patch",
+  "title": "إصلاحات شاملة للنظام",
+  "description": "إصلاح جميع المشاكل المبلغ عنها في النظام",
+  "release_notes": "إصلاحات شاملة لجميع الوظائف",
+  "changelog": "1. إصلاح إضافة المستخدمين - تصحيح role values\n2. إصلاح صفحة الإشعارات - تصحيح API routes\n3. إصلاح النسخ الاحتياطية - تحسين response handling\n4. إصلاح نصوص المنصة - إضافة بيانات تجريبية\n5. إصلاح نظام التحديثات - تحسين error handling\n6. إصلاح الداشبورد - إضافة endpoint للمؤسسات\n7. إصلاح أوامر الذكاء الاصطناعي - تحسين validation\n8. إصلاح إضافة الكاميرات - تحسين error handling\n9. إصلاح إضافة السيرفرات - تحسين error handling",
+  "requires_version": "3.0.0",
+  "affected_modules": [
+    "users",
+    "notifications",
+    "backups",
+    "wordings",
+    "updates",
+    "dashboard",
+    "ai-commands",
+    "cameras",
+    "edge-servers"
+  ],
+  "requires_manual_update": false,
+  "files": {
+    "app/Http/Controllers/UserController.php": "app/Http/Controllers/UserController.php",
+    "app/Http/Controllers/NotificationController.php": "app/Http/Controllers/NotificationController.php",
+    "app/Http/Controllers/SystemBackupController.php": "app/Http/Controllers/SystemBackupController.php",
+    "app/Http/Controllers/PlatformWordingController.php": "app/Http/Controllers/PlatformWordingController.php",
+    "app/Http/Controllers/SystemUpdateController.php": "app/Http/Controllers/SystemUpdateController.php",
+    "app/Http/Controllers/DashboardController.php": "app/Http/Controllers/DashboardController.php",
+    "app/Http/Controllers/AiCommandController.php": "app/Http/Controllers/AiCommandController.php",
+    "app/Http/Controllers/CameraController.php": "app/Http/Controllers/CameraController.php",
+    "app/Http/Controllers/EdgeController.php": "app/Http/Controllers/EdgeController.php",
+    "app/Models/SystemBackup.php": "app/Models/SystemBackup.php",
+    "app/Services/UpdateService.php": "app/Services/UpdateService.php",
+    "routes/api.php": "routes/api.php",
+    "database/stc_cloud_mysql_complete.sql": "database/stc_cloud_mysql_complete.sql"
+  },
+  "migrations": [],
+  "scripts": {
+    "pre-install": [],
+    "post-install": [
+      "php artisan cache:clear",
+      "php artisan config:clear",
+      "php artisan route:clear"
+    ]
+  }
+}
+
