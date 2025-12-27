@@ -29,6 +29,7 @@ import {
 import { settingsApi } from '../lib/api/settings';
 import type { LandingSettings } from '../types/database';
 import { useBranding } from '../contexts/BrandingContext';
+import { useToast } from '../contexts/ToastContext';
 
 const modules = [
   { icon: Flame, title: 'كشف الحريق والدخان', description: 'كشف الحرائق والدخان في الوقت الفعلي مع تنبيهات فورية' },
@@ -70,6 +71,7 @@ export function Landing() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const { branding } = useBranding();
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     fetchSettings();
@@ -89,11 +91,26 @@ export function Landing() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSending(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSent(true);
-    setSending(false);
-    setContactForm({ name: '', email: '', phone: '', message: '' });
-    setTimeout(() => setSent(false), 3000);
+    
+    try {
+      await settingsApi.submitContactForm({
+        name: contactForm.name,
+        email: contactForm.email,
+        phone: contactForm.phone || undefined,
+        message: contactForm.message,
+      });
+      
+      setSent(true);
+      setContactForm({ name: '', email: '', phone: '', message: '' });
+      showSuccess('تم إرسال رسالتك بنجاح. سنتواصل معك في أقرب وقت.');
+      setTimeout(() => setSent(false), 5000);
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.';
+      showError(errorMessage);
+    } finally {
+      setSending(false);
+    }
   };
 
   const whatsappLink = settings?.whatsapp_number

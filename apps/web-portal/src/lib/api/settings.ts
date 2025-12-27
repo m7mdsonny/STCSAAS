@@ -64,6 +64,17 @@ export const settingsApi = {
     return data;
   },
 
+  async submitContactForm(payload: { name: string; email: string; phone?: string; message: string }): Promise<{ message: string; success: boolean }> {
+    const { data, error } = await apiClient.post<{ message: string; success: boolean }>('/public/contact', payload, {
+      skipAuthRedirect: true,
+      skipAuthHeader: true,
+    });
+    if (error || !data) {
+      throw new Error(error || 'Failed to submit contact form');
+    }
+    return data;
+  },
+
   async getSystemSettings(): Promise<SystemSettings> {
     const { data, error } = await apiClient.get<SystemSettings>('/settings/system');
     if (error || !data) {

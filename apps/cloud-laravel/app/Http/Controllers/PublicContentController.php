@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ContactInquiry;
 use App\Models\PlatformContent;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 
 class PublicContentController extends Controller
 {
@@ -80,5 +83,51 @@ class PublicContentController extends Controller
             'features' => [],
             'stats' => [],
         ];
+    }
+
+    /**
+     * Submit contact form from landing page
+     */
+    public function submitContact(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => 'nullable|string|max:50',
+            'message' => 'required|string|max:5000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $inquiry = ContactInquiry::create([
+                'name' => $request->input('name'),
+                'email' => $request->input('email'),
+                'phone' => $request->input('phone'),
+                'message' => $request->input('message'),
+                'source' => 'landing_page',
+                'status' => 'new',
+            ]);
+
+            // Optionally send email notification here
+            // Mail::to(config('mail.support_email'))->send(new ContactInquiryNotification($inquiry));
+
+            return response()->json([
+                'message' => 'تم إرسال رسالتك بنجاح. سنتواصل معك في أقرب وقت.',
+                'success' => true,
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error('PublicContentController::submitContact error: ' . $e->getMessage());
+            
+            return response()->json([
+                'message' => 'حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.',
+                'success' => false,
+            ], 500);
+        }
     }
 }
