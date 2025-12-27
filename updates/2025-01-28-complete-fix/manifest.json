@@ -1,0 +1,61 @@
+{
+  "version": "1.0.1",
+  "update_id": "1-0-1",
+  "release_date": "2025-01-28",
+  "title": "إصلاح شامل - نموذج التواصل + BrandingController + Routes",
+  "description": "إصلاح شامل لجميع المشاكل: نموذج التواصل، BrandingController، Routes، platform_contents",
+  "changes": [
+    "إضافة جدول contact_inquiries لحفظ رسائل التواصل",
+    "إضافة ContactInquiry Model",
+    "إضافة endpoint لحفظ رسائل التواصل",
+    "إصلاح نموذج التواصل في صفحة Landing",
+    "إضافة BrandingController الكامل",
+    "إضافة BrandingSetting Model",
+    "إصلاح routes/api.php الكامل",
+    "إصلاح bootstrap/app.php مع apiPrefix",
+    "إصلاح platform_contents.key column"
+  ],
+  "files": {
+    "database": [
+      "database/migrations/2025_01_28_000000_create_contact_inquiries_table.php",
+      "database/migrations/2025_01_28_000001_fix_platform_contents_key_column.php"
+    ],
+    "backend": [
+      "app/Models/ContactInquiry.php",
+      "app/Models/BrandingSetting.php",
+      "app/Http/Controllers/PublicContentController.php",
+      "app/Http/Controllers/BrandingController.php",
+      "bootstrap/app.php",
+      "routes/api.php"
+    ],
+    "frontend": [
+      "web-portal/src/lib/api/settings.ts",
+      "web-portal/src/pages/Landing.tsx"
+    ]
+  },
+  "requirements": {
+    "php": ">=8.1",
+    "laravel": ">=10.0"
+  },
+  "installation_steps": [
+    "1. رفع جميع الملفات إلى السيرفر (استبدال الملفات الموجودة)",
+    "2. تشغيل Migration: php artisan migrate",
+    "3. تحديث autoload: composer dump-autoload",
+    "4. مسح الكاش: php artisan route:clear && php artisan config:clear && php artisan cache:clear",
+    "5. إعادة بناء Frontend: npm run build"
+  ],
+  "important_notes": [
+    "هذا التحديث يحتوي على ملفات كاملة - استبدل الملفات الموجودة",
+    "routes/api.php هو ملف كامل وليس جزئي",
+    "settings.ts هو ملف كامل وليس جزئي",
+    "تأكد من وجود BrandingController.php بعد التثبيت"
+  ],
+  "rollback": {
+    "enabled": true,
+    "steps": [
+      "1. استرجاع النسخ الاحتياطية للملفات",
+      "2. تشغيل: php artisan migrate:rollback --step=2"
+    ]
+  }
+}
+
