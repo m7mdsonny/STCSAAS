@@ -54,12 +54,17 @@ export function SystemUpdates() {
 
     setUploading(true);
     try {
+      console.log('Uploading update package:', file.name, file.size);
       const result = await systemUpdatesApi.uploadPackage(file);
+      console.log('Upload result:', result);
+      
       showSuccess('تم رفع التحديث بنجاح', `تم رفع التحديث ${result.version} بنجاح. معرف التحديث: ${result.update_id}`);
-      // Refresh updates list after successful upload
+      
+      // Refresh updates list after successful upload (with delay to ensure file system is updated)
       setTimeout(() => {
+        console.log('Refreshing updates list...');
         fetchUpdates();
-      }, 500);
+      }, 1000);
     } catch (error) {
       console.error('Error uploading update:', error);
       const errorMessage = error instanceof Error ? error.message : 'فشل رفع حزمة التحديث';

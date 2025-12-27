@@ -47,25 +47,43 @@ class UpdateService
 
             $directories = File::directories($this->updatesPath);
             
+            Log::debug('Scanning updates directory', [
+                'updates_path' => $this->updatesPath,
+                'directories_count' => count($directories),
+            ]);
+            
             foreach ($directories as $dir) {
                 $manifestPath = $dir . '/manifest.json';
                 if (File::exists($manifestPath)) {
                     try {
                         $manifestContent = File::get($manifestPath);
                         $manifest = json_decode($manifestContent, true);
-                        if ($manifest && is_array($manifest)) {
+                        if ($manifest && is_array($manifest) && isset($manifest['version'])) {
+                            $updateId = basename($dir);
                             $updates[] = [
-                                'id' => basename($dir),
+                                'id' => $updateId,
                                 'path' => $dir,
                                 'manifest' => $manifest,
                                 'installed' => $this->isInstalled($manifest['version'] ?? ''),
                             ];
+                            Log::debug('Found update package', [
+                                'id' => $updateId,
+                                'version' => $manifest['version'],
+                            ]);
+                        } else {
+                            Log::warning("Invalid manifest in {$dir}: missing version field");
                         }
                     } catch (Exception $e) {
                         Log::warning("Failed to read manifest in {$dir}: " . $e->getMessage());
                     }
+                } else {
+                    Log::debug("No manifest.json found in {$dir}");
                 }
             }
+            
+            Log::debug('Finished scanning updates', [
+                'updates_found' => count($updates),
+            ]);
 
             // Sort by version (newest first)
             usort($updates, function ($a, $b) {
