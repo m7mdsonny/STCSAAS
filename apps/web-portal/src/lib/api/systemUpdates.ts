@@ -27,11 +27,51 @@ export interface SystemUpdateResponse {
 
 export const systemUpdatesApi = {
   async getUpdates(): Promise<SystemUpdateResponse> {
-    const { data, error } = await apiClient.get<SystemUpdateResponse>('/system-updates');
-    if (error || !data) {
-      throw new Error(error || 'Failed to fetch updates');
+    try {
+      const response = await apiClient.get<SystemUpdateResponse>('/system-updates');
+      
+      if (response.error) {
+        console.error('API Error:', response.error);
+        throw new Error(response.error);
+      }
+      
+      if (!response.data) {
+        console.warn('No data in response, returning empty updates');
+        return {
+          current_version: '1.0.0',
+          updates: [],
+        };
+      }
+      
+      // Handle both direct data and nested data structure
+      const data = response.data as any;
+      
+      // Direct structure
+      if (data.current_version !== undefined && Array.isArray(data.updates)) {
+        return {
+          current_version: data.current_version || '1.0.0',
+          updates: data.updates || [],
+        };
+      }
+      
+      // Nested structure
+      if (data.data && data.data.current_version) {
+        return {
+          current_version: data.data.current_version || '1.0.0',
+          updates: data.data.updates || [],
+        };
+      }
+      
+      // Fallback
+      console.warn('Unexpected response structure:', data);
+      return {
+        current_version: '1.0.0',
+        updates: [],
+      };
+    } catch (error) {
+      console.error('Error fetching updates:', error);
+      throw error;
     }
-    return data;
   },
 
   async getCurrentVersion(): Promise<string> {
@@ -46,16 +86,31 @@ export const systemUpdatesApi = {
     const formData = new FormData();
     formData.append('package', file);
     
-    const { data, error } = await apiClient.post<{ data: { update_id: string; version: string; manifest: UpdateManifest } }>(
-      '/system-updates/upload',
-      formData
-    );
+    const response = await apiClient.post<{ 
+      success: boolean;
+      message: string;
+      data: { update_id: string; version: string; manifest: UpdateManifest };
+    }>('/system-updates/upload', formData);
     
-    if (error || !data) {
-      throw new Error(error || 'Failed to upload update package');
+    if (response.error) {
+      throw new Error(response.error);
     }
     
-    return data.data;
+    const data = response.data as any;
+    
+    // Handle different response structures
+    if (data.data) {
+      return data.data;
+    }
+    if (data.update_id && data.version) {
+      return {
+        update_id: data.update_id,
+        version: data.version,
+        manifest: data.manifest,
+      };
+    }
+    
+    throw new Error('Invalid response format from server');
   },
 
   async installUpdate(updateId: string): Promise<void> {

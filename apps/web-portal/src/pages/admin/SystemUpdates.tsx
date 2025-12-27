@@ -21,10 +21,21 @@ export function SystemUpdates() {
     setLoading(true);
     try {
       const data = await systemUpdatesApi.getUpdates();
-      setUpdates(data.updates);
-      setCurrentVersion(data.current_version);
+      console.log('Fetched updates data:', data);
+      
+      // Ensure we have valid data
+      if (data && Array.isArray(data.updates)) {
+        setUpdates(data.updates);
+        setCurrentVersion(data.current_version || '1.0.0');
+      } else {
+        console.warn('Invalid updates data structure:', data);
+        setUpdates([]);
+        setCurrentVersion('1.0.0');
+      }
     } catch (error) {
       console.error('Error fetching updates:', error);
+      setUpdates([]);
+      setCurrentVersion('1.0.0');
       const { title, message } = getDetailedErrorMessage(error, 'تحميل التحديثات', 'فشل تحميل قائمة التحديثات');
       showError(title, message);
     } finally {
@@ -44,11 +55,15 @@ export function SystemUpdates() {
     setUploading(true);
     try {
       const result = await systemUpdatesApi.uploadPackage(file);
-      showSuccess('تم رفع التحديث بنجاح', `تم رفع التحديث ${result.version} بنجاح`);
-      await fetchUpdates();
+      showSuccess('تم رفع التحديث بنجاح', `تم رفع التحديث ${result.version} بنجاح. معرف التحديث: ${result.update_id}`);
+      // Refresh updates list after successful upload
+      setTimeout(() => {
+        fetchUpdates();
+      }, 500);
     } catch (error) {
       console.error('Error uploading update:', error);
-      const { title, message } = getDetailedErrorMessage(error, 'رفع التحديث', 'فشل رفع حزمة التحديث');
+      const errorMessage = error instanceof Error ? error.message : 'فشل رفع حزمة التحديث';
+      const { title, message } = getDetailedErrorMessage(error, 'رفع التحديث', errorMessage);
       showError(title, message);
     } finally {
       setUploading(false);

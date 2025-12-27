@@ -27,13 +27,24 @@ class SystemUpdateController extends Controller
             $updates = $this->updateService->getAvailableUpdates();
             $currentVersion = $this->updateService->getCurrentVersion();
             
+            Log::debug('Fetched available updates', [
+                'count' => count($updates),
+                'current_version' => $currentVersion,
+            );
+            
             return response()->json([
                 'current_version' => $currentVersion,
                 'updates' => $updates,
-            ]);
+            ], 200, [], JSON_UNESCAPED_UNICODE);
         } catch (\Exception $e) {
-            Log::error('Failed to get updates: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
+            Log::error('Failed to get updates: ' . $e->getMessage(), [
+                'exception' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'error' => $e->getMessage(),
+                'current_version' => '1.0.0',
+                'updates' => [],
+            ], 500);
         }
     }
 
@@ -44,22 +55,51 @@ class SystemUpdateController extends Controller
     {
         $this->ensureSuperAdmin($request);
         
-        $request->validate([
-            'package' => 'required|file|mimes:zip|max:102400', // 100MB max
-        ]);
+        try {
+            $request->validate([
+                'package' => 'required|file|mimes:zip|max:102400', // 100MB max
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Invalid file: ' . implode(', ', $e->errors()['package'] ?? []),
+            ], 422);
+        }
 
         try {
-            $result = $this->updateService->uploadUpdatePackage($request->file('package'));
+            $file = $request->file('package');
+            
+            if (!$file || !$file->isValid()) {
+                return response()->json([
+                    'error' => 'Invalid or corrupted file',
+                ], 400);
+            }
+
+            $result = $this->updateService->uploadUpdatePackage($file);
+            
+            Log::info('Update package uploaded', [
+                'update_id' => $result['update_id'] ?? null,
+                'version' => $result['version'] ?? null,
+            ]);
             
             return response()->json([
                 'success' => true,
                 'message' => 'Update package uploaded successfully',
-                'data' => $result,
+                'data' => [
+                    'update_id' => $result['update_id'],
+                    'version' => $result['version'],
+                    'manifest' => $result['manifest'],
+                ],
             ], 201);
         } catch (\Exception $e) {
-            Log::error('Failed to upload update: ' . $e->getMessage());
+            Log::error('Failed to upload update: ' . $e->getMessage(), [
+                'file_name' => $request->file('package')?->getClientOriginalName(),
+                'file_size' => $request->file('package')?->getSize(),
+                'exception' => $e->getTraceAsString(),
+            ]);
+            
             return response()->json([
                 'error' => $e->getMessage(),
+                'message' => $e->getMessage(),
             ], 400);
         }
     }

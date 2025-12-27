@@ -506,6 +506,7 @@ class UpdateService
      */
     public function uploadUpdatePackage($file): array
     {
+        $tempDir = null;
         try {
             // Validate file
             if ($file->getClientOriginalExtension() !== 'zip') {
@@ -517,33 +518,75 @@ class UpdateService
             File::makeDirectory($tempDir, 0755, true);
 
             $zip = new ZipArchive();
-            if ($zip->open($file->getRealPath()) !== true) {
-                throw new Exception('Failed to open ZIP file');
+            $result = $zip->open($file->getRealPath());
+            if ($result !== true) {
+                throw new Exception('Failed to open ZIP file: ' . $result);
             }
 
             $zip->extractTo($tempDir);
             $zip->close();
 
-            // Validate manifest
-            $manifestPath = $tempDir . '/manifest.json';
-            if (!File::exists($manifestPath)) {
-                throw new Exception('manifest.json not found in update package');
+            // Find manifest.json (it might be in root or in a subdirectory)
+            $manifestPath = $this->findManifestFile($tempDir);
+            if (!$manifestPath) {
+                throw new Exception('manifest.json not found in update package. Please ensure manifest.json is in the root of the ZIP file.');
             }
 
-            $manifest = json_decode(File::get($manifestPath), true);
+            $manifestContent = File::get($manifestPath);
+            $manifest = json_decode($manifestContent, true);
             if (!$manifest || !isset($manifest['version'])) {
-                throw new Exception('Invalid manifest.json');
+                throw new Exception('Invalid manifest.json: version field is required');
+            }
+
+            // Get the actual update directory (might be a subdirectory if ZIP contains a folder)
+            $actualUpdateDir = dirname($manifestPath);
+            if ($actualUpdateDir === $tempDir) {
+                // manifest.json is in root, use tempDir as-is
+                $updateContentDir = $tempDir;
+            } else {
+                // manifest.json is in a subdirectory, use that as the update directory
+                $updateContentDir = $actualUpdateDir;
             }
 
             // Move to updates directory
-            $updateId = date('Y-m-d-His') . '-' . $manifest['version'];
+            $updateId = date('Y-m-d-His') . '-' . str_replace('.', '-', $manifest['version']);
             $updatePath = $this->updatesPath . '/' . $updateId;
             
             if (File::exists($updatePath)) {
                 File::deleteDirectory($updatePath);
             }
             
-            File::moveDirectory($tempDir, $updatePath);
+            // Ensure updates directory exists
+            if (!File::exists($this->updatesPath)) {
+                File::makeDirectory($this->updatesPath, 0755, true);
+            }
+
+            // Move the update content to the final location
+            if ($updateContentDir === $tempDir) {
+                // All files are in tempDir root, move directly
+                if (!File::moveDirectory($tempDir, $updatePath)) {
+                    // If moveDirectory fails, try copy then delete
+                    File::copyDirectory($tempDir, $updatePath);
+                    File::deleteDirectory($tempDir);
+                }
+            } else {
+                // Copy from subdirectory to final location
+                File::copyDirectory($updateContentDir, $updatePath);
+                // Clean up temp directory
+                File::deleteDirectory($tempDir);
+            }
+
+            // Verify the update was saved correctly
+            if (!File::exists($updatePath . '/manifest.json')) {
+                throw new Exception('Failed to save update package: manifest.json not found in final location');
+            }
+
+            Log::info("Update package uploaded successfully", [
+                'update_id' => $updateId,
+                'version' => $manifest['version'],
+                'path' => $updatePath,
+                'manifest_exists' => File::exists($updatePath . '/manifest.json'),
+            ]);
 
             return [
                 'success' => true,
@@ -553,11 +596,70 @@ class UpdateService
             ];
 
         } catch (Exception $e) {
-            if (isset($tempDir) && File::exists($tempDir)) {
-                File::deleteDirectory($tempDir);
+            Log::error('Failed to upload update package: ' . $e->getMessage(), [
+                'file' => $file->getClientOriginalName(),
+                'exception' => $e->getTraceAsString(),
+            ]);
+            
+            if ($tempDir && File::exists($tempDir)) {
+                try {
+                    File::deleteDirectory($tempDir);
+                } catch (Exception $cleanupError) {
+                    Log::warning('Failed to cleanup temp directory: ' . $cleanupError->getMessage());
+                }
             }
+            
             throw $e;
         }
+    }
+
+    /**
+     * Find manifest.json file in directory (recursively)
+     */
+    private function findManifestFile(string $directory): ?string
+    {
+        // First check root
+        $manifestPath = $directory . '/manifest.json';
+        if (File::exists($manifestPath)) {
+            return $manifestPath;
+        }
+
+        // Check one level deep (common case: ZIP contains a folder)
+        $subdirs = File::directories($directory);
+        foreach ($subdirs as $subdir) {
+            $subManifestPath = $subdir . '/manifest.json';
+            if (File::exists($subManifestPath)) {
+                return $subManifestPath;
+            }
+        }
+
+        // Recursively search (max 3 levels deep)
+        return $this->findManifestRecursive($directory, 0, 3);
+    }
+
+    /**
+     * Recursively find manifest.json
+     */
+    private function findManifestRecursive(string $directory, int $depth, int $maxDepth): ?string
+    {
+        if ($depth >= $maxDepth) {
+            return null;
+        }
+
+        $manifestPath = $directory . '/manifest.json';
+        if (File::exists($manifestPath)) {
+            return $manifestPath;
+        }
+
+        $subdirs = File::directories($directory);
+        foreach ($subdirs as $subdir) {
+            $result = $this->findManifestRecursive($subdir, $depth + 1, $maxDepth);
+            if ($result) {
+                return $result;
+            }
+        }
+
+        return null;
     }
 }
 
