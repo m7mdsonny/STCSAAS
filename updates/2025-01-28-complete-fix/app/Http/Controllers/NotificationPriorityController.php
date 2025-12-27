@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 
 class NotificationPriorityController extends Controller
 {
-
     public function index(Request $request): JsonResponse
     {
         $query = NotificationPriority::query();
