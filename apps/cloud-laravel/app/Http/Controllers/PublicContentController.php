@@ -14,6 +14,16 @@ class PublicContentController extends Controller
     public function landing(): JsonResponse
     {
         try {
+            // Check if 'key' column exists
+            if (!Schema::hasColumn('platform_contents', 'key')) {
+                // If key column doesn't exist, return defaults
+                \Log::warning('platform_contents table missing key column');
+                return response()->json([
+                    'content' => $this->landingDefaults(),
+                    'published' => false,
+                ]);
+            }
+
             // Try to get published content first
             $content = PlatformContent::where('key', 'landing_settings')
                 ->when(
