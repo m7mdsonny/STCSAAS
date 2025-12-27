@@ -13,22 +13,75 @@ class BrandingController extends Controller
     public function showGlobal(Request $request): JsonResponse
     {
         $this->ensureSuperAdmin($request);
-        $branding = BrandingSetting::whereNull('organization_id')->first();
-        if (!$branding) {
-            $branding = BrandingSetting::create();
-        }
+        
+        try {
+            $branding = BrandingSetting::whereNull('organization_id')->first();
+            if (!$branding) {
+                // Create default branding if it doesn't exist
+                $branding = BrandingSetting::create([
+                    'organization_id' => null,
+                    'primary_color' => '#DCA000',
+                    'secondary_color' => '#1E1E6E',
+                    'accent_color' => '#10B981',
+                    'danger_color' => '#EF4444',
+                    'warning_color' => '#F59E0B',
+                    'success_color' => '#22C55E',
+                    'font_family' => 'Inter',
+                    'heading_font' => 'Cairo',
+                    'border_radius' => '8px',
+                ]);
+            }
 
-        return response()->json($branding);
+            return response()->json($branding);
+        } catch (\Exception $e) {
+            \Log::error('BrandingController::showGlobal error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to load branding settings'], 500);
+        }
     }
 
     public function showPublic(): JsonResponse
     {
-        $branding = BrandingSetting::whereNull('organization_id')->first();
-        if (!$branding) {
-            $branding = BrandingSetting::create();
-        }
+        try {
+            $branding = BrandingSetting::whereNull('organization_id')->first();
+            if (!$branding) {
+                // Create default branding if it doesn't exist
+                $branding = BrandingSetting::create([
+                    'organization_id' => null,
+                    'primary_color' => '#DCA000',
+                    'secondary_color' => '#1E1E6E',
+                    'accent_color' => '#10B981',
+                    'danger_color' => '#EF4444',
+                    'warning_color' => '#F59E0B',
+                    'success_color' => '#22C55E',
+                    'font_family' => 'Inter',
+                    'heading_font' => 'Cairo',
+                    'border_radius' => '8px',
+                ]);
+            }
 
-        return response()->json($branding);
+            return response()->json($branding);
+        } catch (\Exception $e) {
+            \Log::error('BrandingController::showPublic error: ' . $e->getMessage());
+            
+            // Return default branding on error
+            return response()->json([
+                'id' => null,
+                'organization_id' => null,
+                'logo_url' => null,
+                'logo_dark_url' => null,
+                'favicon_url' => null,
+                'primary_color' => '#DCA000',
+                'secondary_color' => '#1E1E6E',
+                'accent_color' => '#10B981',
+                'danger_color' => '#EF4444',
+                'warning_color' => '#F59E0B',
+                'success_color' => '#22C55E',
+                'font_family' => 'Inter',
+                'heading_font' => 'Cairo',
+                'border_radius' => '8px',
+                'custom_css' => null,
+            ]);
+        }
     }
 
     public function updateGlobal(Request $request): JsonResponse
