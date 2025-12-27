@@ -74,4 +74,36 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Organization::class);
     }
+
+    /**
+     * Get registered faces created by this user
+     */
+    public function createdRegisteredFaces()
+    {
+        return $this->hasMany(RegisteredFace::class, 'created_by');
+    }
+
+    /**
+     * Get registered faces updated by this user
+     */
+    public function updatedRegisteredFaces()
+    {
+        return $this->hasMany(RegisteredFace::class, 'updated_by');
+    }
+
+    /**
+     * Get registered vehicles created by this user
+     */
+    public function createdRegisteredVehicles()
+    {
+        return $this->hasMany(RegisteredVehicle::class, 'created_by');
+    }
+
+    /**
+     * Get registered vehicles updated by this user
+     */
+    public function updatedRegisteredVehicles()
+    {
+        return $this->hasMany(RegisteredVehicle::class, 'updated_by');
+    }
 }

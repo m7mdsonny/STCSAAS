@@ -31,5 +31,10 @@ class Camera extends BaseModel
     {
         return $this->belongsTo(EdgeServer::class);
     }
+
+    public function vehicleAccessLogs()
+    {
+        return $this->hasMany(VehicleAccessLog::class);
+    }
 }
 

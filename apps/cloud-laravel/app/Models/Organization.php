@@ -32,4 +32,19 @@ class Organization extends BaseModel
     {
         return $this->hasOne(SMSQuota::class);
     }
+
+    public function registeredFaces()
+    {
+        return $this->hasMany(RegisteredFace::class);
+    }
+
+    public function registeredVehicles()
+    {
+        return $this->hasMany(RegisteredVehicle::class);
+    }
+
+    public function vehicleAccessLogs()
+    {
+        return $this->hasMany(VehicleAccessLog::class);
+    }
 }

@@ -99,13 +99,15 @@ export interface LandingPageImage {
 
 export const landingPageApi = {
   getSettings: async (): Promise<LandingPageSettings> => {
-    const response = await apiClient.get('/api/v1/landing-page/settings');
-    return response.data;
+    // Use the correct endpoint from SettingsController
+    const response = await apiClient.get('/settings/landing');
+    return response.data?.content || response.data || {};
   },
 
   updateSettings: async (data: Partial<LandingPageSettings>): Promise<LandingPageSettings> => {
-    const response = await apiClient.put('/api/v1/landing-page/settings', data);
-    return response.data;
+    // Use the correct endpoint from SettingsController
+    const response = await apiClient.put('/settings/landing', { content: data });
+    return response.data?.content || response.data || {};
   },
 
   getSections: async (): Promise<LandingPageSection[]> => {

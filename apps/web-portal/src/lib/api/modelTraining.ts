@@ -115,8 +115,9 @@ export interface ModelDeployment {
 export const modelTrainingApi = {
   getDatasets: async (): Promise<TrainingDataset[]> => {
     try {
-      const response = await apiClient.get('/api/v1/training/datasets');
-      return Array.isArray(response.data) ? response.data : [];
+      // TODO: Implement training datasets endpoint in backend
+      // For now, return empty array
+      return [];
     } catch (error) {
       console.error('Error fetching datasets:', error);
       return [];
@@ -124,22 +125,23 @@ export const modelTrainingApi = {
   },
 
   getDataset: async (id: string): Promise<TrainingDataset> => {
-    const response = await apiClient.get(`/api/v1/training/datasets/${id}`);
-    return response.data;
+    // TODO: Implement training dataset endpoint in backend
+    throw new Error('Training dataset endpoint not implemented yet');
   },
 
   createDataset: async (data: Partial<TrainingDataset>): Promise<TrainingDataset> => {
-    const response = await apiClient.post('/api/v1/training/datasets', data);
-    return response.data;
+    // TODO: Implement training dataset creation endpoint in backend
+    throw new Error('Training dataset creation endpoint not implemented yet');
   },
 
   updateDataset: async (id: string, data: Partial<TrainingDataset>): Promise<TrainingDataset> => {
-    const response = await apiClient.put(`/api/v1/training/datasets/${id}`, data);
-    return response.data;
+    // TODO: Implement training dataset update endpoint in backend
+    throw new Error('Training dataset update endpoint not implemented yet');
   },
 
   deleteDataset: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/training/datasets/${id}`);
+    // TODO: Implement training dataset deletion endpoint in backend
+    throw new Error('Training dataset deletion endpoint not implemented yet');
   },
 
   getSamples: async (datasetId: string, params?: {

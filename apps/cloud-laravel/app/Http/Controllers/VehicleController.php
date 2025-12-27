@@ -96,6 +96,8 @@ class VehicleController extends Controller
             ...$data,
             'organization_id' => $organizationId,
             'is_active' => $data['is_active'] ?? true,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
         ]);
 
         return response()->json($vehicle, 201);
@@ -122,6 +124,7 @@ class VehicleController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
+        $data['updated_by'] = $user->id;
         $vehicle->update($data);
 
         return response()->json($vehicle);

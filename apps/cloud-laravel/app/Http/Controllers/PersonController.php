@@ -99,6 +99,8 @@ class PersonController extends Controller
             ...$data,
             'organization_id' => $organizationId,
             'is_active' => $data['is_active'] ?? true,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
         ]);
 
         return response()->json($person, 201);
@@ -124,6 +126,7 @@ class PersonController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
+        $data['updated_by'] = $user->id;
         $person->update($data);
 
         return response()->json($person);
