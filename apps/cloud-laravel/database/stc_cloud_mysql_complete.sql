@@ -594,11 +594,16 @@ CREATE TABLE `system_settings` (
 CREATE TABLE `platform_wordings` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `key` VARCHAR(255) UNIQUE NOT NULL,
-    `default_value_ar` TEXT NULL,
-    `default_value_en` TEXT NULL,
-    `category` VARCHAR(100) NULL,
+    `label` VARCHAR(255) NULL,
+    `value_ar` TEXT NULL,
+    `value_en` TEXT NULL,
+    `category` VARCHAR(100) NULL DEFAULT 'general',
+    `context` VARCHAR(255) NULL,
+    `description` TEXT NULL,
+    `is_customizable` TINYINT(1) NOT NULL DEFAULT 1,
     `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
     INDEX `idx_platform_wordings_category` (`category`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
