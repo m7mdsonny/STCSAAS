@@ -23,8 +23,7 @@ import {
   MessageCircle,
   Twitter,
   Linkedin,
-  Instagram,
-  X
+  Instagram
 } from 'lucide-react';
 import { settingsApi } from '../lib/api/settings';
 import type { LandingSettings } from '../types/database';
