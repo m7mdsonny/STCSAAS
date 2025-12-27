@@ -30,6 +30,7 @@ import { settingsApi } from '../lib/api/settings';
 import type { LandingSettings } from '../types/database';
 import { useBranding } from '../contexts/BrandingContext';
 import { useToast } from '../contexts/ToastContext';
+import { getDetailedErrorMessage } from '../lib/errorMessages';
 
 const modules = [
   { icon: Flame, title: 'كشف الحريق والدخان', description: 'كشف الحرائق والدخان في الوقت الفعلي مع تنبيهات فورية' },
@@ -67,6 +68,7 @@ const plans = [
 export function Landing() {
   const [settings, setSettings] = useState<LandingSettings | null>(null);
   const [published, setPublished] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -79,12 +81,16 @@ export function Landing() {
 
   const fetchSettings = async () => {
     try {
+      setLoading(true);
       const data = await settingsApi.getPublishedLanding();
       setSettings(data.content);
       setPublished(data.published);
     } catch (error) {
       console.error('Failed to fetch landing settings:', error);
       setPublished(false);
+      // Don't show error toast for landing page - just use defaults
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -102,12 +108,12 @@ export function Landing() {
       
       setSent(true);
       setContactForm({ name: '', email: '', phone: '', message: '' });
-      showSuccess('تم إرسال رسالتك بنجاح. سنتواصل معك في أقرب وقت.');
+      showSuccess('تم إرسال رسالتك بنجاح', 'سنتواصل معك في أقرب وقت');
       setTimeout(() => setSent(false), 5000);
     } catch (error) {
       console.error('Error submitting contact form:', error);
-      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.';
-      showError(errorMessage);
+      const errorMsg = getDetailedErrorMessage(error, 'إرسال الرسالة', 'حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.');
+      showError(errorMsg.title, errorMsg.message);
     } finally {
       setSending(false);
     }
@@ -116,6 +122,14 @@ export function Landing() {
   const whatsappLink = settings?.whatsapp_number
     ? `https://wa.me/${settings.whatsapp_number.replace(/[^0-9]/g, '')}`
     : 'https://wa.me/966500000000';
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-stc-bg-dark flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-stc-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stc-bg-dark">
