@@ -276,14 +276,13 @@ return new class extends Migration
 
         if (!Schema::hasTable('system_backups')) {
             Schema::create('system_backups', function (Blueprint $table) {
-            $table->id();
-            $table->string('file_path');
-            $table->string('status')->default('completed');
-            $table->json('meta')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
-            $table->timestamp('created_at')->useCurrent();
-            $table->timestamp('updated_at')->nullable();
-            $table->softDeletes();
+                $table->id();
+                $table->string('file_path');
+                $table->string('status')->default('pending');
+                $table->json('meta')->nullable();
+                $table->unsignedBigInteger('created_by')->nullable();
+                $table->timestamps();
+                $table->softDeletes();
             });
         }
 
