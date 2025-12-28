@@ -28,17 +28,17 @@ class AlertController extends Controller
             $query->where('organization_id', $request->get('organization_id'));
         }
 
-        // Filters
+        // Filters - Use 'meta' column (not 'metadata')
         if ($request->filled('status')) {
-            $query->where('metadata->status', $request->get('status'));
+            $query->where('meta->status', $request->get('status'));
         }
 
         if ($request->filled('severity')) {
-            $query->where('metadata->severity', $request->get('severity'));
+            $query->where('meta->severity', $request->get('severity'));
         }
 
         if ($request->filled('module')) {
-            $query->where('metadata->module', $request->get('module'));
+            $query->where('meta->module', $request->get('module'));
         }
 
         if ($request->filled('start_date')) {

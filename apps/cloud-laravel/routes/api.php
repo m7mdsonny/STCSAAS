@@ -220,11 +220,11 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/ai-policies', [AiPolicyController::class, 'index']);
         Route::post('/ai-policies', [AiPolicyController::class, 'store']);
-        Route::get('/ai-policies/{aiPolicy}', [AiPolicyController::class, 'show']);
+        Route::get('/ai-policies/effective', [AiPolicyController::class, 'effective']); // Must come before {aiPolicy} route
+        Route::get('/ai-policies/{id}', [AiPolicyController::class, 'show']); // Changed from {aiPolicy} to {id} to avoid route binding conflict
         Route::put('/ai-policies/{aiPolicy}', [AiPolicyController::class, 'update']);
         Route::delete('/ai-policies/{aiPolicy}', [AiPolicyController::class, 'destroy']);
         Route::post('/ai-policies/{aiPolicy}/events', [AiPolicyController::class, 'addEvent']);
-        Route::get('/ai-policies/effective', [AiPolicyController::class, 'effective']);
 
         // AI Modules (Super Admin can manage, Organization users can view configs)
         Route::get('/ai-modules', [AiModuleController::class, 'index']);

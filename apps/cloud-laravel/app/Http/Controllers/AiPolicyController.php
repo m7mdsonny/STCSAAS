@@ -6,6 +6,7 @@ use App\Models\AiPolicy;
 use App\Models\AiPolicyEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class AiPolicyController extends Controller
 {
@@ -20,9 +21,27 @@ class AiPolicyController extends Controller
         return response()->json($query->orderByDesc('created_at')->get());
     }
 
-    public function show(AiPolicy $aiPolicy): JsonResponse
+    public function show($id): JsonResponse
     {
-        return response()->json($aiPolicy->load('events'));
+        try {
+            // Check if table exists
+            if (!Schema::hasTable('ai_policies')) {
+                return response()->json(['error' => 'AI policies table not found'], 404);
+            }
+
+            // Handle "effective" as a special keyword, not an ID
+            if ($id === 'effective') {
+                return $this->effective(request());
+            }
+
+            $aiPolicy = AiPolicy::findOrFail($id);
+            return response()->json($aiPolicy->load('events'));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'AI policy not found'], 404);
+        } catch (\Exception $e) {
+            \Log::error('AiPolicyController::show error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to load AI policy'], 500);
+        }
     }
 
     public function store(Request $request): JsonResponse
@@ -68,11 +87,45 @@ class AiPolicyController extends Controller
 
     public function effective(Request $request): JsonResponse
     {
-        $organizationId = $request->get('organization_id');
-        $policy = AiPolicy::where('organization_id', $organizationId)->first()
-            ?? AiPolicy::whereNull('organization_id')->first();
+        try {
+            // Check if table exists first
+            if (!\Illuminate\Support\Facades\Schema::hasTable('ai_policies')) {
+                \Log::warning('ai_policies table does not exist - returning defaults');
+                return response()->json([
+                    'is_enabled' => false,
+                    'modules' => [],
+                    'thresholds' => [],
+                    'actions' => [],
+                    'feature_flags' => [],
+                ]);
+            }
 
-        if (!$policy) {
+            $organizationId = $request->get('organization_id');
+            $policy = AiPolicy::where('organization_id', $organizationId)->first()
+                ?? AiPolicy::whereNull('organization_id')->first();
+
+            if (!$policy) {
+                return response()->json([
+                    'is_enabled' => false,
+                    'modules' => [],
+                    'thresholds' => [],
+                    'actions' => [],
+                    'feature_flags' => [],
+                ]);
+            }
+
+            return response()->json($policy->load('events'));
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('AiPolicyController::effective database error: ' . $e->getMessage());
+            return response()->json([
+                'is_enabled' => false,
+                'modules' => [],
+                'thresholds' => [],
+                'actions' => [],
+                'feature_flags' => [],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('AiPolicyController::effective error: ' . $e->getMessage());
             return response()->json([
                 'is_enabled' => false,
                 'modules' => [],
@@ -81,8 +134,6 @@ class AiPolicyController extends Controller
                 'feature_flags' => [],
             ]);
         }
-
-        return response()->json($policy->load('events'));
     }
 
     protected function validateData(Request $request, bool $requireName = true): array
