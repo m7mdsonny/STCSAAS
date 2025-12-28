@@ -9,18 +9,42 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('updates', function (Blueprint $table) {
-            // Version fields
-            $table->string('version')->nullable()->after('title');
-            $table->enum('version_type', ['major', 'minor', 'patch', 'hotfix'])->nullable()->after('version');
-            $table->text('release_notes')->nullable()->after('body');
-            $table->text('changelog')->nullable()->after('release_notes');
-            $table->json('affected_modules')->nullable()->after('changelog');
-            $table->boolean('requires_manual_update')->default(false)->after('affected_modules');
-            $table->string('download_url')->nullable()->after('requires_manual_update');
-            $table->string('checksum')->nullable()->after('download_url');
-            $table->integer('file_size_mb')->nullable()->after('checksum');
-            $table->timestamp('release_date')->nullable()->after('published_at');
-            $table->timestamp('end_of_support_date')->nullable()->after('release_date');
+            // Version fields (only if columns don't exist)
+            if (!Schema::hasColumn('updates', 'version')) {
+                $table->string('version')->nullable()->after('title');
+            }
+            if (!Schema::hasColumn('updates', 'version_type')) {
+                $table->enum('version_type', ['major', 'minor', 'patch', 'hotfix'])->nullable()->after('version');
+            }
+            if (!Schema::hasColumn('updates', 'body') && !Schema::hasColumn('updates', 'release_notes')) {
+                $table->text('release_notes')->nullable()->after('body');
+            } elseif (!Schema::hasColumn('updates', 'release_notes')) {
+                $table->text('release_notes')->nullable();
+            }
+            if (!Schema::hasColumn('updates', 'changelog')) {
+                $table->text('changelog')->nullable();
+            }
+            if (!Schema::hasColumn('updates', 'affected_modules')) {
+                $table->json('affected_modules')->nullable();
+            }
+            if (!Schema::hasColumn('updates', 'requires_manual_update')) {
+                $table->boolean('requires_manual_update')->default(false);
+            }
+            if (!Schema::hasColumn('updates', 'download_url')) {
+                $table->string('download_url')->nullable();
+            }
+            if (!Schema::hasColumn('updates', 'checksum')) {
+                $table->string('checksum')->nullable();
+            }
+            if (!Schema::hasColumn('updates', 'file_size_mb')) {
+                $table->integer('file_size_mb')->nullable();
+            }
+            if (!Schema::hasColumn('updates', 'release_date')) {
+                $table->timestamp('release_date')->nullable();
+            }
+            if (!Schema::hasColumn('updates', 'end_of_support_date')) {
+                $table->timestamp('end_of_support_date')->nullable();
+            }
         });
     }
 

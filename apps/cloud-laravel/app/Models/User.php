@@ -32,10 +32,38 @@ class User extends Authenticatable
 
     /**
      * Mutator to normalize role when setting
+     * Also syncs is_super_admin flag with role
      */
     public function setRoleAttribute($value): void
     {
-        $this->attributes['role'] = RoleHelper::normalize($value ?? 'viewer');
+        $normalized = RoleHelper::normalize($value ?? 'viewer');
+        $this->attributes['role'] = $normalized;
+        
+        // Sync is_super_admin with role
+        if ($normalized === RoleHelper::SUPER_ADMIN) {
+            $this->attributes['is_super_admin'] = true;
+        } elseif (isset($this->attributes['is_super_admin']) && $this->attributes['is_super_admin'] && $normalized !== RoleHelper::SUPER_ADMIN) {
+            // If role is not super_admin but flag is true, sync it
+            $this->attributes['is_super_admin'] = false;
+        }
+    }
+
+    /**
+     * Boot method to sync is_super_admin on save
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($user) {
+            // Ensure is_super_admin is synced with role
+            $normalizedRole = RoleHelper::normalize($user->role ?? 'viewer');
+            if ($normalizedRole === RoleHelper::SUPER_ADMIN) {
+                $user->is_super_admin = true;
+            } elseif ($user->is_super_admin && $normalizedRole !== RoleHelper::SUPER_ADMIN) {
+                $user->is_super_admin = false;
+            }
+        });
     }
 
     /**
