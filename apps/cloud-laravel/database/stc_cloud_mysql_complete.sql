@@ -2,11 +2,14 @@
 -- STC AI-VAP Cloud Platform - MySQL Database
 -- ============================================
 -- Description: Complete MySQL database with comprehensive demo data
--- Version: 3.0.0
--- Date: 2025-01-27
+-- Version: 4.0.0 - FIXED & COMPLETE
+-- Date: 2025-01-28
 -- Database: MySQL 8.0+ / MariaDB 10.3+
 -- ============================================
--- IMPORTANT: This database includes all latest features:
+-- IMPORTANT: This database includes ALL fixes:
+-- - All missing tables (organizations_branding, ai_policies, system_backups, notification_priorities, contact_inquiries)
+-- - All missing columns (platform_contents.published, platform_contents.key, platform_contents.deleted_at)
+-- - All migrations are idempotent-safe
 -- - Registered Faces (Face Recognition)
 -- - Registered Vehicles (Vehicle Recognition)
 -- - Vehicle Access Logs
@@ -21,6 +24,8 @@ SET time_zone = "+00:00";
 -- ============================================
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS `contact_inquiries`;
+DROP TABLE IF EXISTS `device_tokens`;
 DROP TABLE IF EXISTS `vehicle_access_logs`;
 DROP TABLE IF EXISTS `registered_vehicles`;
 DROP TABLE IF EXISTS `registered_faces`;
@@ -31,6 +36,8 @@ DROP TABLE IF EXISTS `system_settings`;
 DROP TABLE IF EXISTS `platform_wordings`;
 DROP TABLE IF EXISTS `organization_wordings`;
 DROP TABLE IF EXISTS `updates`;
+DROP TABLE IF EXISTS `ai_policy_events`;
+DROP TABLE IF EXISTS `ai_policies`;
 DROP TABLE IF EXISTS `ai_module_configs`;
 DROP TABLE IF EXISTS `ai_modules`;
 DROP TABLE IF EXISTS `ai_command_logs`;
@@ -41,13 +48,19 @@ DROP TABLE IF EXISTS `analytics_widgets`;
 DROP TABLE IF EXISTS `analytics_dashboards`;
 DROP TABLE IF EXISTS `analytics_reports`;
 DROP TABLE IF EXISTS `system_backups`;
+DROP TABLE IF EXISTS `notification_priorities`;
+DROP TABLE IF EXISTS `sms_quotas`;
+DROP TABLE IF EXISTS `edge_server_logs`;
 DROP TABLE IF EXISTS `notifications`;
 DROP TABLE IF EXISTS `events`;
 DROP TABLE IF EXISTS `cameras`;
 DROP TABLE IF EXISTS `edge_servers`;
 DROP TABLE IF EXISTS `licenses`;
+DROP TABLE IF EXISTS `subscription_plan_limits`;
 DROP TABLE IF EXISTS `sessions`;
 DROP TABLE IF EXISTS `personal_access_tokens`;
+DROP TABLE IF EXISTS `platform_contents`;
+DROP TABLE IF EXISTS `organizations_branding`;
 DROP TABLE IF EXISTS `users`;
 DROP TABLE IF EXISTS `organizations`;
 DROP TABLE IF EXISTS `distributors`;
@@ -175,6 +188,32 @@ CREATE TABLE `subscription_plans` (
     `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted_at` TIMESTAMP NULL,
     INDEX `idx_subscription_plans_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 5.1. ORGANIZATIONS BRANDING (FIXED - Added)
+-- ============================================
+CREATE TABLE `organizations_branding` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `organization_id` BIGINT UNSIGNED NULL,
+    `logo_url` VARCHAR(500) NULL,
+    `logo_dark_url` VARCHAR(500) NULL,
+    `favicon_url` VARCHAR(500) NULL,
+    `primary_color` VARCHAR(50) DEFAULT '#DCA000',
+    `secondary_color` VARCHAR(50) DEFAULT '#1E1E6E',
+    `accent_color` VARCHAR(50) DEFAULT '#10B981',
+    `danger_color` VARCHAR(50) DEFAULT '#EF4444',
+    `warning_color` VARCHAR(50) DEFAULT '#F59E0B',
+    `success_color` VARCHAR(50) DEFAULT '#22C55E',
+    `font_family` VARCHAR(100) DEFAULT 'Inter',
+    `heading_font` VARCHAR(100) DEFAULT 'Cairo',
+    `border_radius` VARCHAR(20) DEFAULT '8px',
+    `custom_css` TEXT NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`organization_id`) REFERENCES `organizations`(`id`) ON DELETE CASCADE,
+    INDEX `idx_organizations_branding_organization` (`organization_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -589,6 +628,302 @@ CREATE TABLE `system_settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
+-- 21.1. PLATFORM CONTENTS (FIXED - Added key, published, deleted_at)
+-- ============================================
+CREATE TABLE `platform_contents` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `key` VARCHAR(255) UNIQUE NULL,
+    `value` TEXT NULL,
+    `section` VARCHAR(255) NULL,
+    `published` BOOLEAN DEFAULT TRUE,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    INDEX `idx_platform_contents_key` (`key`),
+    INDEX `idx_platform_contents_section` (`section`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.2. SYSTEM BACKUPS (FIXED - Added)
+-- ============================================
+CREATE TABLE `system_backups` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `file_path` VARCHAR(500) NOT NULL,
+    `status` VARCHAR(50) DEFAULT 'pending',
+    `meta` JSON NULL,
+    `created_by` BIGINT UNSIGNED NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+    INDEX `idx_system_backups_status` (`status`),
+    INDEX `idx_system_backups_created_by` (`created_by`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.3. NOTIFICATION PRIORITIES (FIXED - Added)
+-- ============================================
+CREATE TABLE `notification_priorities` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `organization_id` BIGINT UNSIGNED NULL,
+    `notification_type` VARCHAR(255) NOT NULL,
+    `priority` VARCHAR(50) DEFAULT 'medium',
+    `is_critical` BOOLEAN DEFAULT FALSE,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`organization_id`) REFERENCES `organizations`(`id`) ON DELETE SET NULL,
+    INDEX `idx_notification_priorities_organization` (`organization_id`),
+    INDEX `idx_notification_priorities_type` (`notification_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.4. AI POLICIES (FIXED - Added)
+-- ============================================
+CREATE TABLE `ai_policies` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `organization_id` BIGINT UNSIGNED NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `is_enabled` BOOLEAN DEFAULT TRUE,
+    `modules` JSON NULL,
+    `thresholds` JSON NULL,
+    `actions` JSON NULL,
+    `feature_flags` JSON NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`organization_id`) REFERENCES `organizations`(`id`) ON DELETE SET NULL,
+    INDEX `idx_ai_policies_organization` (`organization_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.5. AI POLICY EVENTS (FIXED - Added)
+-- ============================================
+CREATE TABLE `ai_policy_events` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `ai_policy_id` BIGINT UNSIGNED NOT NULL,
+    `event_type` VARCHAR(255) NOT NULL,
+    `label` VARCHAR(255) NULL,
+    `payload` JSON NULL,
+    `weight` DECIMAL(8,2) DEFAULT 1.00,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`ai_policy_id`) REFERENCES `ai_policies`(`id`) ON DELETE CASCADE,
+    INDEX `idx_ai_policy_events_policy` (`ai_policy_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.6. AI COMMAND TARGETS (FIXED - Added)
+-- ============================================
+CREATE TABLE `ai_command_targets` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `ai_command_id` BIGINT UNSIGNED NOT NULL,
+    `target_type` VARCHAR(50) DEFAULT 'org',
+    `target_id` VARCHAR(255) NULL,
+    `meta` JSON NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`ai_command_id`) REFERENCES `ai_commands`(`id`) ON DELETE CASCADE,
+    INDEX `idx_ai_command_targets_command` (`ai_command_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.7. AI COMMAND LOGS (FIXED - Added)
+-- ============================================
+CREATE TABLE `ai_command_logs` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `ai_command_id` BIGINT UNSIGNED NOT NULL,
+    `status` VARCHAR(50) DEFAULT 'queued',
+    `message` TEXT NULL,
+    `meta` JSON NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`ai_command_id`) REFERENCES `ai_commands`(`id`) ON DELETE CASCADE,
+    INDEX `idx_ai_command_logs_command` (`ai_command_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.8. DEVICE TOKENS (FIXED - Added)
+-- ============================================
+CREATE TABLE `device_tokens` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `organization_id` BIGINT UNSIGNED NULL,
+    `token` VARCHAR(255) UNIQUE NOT NULL,
+    `device_type` VARCHAR(50) NOT NULL,
+    `device_id` VARCHAR(255) NULL,
+    `device_name` VARCHAR(255) NULL,
+    `app_version` VARCHAR(50) NULL,
+    `is_active` BOOLEAN DEFAULT TRUE,
+    `last_used_at` TIMESTAMP NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`organization_id`) REFERENCES `organizations`(`id`) ON DELETE CASCADE,
+    INDEX `idx_device_tokens_user` (`user_id`, `is_active`),
+    INDEX `idx_device_tokens_organization` (`organization_id`, `is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.9. CONTACT INQUIRIES (FIXED - Added)
+-- ============================================
+CREATE TABLE `contact_inquiries` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(255) NOT NULL,
+    `phone` VARCHAR(50) NULL,
+    `message` TEXT NOT NULL,
+    `source` VARCHAR(100) DEFAULT 'landing_page',
+    `status` ENUM('new', 'read', 'replied', 'archived') DEFAULT 'new',
+    `read_at` TIMESTAMP NULL,
+    `admin_notes` TEXT NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    INDEX `idx_contact_inquiries_status` (`status`),
+    INDEX `idx_contact_inquiries_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.10. UPDATES (FIXED - Added)
+-- ============================================
+CREATE TABLE `updates` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `title` VARCHAR(255) NOT NULL,
+    `body` TEXT NULL,
+    `is_published` BOOLEAN DEFAULT FALSE,
+    `organization_id` BIGINT UNSIGNED NULL,
+    `published_at` TIMESTAMP NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`organization_id`) REFERENCES `organizations`(`id`) ON DELETE SET NULL,
+    INDEX `idx_updates_organization` (`organization_id`),
+    INDEX `idx_updates_published` (`is_published`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.11. SMS QUOTAS (FIXED - Added)
+-- ============================================
+CREATE TABLE `sms_quotas` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `organization_id` BIGINT UNSIGNED NOT NULL,
+    `monthly_limit` INT UNSIGNED NOT NULL,
+    `used_this_month` INT UNSIGNED DEFAULT 0,
+    `resets_at` TIMESTAMP NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`organization_id`) REFERENCES `organizations`(`id`) ON DELETE CASCADE,
+    INDEX `idx_sms_quotas_organization` (`organization_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.12. EDGE SERVER LOGS (FIXED - Added)
+-- ============================================
+CREATE TABLE `edge_server_logs` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `edge_server_id` BIGINT UNSIGNED NOT NULL,
+    `level` VARCHAR(50) DEFAULT 'info',
+    `message` TEXT NOT NULL,
+    `meta` JSON NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`edge_server_id`) REFERENCES `edge_servers`(`id`) ON DELETE CASCADE,
+    INDEX `idx_edge_server_logs_server` (`edge_server_id`),
+    INDEX `idx_edge_server_logs_level` (`level`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.13. ANALYTICS REPORTS (FIXED - Added)
+-- ============================================
+CREATE TABLE `analytics_reports` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `organization_id` BIGINT UNSIGNED NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `report_type` VARCHAR(100) DEFAULT 'event_summary',
+    `parameters` JSON NULL,
+    `filters` JSON NULL,
+    `format` VARCHAR(50) DEFAULT 'json',
+    `file_url` VARCHAR(500) NULL,
+    `file_size` BIGINT UNSIGNED NULL,
+    `is_scheduled` BOOLEAN DEFAULT FALSE,
+    `schedule_cron` VARCHAR(100) NULL,
+    `last_generated_at` TIMESTAMP NULL,
+    `next_scheduled_at` TIMESTAMP NULL,
+    `recipients` JSON NULL,
+    `status` VARCHAR(50) DEFAULT 'draft',
+    `error_message` TEXT NULL,
+    `created_by` BIGINT UNSIGNED NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`organization_id`) REFERENCES `organizations`(`id`) ON DELETE SET NULL,
+    INDEX `idx_analytics_reports_organization` (`organization_id`),
+    INDEX `idx_analytics_reports_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.14. ANALYTICS DASHBOARDS (FIXED - Added)
+-- ============================================
+CREATE TABLE `analytics_dashboards` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `organization_id` BIGINT UNSIGNED NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `description` TEXT NULL,
+    `is_default` BOOLEAN DEFAULT FALSE,
+    `layout` JSON NULL,
+    `is_public` BOOLEAN DEFAULT FALSE,
+    `shared_with` JSON NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`organization_id`) REFERENCES `organizations`(`id`) ON DELETE SET NULL,
+    INDEX `idx_analytics_dashboards_organization` (`organization_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.15. ANALYTICS WIDGETS (FIXED - Added)
+-- ============================================
+CREATE TABLE `analytics_widgets` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `dashboard_id` BIGINT UNSIGNED NOT NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `widget_type` VARCHAR(100) NOT NULL,
+    `config` JSON NULL,
+    `data_source` VARCHAR(255) NULL,
+    `filters` JSON NULL,
+    `position_x` INT DEFAULT 0,
+    `position_y` INT DEFAULT 0,
+    `width` INT DEFAULT 4,
+    `height` INT DEFAULT 3,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`dashboard_id`) REFERENCES `analytics_dashboards`(`id`) ON DELETE CASCADE,
+    INDEX `idx_analytics_widgets_dashboard` (`dashboard_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 21.16. SUBSCRIPTION PLAN LIMITS (FIXED - Added)
+-- ============================================
+CREATE TABLE `subscription_plan_limits` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `subscription_plan_id` BIGINT UNSIGNED NOT NULL,
+    `key` VARCHAR(255) NOT NULL,
+    `value` INT NOT NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL,
+    FOREIGN KEY (`subscription_plan_id`) REFERENCES `subscription_plans`(`id`) ON DELETE CASCADE,
+    INDEX `idx_subscription_plan_limits_plan` (`subscription_plan_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
 -- 22. PLATFORM WORDINGS
 -- ============================================
 CREATE TABLE `platform_wordings` (
@@ -796,6 +1131,26 @@ INSERT INTO `automation_rules` (`id`, `organization_id`, `name`, `name_ar`, `des
 -- 20. System Settings
 INSERT INTO `system_settings` (`id`, `platform_name`, `platform_tagline`, `support_email`, `support_phone`, `default_timezone`, `default_language`, `maintenance_mode`, `allow_registration`) VALUES
 (1, 'STC AI-VAP', 'منصة تحليل الفيديو بالذكاء الاصطناعي', 'support@stc-solutions.com', '+20 100 000 0000', 'Africa/Cairo', 'ar', FALSE, TRUE);
+
+-- 20.1. Organizations Branding (Default Global Branding)
+INSERT INTO `organizations_branding` (`id`, `organization_id`, `primary_color`, `secondary_color`, `accent_color`, `danger_color`, `warning_color`, `success_color`, `font_family`, `heading_font`, `border_radius`) VALUES
+(1, NULL, '#DCA000', '#1E1E6E', '#10B981', '#EF4444', '#F59E0B', '#22C55E', 'Inter', 'Cairo', '8px');
+
+-- 20.2. Platform Contents (Landing Settings)
+INSERT INTO `platform_contents` (`id`, `key`, `value`, `section`, `published`) VALUES
+(1, 'landing_settings', '{"hero_title": "منصة تحليل الفيديو بالذكاء الاصطناعي", "hero_subtitle": "حول كاميرات المراقبة الى عيون ذكية تحمي منشاتك وتحلل بياناتك في الوقت الفعلي", "hero_button_text": "ابدا تجربتك المجانية - 14 يوم", "about_title": "عن المنصة", "about_description": "حل متكامل لادارة المراقبة بالفيديو والذكاء الاصطناعي مع تكاملات جاهزة.", "contact_email": "info@stc-solutions.com", "contact_phone": "+966 11 000 0000", "contact_address": "الرياض، المملكة العربية السعودية", "whatsapp_number": "+966500000000", "show_whatsapp_button": true, "footer_text": "STC Solutions. جميع الحقوق محفوظة", "social_twitter": null, "social_linkedin": null, "social_instagram": null, "features": [], "stats": []}', 'landing', TRUE);
+
+-- 20.3. Notification Priorities (Default Priorities)
+INSERT INTO `notification_priorities` (`id`, `organization_id`, `notification_type`, `priority`, `is_critical`) VALUES
+(1, NULL, 'fire_detection', 'critical', TRUE),
+(2, NULL, 'intrusion_detection', 'high', TRUE),
+(3, NULL, 'face_recognized', 'low', FALSE),
+(4, NULL, 'vehicle_recognized', 'low', FALSE),
+(5, NULL, 'object_detection', 'medium', FALSE);
+
+-- 20.4. AI Policies (Default Global Policy)
+INSERT INTO `ai_policies` (`id`, `organization_id`, `name`, `is_enabled`, `modules`, `thresholds`, `actions`, `feature_flags`) VALUES
+(1, NULL, 'Default Global AI Policy', TRUE, '["face_detection", "face_recognition", "object_detection", "vehicle_detection"]', '{"confidence_threshold": 0.85, "alert_threshold": 3}', '{"notify_on_detection": true, "log_all_events": true}', '{"advanced_analytics": true, "real_time_processing": true}');
 
 -- 21. Platform Wordings
 INSERT INTO `platform_wordings` (`id`, `key`, `label`, `value_ar`, `value_en`, `category`, `is_customizable`) VALUES
