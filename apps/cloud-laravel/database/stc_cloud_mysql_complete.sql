@@ -975,9 +975,9 @@ CREATE TABLE `personal_access_tokens` (
 -- ============================================
 
 -- 1. Distributors
-INSERT INTO `distributors` (`id`, `name`, `contact_email`, `contact_phone`, `address`, `commission_rate`, `status`) VALUES
-(1, 'موزع تجريبي', 'partner@stc-solutions.com', '+20 100 000 0000', 'القاهرة، مصر', 15.00, 'active'),
-(2, 'موزع الشرق الأوسط', 'me@stc-solutions.com', '+971 50 123 4567', 'دبي، الإمارات', 12.00, 'active');
+INSERT INTO `distributors` (`id`, `name`, `contact_email`) VALUES
+(1, 'موزع تجريبي', 'partner@stc-solutions.com'),
+(2, 'موزع الشرق الأوسط', 'me@stc-solutions.com');
 
 -- 2. Resellers
 INSERT INTO `resellers` (`id`, `name`, `name_en`, `email`, `phone`, `company_name`, `address`, `city`, `country`, `commission_rate`, `is_active`) VALUES
