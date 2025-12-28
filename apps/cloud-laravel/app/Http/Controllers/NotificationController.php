@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Notification;
 use App\Models\DeviceToken;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class NotificationController extends Controller
 {
@@ -193,14 +194,30 @@ class NotificationController extends Controller
      */
     public function getAlertPriorities(): JsonResponse
     {
-        $user = request()->user();
-        $query = \App\Models\NotificationPriority::query();
+        try {
+            $user = request()->user();
+            
+            // Check if table exists
+            if (!\Illuminate\Support\Facades\Schema::hasTable('notification_priorities')) {
+                \Log::warning('notification_priorities table does not exist');
+                return response()->json([]);
+            }
+            
+            $query = \App\Models\NotificationPriority::query();
 
-        if ($user->organization_id) {
-            $query->where('organization_id', $user->organization_id);
+            if ($user && $user->organization_id) {
+                $query->where('organization_id', $user->organization_id);
+            }
+
+            return response()->json($query->orderBy('notification_type')->get());
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Error fetching notification priorities: ' . $e->getMessage());
+            // Return empty array instead of crashing
+            return response()->json([]);
+        } catch (\Exception $e) {
+            \Log::error('Unexpected error in getAlertPriorities: ' . $e->getMessage());
+            return response()->json([]);
         }
-
-        return response()->json($query->orderBy('notification_type')->get());
     }
 
     /**
@@ -208,27 +225,50 @@ class NotificationController extends Controller
      */
     public function createAlertPriority(Request $request): JsonResponse
     {
-        $user = request()->user();
-        $data = $request->validate([
-            'module' => 'required|string',
-            'alert_type' => 'required|string',
-            'severity' => 'required|string|in:low,medium,high,critical',
-            'notification_channels' => 'required|array',
-            'auto_escalate' => 'nullable|boolean',
-            'escalation_minutes' => 'nullable|integer',
-            'escalation_channel' => 'nullable|string',
-            'sound_enabled' => 'nullable|boolean',
-            'vibration_enabled' => 'nullable|boolean',
-        ]);
+        try {
+            // Check if table exists
+            if (!Schema::hasTable('notification_priorities')) {
+                \Log::error('notification_priorities table does not exist - cannot create priority');
+                return response()->json([
+                    'message' => 'Database table not found. Please run migrations.',
+                    'error' => 'notification_priorities table missing'
+                ], 500);
+            }
+            
+            $user = request()->user();
+            $data = $request->validate([
+                'module' => 'required|string',
+                'alert_type' => 'required|string',
+                'severity' => 'required|string|in:low,medium,high,critical',
+                'notification_channels' => 'required|array',
+                'auto_escalate' => 'nullable|boolean',
+                'escalation_minutes' => 'nullable|integer',
+                'escalation_channel' => 'nullable|string',
+                'sound_enabled' => 'nullable|boolean',
+                'vibration_enabled' => 'nullable|boolean',
+            ]);
 
-        $priority = \App\Models\NotificationPriority::create([
-            'organization_id' => $user->organization_id,
-            'notification_type' => "{$data['module']}.{$data['alert_type']}",
-            'priority' => $data['severity'],
-            'is_critical' => $data['severity'] === 'critical',
-        ]);
+            $priority = \App\Models\NotificationPriority::create([
+                'organization_id' => $user->organization_id,
+                'notification_type' => "{$data['module']}.{$data['alert_type']}",
+                'priority' => $data['severity'],
+                'is_critical' => $data['severity'] === 'critical',
+            ]);
 
-        return response()->json($priority, 201);
+            return response()->json($priority, 201);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Error creating notification priority: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to create notification priority',
+                'error' => $e->getMessage()
+            ], 500);
+        } catch (\Exception $e) {
+            \Log::error('Unexpected error in createAlertPriority: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to create notification priority',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -236,25 +276,52 @@ class NotificationController extends Controller
      */
     public function updateAlertPriority(Request $request, string $id): JsonResponse
     {
-        $priority = \App\Models\NotificationPriority::findOrFail($id);
-        $data = $request->validate([
-            'severity' => 'sometimes|string|in:low,medium,high,critical',
-            'notification_channels' => 'sometimes|array',
-            'auto_escalate' => 'nullable|boolean',
-            'escalation_minutes' => 'nullable|integer',
-            'escalation_channel' => 'nullable|string',
-            'sound_enabled' => 'nullable|boolean',
-            'vibration_enabled' => 'nullable|boolean',
-        ]);
-
-        if (isset($data['severity'])) {
-            $priority->update([
-                'priority' => $data['severity'],
-                'is_critical' => $data['severity'] === 'critical',
+        try {
+            // Check if table exists
+            if (!\Illuminate\Support\Facades\Schema::hasTable('notification_priorities')) {
+                \Log::error('notification_priorities table does not exist');
+                return response()->json([
+                    'message' => 'Database table not found. Please run migrations.',
+                    'error' => 'notification_priorities table missing'
+                ], 500);
+            }
+            
+            $priority = \App\Models\NotificationPriority::findOrFail($id);
+            $data = $request->validate([
+                'severity' => 'sometimes|string|in:low,medium,high,critical',
+                'notification_channels' => 'sometimes|array',
+                'auto_escalate' => 'nullable|boolean',
+                'escalation_minutes' => 'nullable|integer',
+                'escalation_channel' => 'nullable|string',
+                'sound_enabled' => 'nullable|boolean',
+                'vibration_enabled' => 'nullable|boolean',
             ]);
-        }
 
-        return response()->json($priority);
+            if (isset($data['severity'])) {
+                $priority->update([
+                    'priority' => $data['severity'],
+                    'is_critical' => $data['severity'] === 'critical',
+                ]);
+            }
+
+            return response()->json($priority);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Notification priority not found'
+            ], 404);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Error updating notification priority: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update notification priority',
+                'error' => $e->getMessage()
+            ], 500);
+        } catch (\Exception $e) {
+            \Log::error('Unexpected error in updateAlertPriority: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update notification priority',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -262,9 +329,36 @@ class NotificationController extends Controller
      */
     public function deleteAlertPriority(string $id): JsonResponse
     {
-        $priority = \App\Models\NotificationPriority::findOrFail($id);
-        $priority->delete();
-        return response()->json(['message' => 'Alert priority deleted']);
+        try {
+            // Check if table exists
+            if (!Schema::hasTable('notification_priorities')) {
+                \Log::error('notification_priorities table does not exist');
+                return response()->json([
+                    'message' => 'Database table not found. Please run migrations.',
+                    'error' => 'notification_priorities table missing'
+                ], 500);
+            }
+            
+            $priority = \App\Models\NotificationPriority::findOrFail($id);
+            $priority->delete();
+            return response()->json(['message' => 'Alert priority deleted']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Notification priority not found'
+            ], 404);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Error deleting notification priority: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to delete notification priority',
+                'error' => $e->getMessage()
+            ], 500);
+        } catch (\Exception $e) {
+            \Log::error('Unexpected error in deleteAlertPriority: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to delete notification priority',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
