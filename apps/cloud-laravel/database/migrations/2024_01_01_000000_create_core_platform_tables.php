@@ -8,15 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('distributors', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('contact_email')->nullable();
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('distributors')) {
+            Schema::create('distributors', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('contact_email')->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
-        Schema::create('resellers', function (Blueprint $table) {
+        if (!Schema::hasTable('resellers')) {
+            Schema::create('resellers', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('name_en')->nullable();
@@ -34,9 +37,11 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('organizations', function (Blueprint $table) {
+        if (!Schema::hasTable('organizations')) {
+            Schema::create('organizations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('distributor_id')->nullable()->constrained('distributors')->nullOnDelete();
             $table->foreignId('reseller_id')->nullable()->constrained('resellers')->nullOnDelete();
@@ -54,9 +59,11 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('subscription_plans', function (Blueprint $table) {
+        if (!Schema::hasTable('subscription_plans')) {
+            Schema::create('subscription_plans', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('name_ar');
@@ -69,9 +76,11 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('organizations_branding', function (Blueprint $table) {
+        if (!Schema::hasTable('organizations_branding')) {
+            Schema::create('organizations_branding', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->nullable()->constrained('organizations')->cascadeOnDelete();
             $table->string('logo_url')->nullable();
@@ -89,9 +98,11 @@ return new class extends Migration
             $table->text('custom_css')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('users', function (Blueprint $table) {
+        if (!Schema::hasTable('users')) {
+            Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->string('name');
@@ -104,18 +115,22 @@ return new class extends Migration
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('subscription_plan_limits', function (Blueprint $table) {
+        if (!Schema::hasTable('subscription_plan_limits')) {
+            Schema::create('subscription_plan_limits', function (Blueprint $table) {
             $table->id();
             $table->foreignId('subscription_plan_id')->constrained('subscription_plans')->cascadeOnDelete();
             $table->string('key');
             $table->integer('value');
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('licenses', function (Blueprint $table) {
+        if (!Schema::hasTable('licenses')) {
+            Schema::create('licenses', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->foreignId('subscription_plan_id')->nullable()->constrained('subscription_plans')->nullOnDelete();
@@ -130,9 +145,11 @@ return new class extends Migration
             $table->timestamp('expires_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('edge_servers', function (Blueprint $table) {
+        if (!Schema::hasTable('edge_servers')) {
+            Schema::create('edge_servers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->foreignId('license_id')->nullable()->constrained('licenses')->nullOnDelete();
@@ -148,9 +165,11 @@ return new class extends Migration
             $table->json('system_info')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('events', function (Blueprint $table) {
+        if (!Schema::hasTable('events')) {
+            Schema::create('events', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->foreignId('edge_server_id')->nullable()->constrained('edge_servers')->nullOnDelete();
@@ -161,9 +180,11 @@ return new class extends Migration
             $table->json('meta')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('edge_server_logs', function (Blueprint $table) {
+        if (!Schema::hasTable('edge_server_logs')) {
+            Schema::create('edge_server_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('edge_server_id')->constrained('edge_servers')->cascadeOnDelete();
             $table->string('level')->default('info');
@@ -171,9 +192,11 @@ return new class extends Migration
             $table->json('meta')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('notifications', function (Blueprint $table) {
+        if (!Schema::hasTable('notifications')) {
+            Schema::create('notifications', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
@@ -187,9 +210,11 @@ return new class extends Migration
             $table->timestamp('read_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('notification_priorities', function (Blueprint $table) {
+        if (!Schema::hasTable('notification_priorities')) {
+            Schema::create('notification_priorities', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->string('notification_type');
@@ -197,9 +222,11 @@ return new class extends Migration
             $table->boolean('is_critical')->default(false);
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('sms_quotas', function (Blueprint $table) {
+        if (!Schema::hasTable('sms_quotas')) {
+            Schema::create('sms_quotas', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->unsignedInteger('monthly_limit');
@@ -207,9 +234,11 @@ return new class extends Migration
             $table->timestamp('resets_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('system_settings', function (Blueprint $table) {
+        if (!Schema::hasTable('system_settings')) {
+            Schema::create('system_settings', function (Blueprint $table) {
             $table->id();
             $table->string('platform_name')->default('STC AI-VAP');
             $table->string('platform_tagline')->nullable();
@@ -231,27 +260,35 @@ return new class extends Migration
             $table->json('storage_settings')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('platform_contents', function (Blueprint $table) {
+        if (!Schema::hasTable('platform_contents')) {
+            Schema::create('platform_contents', function (Blueprint $table) {
             $table->id();
             $table->string('key')->unique();
             $table->text('value')->nullable();
             $table->string('section')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('system_backups', function (Blueprint $table) {
+        if (!Schema::hasTable('system_backups')) {
+            Schema::create('system_backups', function (Blueprint $table) {
             $table->id();
             $table->string('file_path');
             $table->string('status')->default('completed');
             $table->json('meta')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamp('created_at')->useCurrent();
-        });
+            $table->timestamp('updated_at')->nullable();
+            $table->softDeletes();
+            });
+        }
 
-        Schema::create('analytics_reports', function (Blueprint $table) {
+        if (!Schema::hasTable('analytics_reports')) {
+            Schema::create('analytics_reports', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->string('name');
@@ -271,9 +308,11 @@ return new class extends Migration
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('analytics_dashboards', function (Blueprint $table) {
+        if (!Schema::hasTable('analytics_dashboards')) {
+            Schema::create('analytics_dashboards', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->string('name');
@@ -284,9 +323,11 @@ return new class extends Migration
             $table->json('shared_with')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('analytics_widgets', function (Blueprint $table) {
+        if (!Schema::hasTable('analytics_widgets')) {
+            Schema::create('analytics_widgets', function (Blueprint $table) {
             $table->id();
             $table->foreignId('dashboard_id')->constrained('analytics_dashboards')->cascadeOnDelete();
             $table->string('name');
@@ -300,9 +341,11 @@ return new class extends Migration
             $table->integer('height')->default(3);
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('ai_policies', function (Blueprint $table) {
+        if (!Schema::hasTable('ai_policies')) {
+            Schema::create('ai_policies', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->string('name');
@@ -313,9 +356,11 @@ return new class extends Migration
             $table->json('feature_flags')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('ai_policy_events', function (Blueprint $table) {
+        if (!Schema::hasTable('ai_policy_events')) {
+            Schema::create('ai_policy_events', function (Blueprint $table) {
             $table->id();
             $table->foreignId('ai_policy_id')->constrained('ai_policies')->cascadeOnDelete();
             $table->string('event_type');
@@ -324,9 +369,11 @@ return new class extends Migration
             $table->decimal('weight', 8, 2)->default(1.0);
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('personal_access_tokens', function (Blueprint $table) {
+        if (!Schema::hasTable('personal_access_tokens')) {
+            Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
             $table->morphs('tokenable');
             $table->string('name');
@@ -335,7 +382,8 @@ return new class extends Migration
             $table->timestamp('last_used_at')->nullable();
             $table->timestamp('expires_at')->nullable();
             $table->timestamps();
-        });
+            });
+        }
     }
 
     public function down(): void
