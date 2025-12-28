@@ -198,7 +198,7 @@ class NotificationController extends Controller
             $user = request()->user();
             
             // Check if table exists
-            if (!\Illuminate\Support\Facades\Schema::hasTable('notification_priorities')) {
+            if (!Schema::hasTable('notification_priorities')) {
                 \Log::warning('notification_priorities table does not exist');
                 return response()->json([]);
             }
