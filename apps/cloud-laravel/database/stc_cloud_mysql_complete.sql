@@ -2,7 +2,7 @@
 -- STC AI-VAP Cloud Platform - MySQL Database
 -- ============================================
 -- Description: Complete MySQL database with comprehensive demo data
--- Version: 4.0.0 - FIXED & COMPLETE
+-- Version: 4.1.0 - FIXED & COMPLETE (Updated to match migrations)
 -- Date: 2025-01-28
 -- Database: MySQL 8.0+ / MariaDB 10.3+
 -- ============================================
@@ -77,12 +77,9 @@ CREATE TABLE `distributors` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(255) NOT NULL,
     `contact_email` VARCHAR(255) NULL,
-    `contact_phone` VARCHAR(50) NULL,
-    `address` TEXT NULL,
-    `commission_rate` DECIMAL(5,2) DEFAULT 0.00,
-    `status` VARCHAR(50) DEFAULT 'active',
     `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` TIMESTAMP NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -151,15 +148,12 @@ CREATE TABLE `users` (
     `organization_id` BIGINT UNSIGNED NULL,
     `name` VARCHAR(255) NOT NULL,
     `email` VARCHAR(255) UNIQUE NOT NULL,
-    `email_verified_at` TIMESTAMP NULL,
     `password` VARCHAR(255) NOT NULL,
-    `role` VARCHAR(50) DEFAULT 'viewer',
-    `is_super_admin` BOOLEAN DEFAULT FALSE,
-    `is_active` BOOLEAN DEFAULT TRUE,
     `phone` VARCHAR(50) NULL,
-    `avatar_url` VARCHAR(500) NULL,
-    `remember_token` VARCHAR(100) NULL,
+    `role` VARCHAR(50) DEFAULT 'org_admin',
+    `is_active` BOOLEAN DEFAULT TRUE,
     `last_login_at` TIMESTAMP NULL,
+    `remember_token` VARCHAR(100) NULL,
     `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted_at` TIMESTAMP NULL,
@@ -997,16 +991,16 @@ INSERT INTO `organizations` (`id`, `distributor_id`, `reseller_id`, `name`, `nam
 (3, 2, NULL, 'مؤسسة الشرق', 'East Organization', 'east-org', 'contact@east-org.com', '+971 50 123 4568', 'دبي، الإمارات', 'دبي', 'TAX-003', 'basic', 10, 2, TRUE);
 
 -- 4. Users (Super Admin)
-INSERT INTO `users` (`id`, `organization_id`, `name`, `email`, `password`, `role`, `is_super_admin`, `is_active`, `email_verified_at`, `phone`) VALUES
-(1, NULL, 'Super Admin', 'superadmin@stc-solutions.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'super_admin', TRUE, TRUE, NOW(), '+20 100 000 0000');
+INSERT INTO `users` (`id`, `organization_id`, `name`, `email`, `password`, `role`, `is_active`, `phone`) VALUES
+(1, NULL, 'Super Admin', 'superadmin@stc-solutions.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'super_admin', TRUE, '+20 100 000 0000');
 
 -- 5. Users (Organization Owners)
-INSERT INTO `users` (`id`, `organization_id`, `name`, `email`, `password`, `role`, `is_super_admin`, `is_active`, `email_verified_at`, `phone`) VALUES
-(2, 1, 'صاحب المؤسسة', 'owner@demo-org.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'owner', FALSE, TRUE, NOW(), '+20 100 000 0002'),
-(3, 1, 'مدير الأمن', 'admin@demo-org.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', FALSE, TRUE, NOW(), '+20 100 000 0003'),
-(4, 1, 'محرر', 'editor@demo-org.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'editor', FALSE, TRUE, NOW(), '+20 100 000 0004'),
-(5, 2, 'صاحب الشركة', 'owner@advanced-tech.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'owner', FALSE, TRUE, NOW(), '+20 100 000 0005'),
-(6, 3, 'مدير المؤسسة', 'owner@east-org.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'owner', FALSE, TRUE, NOW(), '+971 50 123 4569');
+INSERT INTO `users` (`id`, `organization_id`, `name`, `email`, `password`, `role`, `is_active`, `phone`) VALUES
+(2, 1, 'صاحب المؤسسة', 'owner@demo-org.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'owner', TRUE, '+20 100 000 0002'),
+(3, 1, 'مدير الأمن', 'admin@demo-org.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', TRUE, '+20 100 000 0003'),
+(4, 1, 'محرر', 'editor@demo-org.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'editor', TRUE, '+20 100 000 0004'),
+(5, 2, 'صاحب الشركة', 'owner@advanced-tech.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'owner', TRUE, '+20 100 000 0005'),
+(6, 3, 'مدير المؤسسة', 'owner@east-org.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'owner', TRUE, '+971 50 123 4569');
 
 -- 6. Subscription Plans
 INSERT INTO `subscription_plans` (`id`, `name`, `name_ar`, `max_cameras`, `max_edge_servers`, `available_modules`, `notification_channels`, `price_monthly`, `price_yearly`, `is_active`) VALUES
