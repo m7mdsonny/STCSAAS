@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('ai_modules', function (Blueprint $table) {
+        if (!Schema::hasTable('ai_modules')) {
+            Schema::create('ai_modules', function (Blueprint $table) {
             $table->id();
             $table->string('module_key')->unique();
             $table->string('name');
@@ -26,9 +27,11 @@ return new class extends Migration
             $table->integer('display_order')->default(0);
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
-        Schema::create('ai_module_configs', function (Blueprint $table) {
+        if (!Schema::hasTable('ai_module_configs')) {
+            Schema::create('ai_module_configs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->onDelete('cascade');
             $table->foreignId('module_id')->constrained('ai_modules')->onDelete('cascade');
@@ -42,7 +45,8 @@ return new class extends Migration
             $table->json('schedule')->nullable();
             $table->timestamps();
             $table->unique(['organization_id', 'module_id']);
-        });
+            });
+        }
     }
 
     public function down(): void

@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('integrations', function (Blueprint $table) {
+        if (!Schema::hasTable('integrations')) {
+            Schema::create('integrations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->foreignId('edge_server_id')->constrained('edge_servers')->cascadeOnDelete();
@@ -21,7 +22,8 @@ return new class extends Migration
 
             $table->index(['organization_id', 'is_active']);
             $table->index(['edge_server_id', 'is_active']);
-        });
+            });
+        }
     }
 
     public function down(): void

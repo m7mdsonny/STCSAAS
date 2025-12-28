@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('automation_rules', function (Blueprint $table) {
+        if (!Schema::hasTable('automation_rules')) {
+            Schema::create('automation_rules', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->foreignId('integration_id')->nullable()->constrained('integrations')->nullOnDelete();
@@ -28,9 +29,11 @@ return new class extends Migration
 
             $table->index(['organization_id', 'is_active']);
             $table->index(['trigger_module', 'trigger_event']);
-        });
+            });
+        }
 
-        Schema::create('automation_logs', function (Blueprint $table) {
+        if (!Schema::hasTable('automation_logs')) {
+            Schema::create('automation_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->foreignId('automation_rule_id')->constrained('automation_rules')->cascadeOnDelete();
@@ -43,7 +46,8 @@ return new class extends Migration
 
             $table->index(['automation_rule_id', 'created_at']);
             $table->index(['organization_id', 'status']);
-        });
+            });
+        }
     }
 
     public function down(): void

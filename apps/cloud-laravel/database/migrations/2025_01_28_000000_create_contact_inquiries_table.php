@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('contact_inquiries', function (Blueprint $table) {
+        if (!Schema::hasTable('contact_inquiries')) {
+            Schema::create('contact_inquiries', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email');
@@ -23,7 +24,8 @@ return new class extends Migration
             
             $table->index('status');
             $table->index('created_at');
-        });
+            });
+        }
     }
 
     public function down(): void

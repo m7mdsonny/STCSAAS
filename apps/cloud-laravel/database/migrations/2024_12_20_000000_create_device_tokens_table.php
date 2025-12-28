@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('device_tokens', function (Blueprint $table) {
+        if (!Schema::hasTable('device_tokens')) {
+            Schema::create('device_tokens', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('organization_id')->nullable()->constrained('organizations')->onDelete('cascade');
@@ -23,7 +24,8 @@ return new class extends Migration
 
             $table->index(['user_id', 'is_active']);
             $table->index(['organization_id', 'is_active']);
-        });
+            });
+        }
     }
 
     public function down(): void

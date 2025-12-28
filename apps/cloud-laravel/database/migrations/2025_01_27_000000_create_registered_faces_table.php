@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('registered_faces', function (Blueprint $table) {
+        if (!Schema::hasTable('registered_faces')) {
+            Schema::create('registered_faces', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->string('person_name');
@@ -34,7 +35,8 @@ return new class extends Migration
             $table->index('is_active');
             $table->index('employee_id');
             $table->index('last_seen_at');
-        });
+            });
+        }
     }
 
     public function down(): void

@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('updates', function (Blueprint $table) {
+        if (!Schema::hasTable('updates')) {
+            Schema::create('updates', function (Blueprint $table) {
             $table->id();
             $table->string('title');
             $table->text('body')->nullable();
@@ -17,7 +18,8 @@ return new class extends Migration
             $table->timestamp('published_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
     }
 
     public function down(): void

@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('registered_vehicles', function (Blueprint $table) {
+        if (!Schema::hasTable('registered_vehicles')) {
+            Schema::create('registered_vehicles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->string('plate_number');
@@ -39,7 +40,8 @@ return new class extends Migration
             $table->index('plate_ar');
             $table->index('last_seen_at');
             $table->unique(['organization_id', 'plate_number']); // Unique plate per organization
-        });
+            });
+        }
     }
 
     public function down(): void

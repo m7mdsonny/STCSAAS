@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('vehicle_access_logs', function (Blueprint $table) {
+        if (!Schema::hasTable('vehicle_access_logs')) {
+            Schema::create('vehicle_access_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->foreignId('vehicle_id')->constrained('registered_vehicles')->cascadeOnDelete();
@@ -33,7 +34,8 @@ return new class extends Migration
             $table->index('access_granted');
             $table->index('direction');
             $table->index(['organization_id', 'recognized_at']);
-        });
+            });
+        }
     }
 
     public function down(): void
