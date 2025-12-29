@@ -99,7 +99,7 @@
 3. كلمات المرور مشفرة باستخدام bcrypt
 4. جميع المستخدمين مفعّلين (`is_active = true`)
 
-## 📋 بيانات الدخول من SQL Dump
+## 📋 بيانات الدخول من SQL Dump (محدثة)
 
 إذا استخدمت `stc_cloud_mysql_complete.sql`:
 
@@ -107,6 +107,9 @@
 ```
 Email: superadmin@stc-solutions.com
 Password: password
+Role: super_admin
+is_super_admin: TRUE
+Organization ID: NULL
 ```
 
 ### Organization Owner (Organization ID: 1):
@@ -114,6 +117,8 @@ Password: password
 Email: owner@demo-org.com
 Password: password
 Name: صاحب المؤسسة
+Role: owner
+is_super_admin: FALSE
 ```
 
 ### Organization Admin (Organization ID: 1):
@@ -121,6 +126,8 @@ Name: صاحب المؤسسة
 Email: admin@demo-org.com
 Password: password
 Name: مدير الأمن
+Role: admin
+is_super_admin: FALSE
 ```
 
 ### Editor (Organization ID: 1):
@@ -128,6 +135,8 @@ Name: مدير الأمن
 Email: editor@demo-org.com
 Password: password
 Name: محرر
+Role: editor
+is_super_admin: FALSE
 ```
 
 ## 🔄 إنشاء مستخدم صاحب مؤسسة جديد

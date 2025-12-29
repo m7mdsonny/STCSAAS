@@ -38,10 +38,25 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $user->forceFill(['last_login_at' => now()])->save();
+        // Ensure role is normalized and is_super_admin is synced
+        $normalizedRole = \App\Helpers\RoleHelper::normalize($user->role);
+        $isSuperAdmin = ($normalizedRole === \App\Helpers\RoleHelper::SUPER_ADMIN);
+        
+        // Sync is_super_admin with role if needed
+        if ($user->is_super_admin !== $isSuperAdmin) {
+            $user->is_super_admin = $isSuperAdmin;
+        }
 
+        $user->forceFill([
+            'last_login_at' => now(),
+            'is_super_admin' => $isSuperAdmin
+        ])->save();
+
+        // Refresh user to get updated attributes
+        $user->refresh();
+        
         // Ensure role is normalized in response
-        $user->role = \App\Helpers\RoleHelper::normalize($user->role);
+        $user->role = $normalizedRole;
 
         $token = $user->createToken('api')->plainTextToken;
         return response()->json(['token' => $token, 'user' => $user]);
@@ -57,8 +72,18 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if ($user) {
+            // Ensure role is normalized and is_super_admin is synced
+            $normalizedRole = \App\Helpers\RoleHelper::normalize($user->role);
+            $isSuperAdmin = ($normalizedRole === \App\Helpers\RoleHelper::SUPER_ADMIN);
+            
+            // Sync is_super_admin with role if needed
+            if ($user->is_super_admin !== $isSuperAdmin) {
+                $user->is_super_admin = $isSuperAdmin;
+                $user->save();
+            }
+            
             // Ensure role is normalized in response
-            $user->role = \App\Helpers\RoleHelper::normalize($user->role);
+            $user->role = $normalizedRole;
         }
         return response()->json($user);
     }
