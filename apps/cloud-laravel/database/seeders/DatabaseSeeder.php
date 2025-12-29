@@ -10,8 +10,8 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Clear existing data
-        DB::statement('SET CONSTRAINTS ALL DEFERRED');
+        // Disable foreign key checks for MariaDB/MySQL compatibility
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
         // 1. Create Distributors
         DB::table('distributors')->insert([
@@ -217,6 +217,9 @@ class DatabaseSeeder extends Seeder
         }
         DB::table('notifications')->insert($notifications);
 
+        // Re-enable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        
         echo "\n✅ Database seeded successfully!\n";
         echo "\n📝 Login Credentials:\n";
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";

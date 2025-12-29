@@ -30,7 +30,7 @@ class SystemUpdateController extends Controller
             Log::debug('Fetched available updates', [
                 'count' => count($updates),
                 'current_version' => $currentVersion,
-            );
+            ]);
             
             return response()->json([
                 'current_version' => $currentVersion,
