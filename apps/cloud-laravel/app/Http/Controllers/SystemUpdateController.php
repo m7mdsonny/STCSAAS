@@ -19,13 +19,29 @@ class SystemUpdateController extends Controller
     /**
      * Get all available updates
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $this->ensureSuperAdmin(request());
+        try {
+            $this->ensureSuperAdmin($request);
+        } catch (\Exception $e) {
+            Log::warning('Unauthorized access attempt to system updates', [
+                'user_id' => $request->user()?->id,
+            ]);
+            return response()->json([
+                'error' => 'Unauthorized: Super admin access required',
+                'current_version' => '1.0.0',
+                'updates' => [],
+            ], 403);
+        }
         
         try {
             $updates = $this->updateService->getAvailableUpdates();
             $currentVersion = $this->updateService->getCurrentVersion();
+            
+            // Ensure updates is an array
+            if (!is_array($updates)) {
+                $updates = [];
+            }
             
             Log::debug('Fetched available updates', [
                 'count' => count($updates),
@@ -39,12 +55,16 @@ class SystemUpdateController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to get updates: ' . $e->getMessage(), [
                 'exception' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
+            
+            // Return success with empty updates instead of error
+            // This allows the frontend to display properly even if there are no updates
             return response()->json([
-                'error' => $e->getMessage(),
-                'current_version' => '1.0.0',
+                'current_version' => $this->updateService->getCurrentVersion(),
                 'updates' => [],
-            ], 500);
+            ], 200, [], JSON_UNESCAPED_UNICODE);
         }
     }
 

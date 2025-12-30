@@ -42,6 +42,12 @@ class UpdateService
         try {
             if (!File::exists($this->updatesPath)) {
                 File::makeDirectory($this->updatesPath, 0755, true);
+                Log::info('Created updates directory', ['path' => $this->updatesPath]);
+                return $updates;
+            }
+
+            if (!is_readable($this->updatesPath)) {
+                Log::warning('Updates directory is not readable', ['path' => $this->updatesPath]);
                 return $updates;
             }
 
@@ -53,31 +59,49 @@ class UpdateService
             ]);
             
             foreach ($directories as $dir) {
-                $manifestPath = $dir . '/manifest.json';
-                if (File::exists($manifestPath)) {
-                    try {
-                        $manifestContent = File::get($manifestPath);
-                        $manifest = json_decode($manifestContent, true);
-                        if ($manifest && is_array($manifest) && isset($manifest['version'])) {
-                            $updateId = basename($dir);
-                            $updates[] = [
-                                'id' => $updateId,
-                                'path' => $dir,
-                                'manifest' => $manifest,
-                                'installed' => $this->isInstalled($manifest['version'] ?? ''),
-                            ];
-                            Log::debug('Found update package', [
-                                'id' => $updateId,
-                                'version' => $manifest['version'],
-                            ]);
-                        } else {
-                            Log::warning("Invalid manifest in {$dir}: missing version field");
+                try {
+                    $manifestPath = $dir . '/manifest.json';
+                    if (File::exists($manifestPath) && is_readable($manifestPath)) {
+                        try {
+                            $manifestContent = File::get($manifestPath);
+                            $manifest = json_decode($manifestContent, true);
+                            
+                            if ($manifest && is_array($manifest) && isset($manifest['version'])) {
+                                $updateId = basename($dir);
+                                
+                                // Check if installed using database if table exists
+                                $installed = false;
+                                try {
+                                    if (Schema::hasTable('system_updates')) {
+                                        $installed = $this->isInstalled($manifest['version'] ?? '');
+                                    }
+                                } catch (\Exception $e) {
+                                    Log::warning('Failed to check if update is installed: ' . $e->getMessage());
+                                }
+                                
+                                $updates[] = [
+                                    'id' => $updateId,
+                                    'path' => $dir,
+                                    'manifest' => $manifest,
+                                    'installed' => $installed,
+                                ];
+                                
+                                Log::debug('Found update package', [
+                                    'id' => $updateId,
+                                    'version' => $manifest['version'],
+                                    'installed' => $installed,
+                                ]);
+                            } else {
+                                Log::warning("Invalid manifest in {$dir}: missing version field or invalid JSON");
+                            }
+                        } catch (Exception $e) {
+                            Log::warning("Failed to read manifest in {$dir}: " . $e->getMessage());
                         }
-                    } catch (Exception $e) {
-                        Log::warning("Failed to read manifest in {$dir}: " . $e->getMessage());
+                    } else {
+                        Log::debug("No manifest.json found in {$dir} or file is not readable");
                     }
-                } else {
-                    Log::debug("No manifest.json found in {$dir}");
+                } catch (Exception $e) {
+                    Log::warning("Error processing directory {$dir}: " . $e->getMessage());
                 }
             }
             
@@ -86,14 +110,20 @@ class UpdateService
             ]);
 
             // Sort by version (newest first)
-            usort($updates, function ($a, $b) {
-                return version_compare(
-                    $b['manifest']['version'] ?? '0.0.0',
-                    $a['manifest']['version'] ?? '0.0.0'
-                );
-            });
+            if (count($updates) > 0) {
+                usort($updates, function ($a, $b) {
+                    return version_compare(
+                        $b['manifest']['version'] ?? '0.0.0',
+                        $a['manifest']['version'] ?? '0.0.0'
+                    );
+                });
+            }
         } catch (Exception $e) {
-            Log::error('Error getting available updates: ' . $e->getMessage());
+            Log::error('Error getting available updates: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
 
         return $updates;
@@ -293,9 +323,18 @@ class UpdateService
      */
     private function isInstalled(string $version): bool
     {
-        return SystemUpdate::where('version', $version)
-            ->where('status', 'installed')
-            ->exists();
+        try {
+            if (!Schema::hasTable('system_updates')) {
+                return false;
+            }
+            
+            return SystemUpdate::where('version', $version)
+                ->where('status', 'installed')
+                ->exists();
+        } catch (\Exception $e) {
+            Log::warning('Failed to check if update is installed: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -441,11 +480,22 @@ class UpdateService
      */
     public function getCurrentVersion(): string
     {
-        $version = DB::table('system_settings')
-            ->where('key', 'system_version')
-            ->value('value');
-        
-        return $version ?: config('app.version', '1.0.0');
+        try {
+            // Check if system_settings table exists
+            if (!Schema::hasTable('system_settings')) {
+                Log::warning('system_settings table does not exist, using default version');
+                return config('app.version', '1.0.0');
+            }
+            
+            $version = DB::table('system_settings')
+                ->where('key', 'system_version')
+                ->value('value');
+            
+            return $version ?: config('app.version', '1.0.0');
+        } catch (\Exception $e) {
+            Log::warning('Failed to get current version from database: ' . $e->getMessage());
+            return config('app.version', '1.0.0');
+        }
     }
 
     /**
