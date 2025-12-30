@@ -128,17 +128,24 @@ class DatabaseSeeder extends Seeder
         }
 
         // 4. Create Licenses (only if not exists)
+        // Note: licenses table has: id, organization_id, subscription_plan_id, plan, license_key, 
+        // status, edge_server_id, max_cameras, modules, trial_ends_at, activated_at, expires_at, 
+        // timestamps, softDeletes
         if (DB::table('licenses')->where('id', 1)->doesntExist()) {
             DB::table('licenses')->insert([
             [
                 'id' => 1,
                 'organization_id' => 1,
+                'subscription_plan_id' => null,
+                'plan' => 'basic',
                 'license_key' => 'DEMO-CORP-2024-FULL-ACCESS',
-                'plan_id' => 1,
+                'status' => 'active',
+                'edge_server_id' => null,
                 'max_cameras' => 50,
-                'max_edge_servers' => 5,
+                'modules' => null,
+                'trial_ends_at' => null,
+                'activated_at' => now(),
                 'expires_at' => now()->addYear(),
-                'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
