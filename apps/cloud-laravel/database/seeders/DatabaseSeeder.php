@@ -170,6 +170,7 @@ class DatabaseSeeder extends Seeder
         
         if (DB::table('edge_servers')->where('edge_id', 'EDGE-DEMO-GATE-002')->doesntExist()) {
             DB::table('edge_servers')->insert([
+            [
                 'id' => 2,
                 'edge_id' => 'EDGE-DEMO-GATE-002',
                 'organization_id' => 1,
