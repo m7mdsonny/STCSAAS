@@ -194,7 +194,7 @@ async def start_services():
                 alert_data = {
                     'camera_id': camera_id,
                     'module': alert.get('module', 'unknown'),
-                    'type': alert.get('type'),
+                    'type': alert.get('type') or alert.get('event_type', 'alert'),
                     'severity': alert.get('severity', 'medium'),
                     'title': alert.get('title', 'Alert'),
                     'description': alert.get('description'),
@@ -205,7 +205,8 @@ async def start_services():
             for event in results.get('events', []):
                 event_data = {
                     'camera_id': camera_id,
-                    'type': event.get('type'),
+                    'type': event.get('type') or event.get('event_type', 'event'),
+                    'severity': event.get('severity', 'info'),
                     'metadata': event,
                 }
                 await state.db.create_event(event_data)

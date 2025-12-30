@@ -163,27 +163,50 @@ class CloudDatabase:
         Send heartbeat to Cloud API
         
         Expected Cloud API endpoint: POST /api/v1/edges/heartbeat
-        Expected request: { edge_id, version, online, organization_id, license_id }
+        Expected request: { 
+            edge_id: str,
+            version: str,
+            online: bool,
+            organization_id: int (required),
+            license_id: int (optional),
+            system_info: dict (optional)
+        }
         """
         from main import state
+        
+        # Get organization_id and license_id from state if not provided
+        org_id = organization_id or (state.license_data.get('organization_id') if state.license_data else None)
+        lic_id = license_id or (state.license_data.get('license_id') if state.license_data else None)
+        
+        if not org_id:
+            logger.warning("Cannot send heartbeat: organization_id is required")
+            return False
         
         payload = {
             "edge_id": edge_id,
             "version": version or settings.APP_VERSION,
             "online": True,
-            "organization_id": organization_id or (state.license_data.get('organization_id') if state.license_data else None),
-            "license_id": license_id or (state.license_data.get('license_id') if state.license_data else None),
+            "organization_id": org_id,
         }
+        
+        if lic_id:
+            payload['license_id'] = lic_id
 
         if system_info:
             payload['system_info'] = system_info
 
-        success, _ = await self._request(
+        success, result = await self._request(
             "POST",
             "/api/v1/edges/heartbeat",
             json=payload,
             retry=False
         )
+        
+        if success:
+            logger.debug(f"Heartbeat successful: {result}")
+        else:
+            logger.warning(f"Heartbeat failed: {result}")
+        
         return success
 
     async def register_server(
@@ -285,11 +308,47 @@ class CloudDatabase:
         Create alert in Cloud
         
         Expected Cloud API endpoint: POST /api/v1/edges/events
+        Expected payload structure:
+        {
+            "edge_id": str,
+            "event_type": str,
+            "severity": str (info|warning|critical),
+            "occurred_at": str (ISO format),
+            "camera_id": str (optional),
+            "meta": dict (not metadata!)
+        }
         """
+        from main import state
+        
+        # Map alert_data to EventController expected format
         payload = {
-            **alert_data,
+            "edge_id": state.edge_id or state.hardware_id,
+            "event_type": alert_data.get('type') or alert_data.get('event_type') or 'alert',
+            "severity": alert_data.get('severity', 'info'),
             "occurred_at": alert_data.get('occurred_at') or datetime.utcnow().isoformat(),
         }
+        
+        # Add camera_id if present
+        if 'camera_id' in alert_data:
+            payload['camera_id'] = alert_data['camera_id']
+        
+        # Convert metadata to meta (Cloud expects 'meta', not 'metadata')
+        meta = {}
+        if 'metadata' in alert_data:
+            meta.update(alert_data['metadata'])
+        if 'module' in alert_data:
+            meta['module'] = alert_data['module']
+        if 'title' in alert_data:
+            meta['title'] = alert_data['title']
+        if 'description' in alert_data:
+            meta['description'] = alert_data['description']
+        # Include any other fields that should be in meta
+        for key in ['module', 'title', 'description', 'confidence', 'location', 'bbox']:
+            if key in alert_data and key not in ['edge_id', 'event_type', 'severity', 'occurred_at', 'camera_id', 'metadata']:
+                meta[key] = alert_data[key]
+        
+        if meta:
+            payload['meta'] = meta
 
         success, result = await self._request(
             "POST",
@@ -298,7 +357,7 @@ class CloudDatabase:
         )
 
         if success and result:
-            return True, result.get('id') or result.get('alert_id')
+            return True, result.get('event_id') or result.get('id') or result.get('alert_id')
 
         return False, None
 
