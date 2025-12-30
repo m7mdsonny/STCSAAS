@@ -13,7 +13,14 @@ return new class extends Migration
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->foreignId('vehicle_id')->constrained('registered_vehicles')->cascadeOnDelete();
-            $table->foreignId('camera_id')->nullable()->constrained('cameras')->nullOnDelete();
+            
+            // Check if cameras table exists before creating foreign key
+            if (Schema::hasTable('cameras')) {
+                $table->foreignId('camera_id')->nullable()->constrained('cameras')->nullOnDelete();
+            } else {
+                // If cameras table doesn't exist, use unsignedBigInteger
+                $table->unsignedBigInteger('camera_id')->nullable();
+            }
             $table->string('plate_number'); // Snapshot at time of recognition
             $table->string('plate_ar')->nullable();
             $table->enum('direction', ['in', 'out'])->nullable();
