@@ -129,7 +129,27 @@ class ApiClient {
 
       return { data: data as T, status: logicalStatus || response.status, httpStatus: response.status };
     } catch (error) {
-      return { error: (error as Error).message || 'Network error' };
+      const errorMessage = error instanceof Error ? error.message : 'Network error';
+      
+      // Provide more specific error messages
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        console.error('Network error details:', {
+          endpoint: this.resolveEndpoint(endpoint),
+          baseUrl: this.baseUrl,
+          error: errorMessage,
+        });
+        return { 
+          error: 'فشل الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت أو الاتصال بالدعم الفني.',
+          status: 0,
+          httpStatus: 0,
+        };
+      }
+      
+      return { 
+        error: errorMessage,
+        status: 0,
+        httpStatus: 0,
+      };
     }
   }
 
