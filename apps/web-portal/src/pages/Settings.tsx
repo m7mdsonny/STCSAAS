@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Building2, Bell, Shield, Server, Plus, Trash2, RefreshCw, Wifi, WifiOff, Activity, AlertTriangle, MapPin } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Bell, Shield, Server, Plus, Trash2, RefreshCw, Wifi, WifiOff, Activity, AlertTriangle, MapPin, Key } from 'lucide-react';
 import { edgeServersApi } from '../lib/api/edgeServers';
+import { licensesApi } from '../lib/api/licenses';
 import { edgeServerService, EdgeServerStatus } from '../lib/edgeServer';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -10,7 +11,7 @@ import { OrganizationSettings } from '../components/settings/OrganizationSetting
 import { NotificationSettings } from '../components/settings/NotificationSettings';
 import { AlertPrioritySettings } from '../components/settings/AlertPrioritySettings';
 import { SecuritySettings } from '../components/settings/SecuritySettings';
-import type { EdgeServer } from '../types/database';
+import type { EdgeServer, License } from '../types/database';
 
 type TabId = 'organization' | 'servers' | 'notifications' | 'priorities' | 'security';
 
@@ -37,11 +38,15 @@ export function Settings() {
     name: '',
     ip_address: '',
     location: '',
+    license_id: '',
   });
+  const [availableLicenses, setAvailableLicenses] = useState<License[]>([]);
+  const [loadingLicenses, setLoadingLicenses] = useState(false);
 
   useEffect(() => {
     if (organization) {
       fetchData();
+      fetchLicenses();
     }
   }, [organization]);
 
@@ -54,6 +59,25 @@ export function Settings() {
       console.error('Failed to fetch edge servers:', error);
     }
     setLoading(false);
+  };
+
+  const fetchLicenses = async () => {
+    if (!organization) return;
+    setLoadingLicenses(true);
+    try {
+      const result = await licensesApi.getLicenses({
+        organization_id: organization.id,
+        per_page: 100,
+      });
+      // Filter to show only active licenses that are not bound to an edge server
+      const unboundLicenses = result.data.filter(
+        (license) => license.status === 'active' && !license.edge_server_id
+      );
+      setAvailableLicenses(unboundLicenses);
+    } catch (error) {
+      console.error('Failed to fetch licenses:', error);
+    }
+    setLoadingLicenses(false);
   };
 
   const addServer = async (e: React.FormEvent) => {
@@ -76,17 +100,19 @@ export function Settings() {
         const newServer = await edgeServersApi.createEdgeServer({
           name: serverForm.name,
           location: serverForm.location || undefined,
+          license_id: serverForm.license_id || undefined,
         });
         showSuccess(
           'تم الإضافة بنجاح',
-          `تم إضافة السيرفر ${serverForm.name} بنجاح. معرف السيرفر: ${newServer.edge_id || newServer.id}\nيرجى استخدام هذا المعرف في Edge Server للربط.`
+          `تم إضافة السيرفر ${serverForm.name} بنجاح. معرف السيرفر: ${newServer.edge_id || newServer.id}\n${newServer.license ? `تم ربطه بالترخيص: ${newServer.license.license_key}` : 'يرجى ربطه بترخيص لاحقاً'}\nيرجى استخدام معرف السيرفر في Edge Server للربط.`
         );
       }
 
       setShowServerModal(false);
-      setServerForm({ name: '', ip_address: '', location: '' });
+      setServerForm({ name: '', ip_address: '', location: '', license_id: '' });
       setEditingServer(null);
       fetchData();
+      fetchLicenses(); // Refresh licenses after creating server
     } catch (error: any) {
       console.error('Failed to save edge server:', error);
       const { title, message } = getDetailedErrorMessage(error, 'حفظ السيرفر', 'حدث خطأ في حفظ السيرفر');
@@ -100,6 +126,7 @@ export function Settings() {
       name: server.name,
       ip_address: server.ip_address || '',
       location: (server.system_info as Record<string, string>)?.location || '',
+      license_id: server.license_id || '',
     });
     setShowServerModal(true);
   };
@@ -203,7 +230,7 @@ export function Settings() {
                     <button
                       onClick={() => {
                         setEditingServer(null);
-                        setServerForm({ name: '', ip_address: '', location: '' });
+                        setServerForm({ name: '', ip_address: '', location: '', license_id: '' });
                         setShowServerModal(true);
                       }}
                       className="btn-primary flex items-center gap-2"
@@ -361,7 +388,7 @@ export function Settings() {
         onClose={() => {
           setShowServerModal(false);
           setEditingServer(null);
-          setServerForm({ name: '', ip_address: '', location: '' });
+          setServerForm({ name: '', ip_address: '', location: '', license_id: '' });
         }}
         title={editingServer ? 'تعديل السيرفر' : 'اضافة سيرفر جديد'}
       >
@@ -397,6 +424,35 @@ export function Settings() {
               className="input"
               placeholder="مثال: المبنى الرئيسي - الطابق الاول"
             />
+          </div>
+          <div>
+            <label className="label flex items-center gap-2">
+              <Key className="w-4 h-4" />
+              الترخيص (اختياري)
+            </label>
+            {loadingLicenses ? (
+              <div className="input flex items-center justify-center py-2">
+                <div className="w-4 h-4 border-2 border-stc-gold border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <select
+                value={serverForm.license_id}
+                onChange={(e) => setServerForm({ ...serverForm, license_id: e.target.value })}
+                className="input"
+              >
+                <option value="">-- اختر ترخيص (اختياري) --</option>
+                {availableLicenses.map((license) => (
+                  <option key={license.id} value={license.id}>
+                    {license.license_key} - {license.plan} ({license.max_cameras} كاميرات)
+                  </option>
+                ))}
+              </select>
+            )}
+            {availableLicenses.length === 0 && !loadingLicenses && (
+              <p className="text-xs text-white/50 mt-1">
+                لا توجد تراخيص متاحة غير مربوطة. يمكنك إضافة السيرفر بدون ترخيص وربطه لاحقاً.
+              </p>
+            )}
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
             <button

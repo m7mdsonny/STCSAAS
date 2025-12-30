@@ -102,10 +102,31 @@ class EdgeController extends Controller
         }
 
         $edgeServer = EdgeServer::create([
-            ...$data,
+            'name' => $data['name'],
+            'organization_id' => $organizationId,
+            'license_id' => $data['license_id'] ?? null,
             'edge_id' => $data['edge_id'] ?? Str::uuid()->toString(),
+            'location' => $data['location'] ?? null,
+            'notes' => $data['notes'] ?? null,
             'online' => false,
         ]);
+
+        // If license_id was provided, update the license to link it to this edge server
+        if (!empty($data['license_id'])) {
+            $license = License::findOrFail($data['license_id']);
+            $license->update(['edge_server_id' => $edgeServer->id]);
+        } else {
+            // Auto-link first available license if no license was specified
+            $availableLicense = License::where('organization_id', $organizationId)
+                ->where('status', 'active')
+                ->whereNull('edge_server_id')
+                ->first();
+            
+            if ($availableLicense) {
+                $edgeServer->update(['license_id' => $availableLicense->id]);
+                $availableLicense->update(['edge_server_id' => $edgeServer->id]);
+            }
+        }
 
         return response()->json($edgeServer->load(['organization', 'license']), 201);
     }
@@ -133,20 +154,42 @@ class EdgeController extends Controller
         ]);
 
         // If license_id is being updated, verify ownership and uniqueness
-        if (isset($data['license_id']) && $data['license_id'] !== $edgeServer->license_id) {
-            $license = \App\Models\License::findOrFail($data['license_id']);
-            
-            // Verify license belongs to the edge server's organization
-            if ($license->organization_id !== $edgeServer->organization_id) {
-                return response()->json(['message' => 'License does not belong to this edge server\'s organization'], 403);
-            }
+        if (isset($data['license_id'])) {
+            // If setting to null, unlink current license
+            if ($data['license_id'] === null || $data['license_id'] === '') {
+                if ($edgeServer->license_id) {
+                    $oldLicense = License::find($edgeServer->license_id);
+                    if ($oldLicense) {
+                        $oldLicense->update(['edge_server_id' => null]);
+                    }
+                }
+                $data['license_id'] = null;
+            } else {
+                $license = License::findOrFail($data['license_id']);
+                
+                // Verify license belongs to the edge server's organization
+                if ($license->organization_id !== $edgeServer->organization_id) {
+                    return response()->json(['message' => 'License does not belong to this edge server\'s organization'], 403);
+                }
 
-            // Check if license is already bound to another edge server
-            $existingEdge = EdgeServer::where('license_id', $data['license_id'])
-                ->where('id', '!=', $edgeServer->id)
-                ->first();
-            if ($existingEdge) {
-                return response()->json(['message' => 'License is already bound to another edge server'], 409);
+                // Check if license is already bound to another edge server
+                $existingEdge = EdgeServer::where('license_id', $data['license_id'])
+                    ->where('id', '!=', $edgeServer->id)
+                    ->first();
+                if ($existingEdge) {
+                    return response()->json(['message' => 'License is already bound to another edge server'], 409);
+                }
+
+                // Unlink old license if exists
+                if ($edgeServer->license_id && $edgeServer->license_id != $data['license_id']) {
+                    $oldLicense = License::find($edgeServer->license_id);
+                    if ($oldLicense) {
+                        $oldLicense->update(['edge_server_id' => null]);
+                    }
+                }
+
+                // Link new license
+                $license->update(['edge_server_id' => $edgeServer->id]);
             }
         }
 
@@ -258,6 +301,17 @@ class EdgeController extends Controller
                 $license = License::find($request->license_id);
                 if ($license && $license->organization_id == $organizationId) {
                     $updateData['license_id'] = $request->license_id;
+                    // Link license to edge server
+                    if ($license->edge_server_id != $edge->id) {
+                        // Unlink old edge server if exists
+                        if ($license->edge_server_id) {
+                            $oldEdge = EdgeServer::find($license->edge_server_id);
+                            if ($oldEdge && $oldEdge->id != $edge->id) {
+                                $oldEdge->update(['license_id' => null]);
+                            }
+                        }
+                        $license->update(['edge_server_id' => $edge->id]);
+                    }
                 } else {
                     // If license doesn't match, use existing or null
                     $updateData['license_id'] = $existingEdge?->license_id;
@@ -277,6 +331,32 @@ class EdgeController extends Controller
                 ['edge_id' => $request->edge_id],
                 $updateData
             );
+            
+            // Auto-link first available license if edge doesn't have one
+            if (!$edge->license_id) {
+                $availableLicense = License::where('organization_id', $organizationId)
+                    ->where('status', 'active')
+                    ->whereNull('edge_server_id')
+                    ->first();
+                
+                if ($availableLicense) {
+                    $edge->update(['license_id' => $availableLicense->id]);
+                    $availableLicense->update(['edge_server_id' => $edge->id]);
+                }
+            } else {
+                // Ensure license is linked to this edge server
+                $license = License::find($edge->license_id);
+                if ($license && $license->edge_server_id != $edge->id) {
+                    // Unlink old edge server if exists
+                    if ($license->edge_server_id) {
+                        $oldEdge = EdgeServer::find($license->edge_server_id);
+                        if ($oldEdge && $oldEdge->id != $edge->id) {
+                            $oldEdge->update(['license_id' => null]);
+                        }
+                    }
+                    $license->update(['edge_server_id' => $edge->id]);
+                }
+            }
 
             // Update camera statuses if provided
             if ($request->has('cameras_status') && is_array($request->cameras_status)) {

@@ -11,6 +11,7 @@ interface CreateEdgeServerData {
   name: string;
   location?: string;
   notes?: string;
+  license_id?: string;
 }
 
 export const edgeServersApi = {
