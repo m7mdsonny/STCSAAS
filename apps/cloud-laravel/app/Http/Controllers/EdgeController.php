@@ -335,4 +335,73 @@ class EdgeController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get cameras for Edge Server (public endpoint - requires organization_id)
+     * This allows Edge Server to sync cameras without authentication
+     */
+    public function getCamerasForEdge(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'organization_id' => 'required|integer|exists:organizations,id',
+                'edge_id' => 'sometimes|string',
+            ]);
+
+            $organizationId = $request->get('organization_id');
+            $edgeId = $request->get('edge_id');
+
+            $query = \App\Models\Camera::where('organization_id', $organizationId);
+
+            // If edge_id provided, filter by edge server
+            if ($edgeId) {
+                $edgeServer = EdgeServer::where('edge_id', $edgeId)->first();
+                if ($edgeServer) {
+                    $query->where('edge_server_id', $edgeServer->id);
+                }
+            }
+
+            $cameras = $query->with(['edgeServer'])
+                ->where('status', '!=', 'deleted')
+                ->get()
+                ->map(function ($camera) {
+                    $config = $camera->config ?? [];
+                    return [
+                        'id' => $camera->id,
+                        'camera_id' => $camera->camera_id,
+                        'name' => $camera->name,
+                        'location' => $camera->location,
+                        'rtsp_url' => $camera->rtsp_url,
+                        'status' => $camera->status,
+                        'edge_server_id' => $camera->edge_server_id,
+                        'config' => [
+                            'username' => $config['username'] ?? null,
+                            'password' => isset($config['password']) ? '***' : null, // Don't expose password
+                            'resolution' => $config['resolution'] ?? '1920x1080',
+                            'fps' => $config['fps'] ?? 15,
+                            'enabled_modules' => $config['enabled_modules'] ?? [],
+                        ],
+                    ];
+                });
+
+            return response()->json([
+                'cameras' => $cameras,
+                'count' => $cameras->count(),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Edge cameras fetch error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'An error occurred fetching cameras'
+            ], 500);
+        }
+    }
 }
