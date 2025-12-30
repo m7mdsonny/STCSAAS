@@ -37,6 +37,16 @@ return new class extends Migration
             $table->index('direction');
             $table->index(['organization_id', 'recognized_at']);
             });
+            
+            // Add foreign key constraint only if cameras table exists
+            if (Schema::hasTable('cameras')) {
+                Schema::table('vehicle_access_logs', function (Blueprint $table) {
+                    $table->foreign('camera_id')
+                        ->references('id')
+                        ->on('cameras')
+                        ->onDelete('set null');
+                });
+            }
         }
     }
 
