@@ -1,5 +1,12 @@
-const DEFAULT_API_URL = 'https://stcsolutions.online/api/v1';
+// Default API URL - can be overridden by VITE_API_URL environment variable
+// Production: https://api.stcsolutions.online/api/v1
+const DEFAULT_API_URL = 'https://api.stcsolutions.online/api/v1';
 const API_BASE_URL = ((import.meta.env.VITE_API_URL as string | undefined) || DEFAULT_API_URL).replace(/\/$/, '');
+
+// Log API URL for debugging (only in development)
+if (import.meta.env.DEV) {
+  console.log('API Base URL:', API_BASE_URL);
+}
 
 export interface ApiResponse<T> {
   data?: T;
@@ -132,12 +139,28 @@ class ApiClient {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       
       // Provide more specific error messages
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+      if (errorMessage.includes('Failed to fetch') || 
+          errorMessage.includes('NetworkError') || 
+          errorMessage.includes('Network request failed') ||
+          errorMessage.includes('AbortError') ||
+          errorMessage.includes('timeout')) {
         console.error('Network error details:', {
-          endpoint: this.resolveEndpoint(endpoint),
+          endpoint: fullUrl,
           baseUrl: this.baseUrl,
           error: errorMessage,
+          method: fetchOptions.method || 'GET',
         });
+        
+        // Check if it's a timeout
+        if (errorMessage.includes('timeout') || errorMessage.includes('AbortError')) {
+          return { 
+            error: 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.',
+            status: 408,
+            httpStatus: 408,
+          };
+        }
+        
+        // General network error
         return { 
           error: 'فشل الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت أو الاتصال بالدعم الفني.',
           status: 0,
