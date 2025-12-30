@@ -483,17 +483,25 @@ class UpdateService
         try {
             // Check if system_settings table exists
             if (!Schema::hasTable('system_settings')) {
-                Log::warning('system_settings table does not exist, using default version');
+                Log::debug('system_settings table does not exist, using default version');
                 return config('app.version', '1.0.0');
             }
             
-            $version = DB::table('system_settings')
-                ->where('key', 'system_version')
-                ->value('value');
+            // Check if key/value columns exist
+            if (Schema::hasColumn('system_settings', 'key') && Schema::hasColumn('system_settings', 'value')) {
+                $version = DB::table('system_settings')
+                    ->where('key', 'system_version')
+                    ->value('value');
+                
+                if ($version) {
+                    return $version;
+                }
+            }
             
-            return $version ?: config('app.version', '1.0.0');
+            // Fallback to config
+            return config('app.version', '1.0.0');
         } catch (\Exception $e) {
-            Log::warning('Failed to get current version from database: ' . $e->getMessage());
+            Log::debug('Failed to get current version from database: ' . $e->getMessage());
             return config('app.version', '1.0.0');
         }
     }
