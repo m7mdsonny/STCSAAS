@@ -13,8 +13,9 @@ class DatabaseSeeder extends Seeder
         // Disable foreign key checks for MariaDB/MySQL compatibility
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
-        // 1. Create Distributors
-        DB::table('distributors')->insert([
+        // 1. Create Distributors (only if not exists)
+        if (DB::table('distributors')->where('id', 1)->doesntExist()) {
+            DB::table('distributors')->insert([
             [
                 'id' => 1,
                 'name' => 'STC Solutions Master Distributor',
@@ -26,10 +27,12 @@ class DatabaseSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
-        ]);
+            ]);
+        }
 
-        // 2. Create Organizations
-        DB::table('organizations')->insert([
+        // 2. Create Organizations (only if not exists)
+        if (DB::table('organizations')->where('id', 1)->doesntExist()) {
+            DB::table('organizations')->insert([
             [
                 'id' => 1,
                 'distributor_id' => 1,
@@ -42,69 +45,88 @@ class DatabaseSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
-        ]);
+            ]);
+        }
 
-        // 3. Create Users (Super Admin & Organization Admin)
-        DB::table('users')->insert([
-            // Super Admin
-            [
-                'id' => 1,
+        // 3. Create Users (Super Admin & Organization Admin) - only if not exists
+        $usersToCreate = [];
+        
+        // Super Admin
+        if (DB::table('users')->where('email', 'superadmin@demo.local')->doesntExist()) {
+            $usersToCreate[] = [
                 'organization_id' => null,
                 'name' => 'Super Administrator',
                 'email' => 'superadmin@demo.local',
-                'password' => '$2y$12$v.6QuWtKrrg7YZ8wTWoWxOIYAGnq1xCrA6V8TS8QbDeWUHsHFCpY.',
+                'password' => Hash::make('Super@12345'),
                 'role' => 'super_admin',
                 'phone' => '+966 50 000 0001',
                 'is_active' => true,
+                'is_super_admin' => true,
                 'email_verified_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
-            ],
-            // Organization Admin
-            [
-                'id' => 2,
+            ];
+        }
+        
+        // Organization Admin
+        if (DB::table('users')->where('email', 'admin@org1.local')->doesntExist()) {
+            $usersToCreate[] = [
                 'organization_id' => 1,
                 'name' => 'Organization Administrator',
                 'email' => 'admin@org1.local',
-                'password' => '$2y$12$jX9.JiiNxIzibIXlwwM3Quq7/wQzDTr8tbllpOOY9V.wzwtg9424y',
+                'password' => Hash::make('Admin@12345'),
                 'role' => 'admin',
                 'phone' => '+966 50 000 0002',
                 'is_active' => true,
+                'is_super_admin' => false,
                 'email_verified_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
-            ],
-            // Regular Users
-            [
-                'id' => 3,
+            ];
+        }
+        
+        // Security Operator (Editor role)
+        if (DB::table('users')->where('email', 'operator@org1.local')->doesntExist()) {
+            $usersToCreate[] = [
                 'organization_id' => 1,
                 'name' => 'Security Operator',
                 'email' => 'operator@org1.local',
-                'password' => '$2y$12$jX9.JiiNxIzibIXlwwM3Quq7/wQzDTr8tbllpOOY9V.wzwtg9424y',
-                'role' => 'operator',
+                'password' => Hash::make('Operator@12345'),
+                'role' => 'editor',
                 'phone' => '+966 50 000 0003',
                 'is_active' => true,
+                'is_super_admin' => false,
                 'email_verified_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
-            ],
-            [
-                'id' => 4,
+            ];
+        }
+        
+        // Viewer User
+        if (DB::table('users')->where('email', 'viewer@org1.local')->doesntExist()) {
+            $usersToCreate[] = [
                 'organization_id' => 1,
                 'name' => 'Viewer User',
                 'email' => 'viewer@org1.local',
-                'password' => '$2y$12$jX9.JiiNxIzibIXlwwM3Quq7/wQzDTr8tbllpOOY9V.wzwtg9424y',
+                'password' => Hash::make('Viewer@12345'),
                 'role' => 'viewer',
                 'phone' => '+966 50 000 0004',
                 'is_active' => true,
+                'is_super_admin' => false,
                 'email_verified_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]
-        ]);
+            ];
+        }
+        
+        // Insert users if any to create
+        if (!empty($usersToCreate)) {
+            DB::table('users')->insert($usersToCreate);
+        }
 
-        // 4. Create Licenses
-        DB::table('licenses')->insert([
+        // 4. Create Licenses (only if not exists)
+        if (DB::table('licenses')->where('id', 1)->doesntExist()) {
+            DB::table('licenses')->insert([
             [
                 'id' => 1,
                 'organization_id' => 1,
@@ -117,10 +139,12 @@ class DatabaseSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
-        ]);
+            ]);
+        }
 
-        // 5. Create Edge Servers
-        DB::table('edge_servers')->insert([
+        // 5. Create Edge Servers (only if not exists)
+        if (DB::table('edge_servers')->where('edge_id', 'EDGE-DEMO-MAIN-001')->doesntExist()) {
+            DB::table('edge_servers')->insert([
             [
                 'id' => 1,
                 'edge_id' => 'EDGE-DEMO-MAIN-001',
@@ -140,8 +164,12 @@ class DatabaseSeeder extends Seeder
                 ]),
                 'created_at' => now()->subDays(30),
                 'updated_at' => now(),
-            ],
-            [
+            ]
+            ]);
+        }
+        
+        if (DB::table('edge_servers')->where('edge_id', 'EDGE-DEMO-GATE-002')->doesntExist()) {
+            DB::table('edge_servers')->insert([
                 'id' => 2,
                 'edge_id' => 'EDGE-DEMO-GATE-002',
                 'organization_id' => 1,
@@ -160,9 +188,11 @@ class DatabaseSeeder extends Seeder
                 'created_at' => now()->subDays(25),
                 'updated_at' => now(),
             ]
-        ]);
+            ]);
+        }
 
-        // 6. Create Events (Sample data for different event types)
+        // 6. Create Events (Sample data for different event types) - only if table is empty
+        if (DB::table('events')->count() === 0) {
         $eventTypes = [
             ['type' => 'fire_detection', 'severity' => 'critical', 'title' => 'Fire Detected', 'description' => 'Fire detected in storage area'],
             ['type' => 'face_recognition', 'severity' => 'info', 'title' => 'Employee Detected', 'description' => 'John Doe entered the building'],
@@ -198,9 +228,11 @@ class DatabaseSeeder extends Seeder
             ];
         }
         DB::table('events')->insert($events);
+        }
 
-        // 7. Create Notifications
-        $notifications = [];
+        // 7. Create Notifications - only if table is empty
+        if (DB::table('notifications')->count() === 0) {
+            $notifications = [];
         for ($i = 0; $i < 50; $i++) {
             $daysAgo = rand(0, 15);
             $notifications[] = [
@@ -216,6 +248,7 @@ class DatabaseSeeder extends Seeder
             ];
         }
         DB::table('notifications')->insert($notifications);
+        }
 
         // Re-enable foreign key checks
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
