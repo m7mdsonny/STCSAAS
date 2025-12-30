@@ -24,22 +24,32 @@ return new class extends Migration
             });
         }
 
-        // Create system_settings table if not exists
-        if (!Schema::hasTable('system_settings')) {
-            Schema::create('system_settings', function (Blueprint $table) {
-                $table->id();
-                $table->string('key')->unique();
-                $table->text('value')->nullable();
-                $table->timestamps();
-            });
-
-            // Insert initial version
-            DB::table('system_settings')->insert([
-                'key' => 'system_version',
-                'value' => '1.0.0',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        // Add key/value columns to system_settings if they don't exist
+        if (Schema::hasTable('system_settings')) {
+            if (!Schema::hasColumn('system_settings', 'key')) {
+                Schema::table('system_settings', function (Blueprint $table) {
+                    $table->string('key')->nullable()->unique()->after('id');
+                });
+            }
+            if (!Schema::hasColumn('system_settings', 'value')) {
+                Schema::table('system_settings', function (Blueprint $table) {
+                    $table->text('value')->nullable()->after('key');
+                });
+            }
+            
+            // Insert initial version if it doesn't exist
+            $existingVersion = DB::table('system_settings')
+                ->where('key', 'system_version')
+                ->first();
+            
+            if (!$existingVersion) {
+                DB::table('system_settings')->insert([
+                    'key' => 'system_version',
+                    'value' => '1.0.0',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
     }
 
