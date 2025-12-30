@@ -24,10 +24,17 @@ class User extends Authenticatable
 
     /**
      * Accessor to always return normalized role
+     * Prevents recursion by checking if we're already accessing the attribute
      */
     public function getRoleAttribute($value): string
     {
-        return RoleHelper::normalize($value ?? 'viewer');
+        // If value is null or empty, return default
+        if (empty($value)) {
+            return 'viewer';
+        }
+        
+        // Normalize the role
+        return RoleHelper::normalize($value);
     }
 
     /**
