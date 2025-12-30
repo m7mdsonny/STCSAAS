@@ -69,7 +69,6 @@ class DatabaseSeeder extends Seeder
                 'phone' => '+966 50 000 0001',
                 'is_active' => true,
                 'is_super_admin' => true,
-                'email_verified_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -86,7 +85,6 @@ class DatabaseSeeder extends Seeder
                 'phone' => '+966 50 000 0002',
                 'is_active' => true,
                 'is_super_admin' => false,
-                'email_verified_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -103,7 +101,6 @@ class DatabaseSeeder extends Seeder
                 'phone' => '+966 50 000 0003',
                 'is_active' => true,
                 'is_super_admin' => false,
-                'email_verified_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -120,7 +117,6 @@ class DatabaseSeeder extends Seeder
                 'phone' => '+966 50 000 0004',
                 'is_active' => true,
                 'is_super_admin' => false,
-                'email_verified_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
