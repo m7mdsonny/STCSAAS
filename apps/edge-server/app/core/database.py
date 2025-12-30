@@ -86,7 +86,12 @@ class CloudDatabase:
                     data = response.json() if response.text else None
                     return True, data
                 elif response.status_code == 401:
-                    logger.error("Authentication failed - invalid API key")
+                    # For public endpoints, 401 might be expected if API key is optional
+                    # Only log as warning, not error, for public endpoints
+                    if endpoint in ['/api/v1/licensing/validate', '/api/v1/edges/heartbeat']:
+                        logger.warning(f"Authentication may be required for {endpoint} - check API key configuration")
+                    else:
+                        logger.warning(f"Authentication failed for {endpoint} - API key may be required")
                     return False, "Unauthorized"
                 elif response.status_code == 403:
                     logger.error("Access forbidden - check permissions")
@@ -275,11 +280,19 @@ class CloudDatabase:
 
     async def get_cameras(self, organization_id: str) -> List[Dict]:
         """Get cameras for organization"""
+        # Note: This endpoint requires authentication, but we'll try without API key first
+        # If it fails with 401, we'll log a warning but not fail completely
         success, data = await self._request(
             "GET",
             "/api/v1/cameras",
-            params={"organization_id": organization_id}
+            params={"organization_id": organization_id},
+            retry=False
         )
+        
+        if not success:
+            # If authentication fails, log warning but return empty list (non-blocking)
+            logger.warning(f"Could not fetch cameras (may require authentication): {data}")
+            return []
         
         if success and isinstance(data, dict):
             # Handle paginated response

@@ -2,7 +2,7 @@
 AI Module Manager
 Manages all AI processing modules
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import numpy as np
 from loguru import logger
 
