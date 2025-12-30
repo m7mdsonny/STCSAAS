@@ -14,16 +14,13 @@ class DatabaseSeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
         // 1. Create Distributors (only if not exists)
+        // Note: distributors table only has: id, name, contact_email, timestamps, softDeletes
         if (DB::table('distributors')->where('id', 1)->doesntExist()) {
             DB::table('distributors')->insert([
             [
                 'id' => 1,
                 'name' => 'STC Solutions Master Distributor',
                 'contact_email' => 'partner@stc-solutions.com',
-                'contact_phone' => '+966 11 000 0000',
-                'address' => 'Riyadh, Saudi Arabia',
-                'commission_rate' => 15.00,
-                'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
@@ -31,17 +28,27 @@ class DatabaseSeeder extends Seeder
         }
 
         // 2. Create Organizations (only if not exists)
+        // Note: organizations table has: id, distributor_id, reseller_id, name, name_en, logo_url, 
+        // address, city, phone, email, tax_number, subscription_plan, max_cameras, max_edge_servers, 
+        // is_active, timestamps, softDeletes
         if (DB::table('organizations')->where('id', 1)->doesntExist()) {
             DB::table('organizations')->insert([
             [
                 'id' => 1,
                 'distributor_id' => 1,
+                'reseller_id' => null,
                 'name' => 'Demo Corporation',
-                'slug' => 'demo-corp',
-                'contact_email' => 'contact@democorp.local',
-                'contact_phone' => '+966 11 111 1111',
+                'name_en' => 'Demo Corporation',
+                'logo_url' => null,
                 'address' => 'King Fahd Road, Riyadh',
-                'status' => 'active',
+                'city' => 'Riyadh',
+                'phone' => '+966 11 111 1111',
+                'email' => 'contact@democorp.local',
+                'tax_number' => null,
+                'subscription_plan' => 'basic',
+                'max_cameras' => 50,
+                'max_edge_servers' => 5,
+                'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
