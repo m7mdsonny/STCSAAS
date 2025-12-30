@@ -213,55 +213,126 @@ class EdgeController extends Controller
 
     public function heartbeat(Request $request): JsonResponse
     {
-        $request->validate([
-            'edge_id' => 'required|string',
-            'version' => 'required|string',
-            'online' => 'required|boolean',
-            'organization_id' => 'required|integer|exists:organizations,id',
-            'license_id' => 'sometimes|integer|exists:licenses,id',
-            'cameras_status' => 'nullable|array', // Array of {camera_id: string, status: 'online'|'offline'}
-        ]);
+        try {
+            $request->validate([
+                'edge_id' => 'required|string',
+                'version' => 'required|string',
+                'online' => 'required|boolean',
+                'organization_id' => 'required|integer|exists:organizations,id',
+                'license_id' => 'sometimes|nullable|integer|exists:licenses,id',
+                'system_info' => 'sometimes|nullable|array',
+                'cameras_status' => 'nullable|array', // Array of {camera_id: string, status: 'online'|'offline'}
+            ]);
 
-        $existingEdge = EdgeServer::where('edge_id', $request->edge_id)->first();
+            $existingEdge = EdgeServer::where('edge_id', $request->edge_id)->first();
 
-        $organizationId = $request->get('organization_id', $existingEdge?->organization_id);
+            $organizationId = $request->get('organization_id', $existingEdge?->organization_id);
 
-        if ($organizationId === null) {
-            return response()->json([
-                'message' => 'organization_id is required for new edge registrations',
-            ], 422);
-        }
+            if ($organizationId === null) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'organization_id is required for new edge registrations',
+                ], 422);
+            }
 
-        $edge = EdgeServer::updateOrCreate(
-            ['edge_id' => $request->edge_id],
-            [
+            // Verify organization exists
+            $organization = \App\Models\Organization::find($organizationId);
+            if (!$organization) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Organization not found',
+                ], 404);
+            }
+
+            // Prepare update data
+            $updateData = [
                 'organization_id' => $organizationId,
-                'license_id' => $request->has('license_id') ? $request->get('license_id') : $existingEdge?->license_id,
                 'version' => $request->version,
                 'online' => $request->boolean('online'),
                 'last_seen_at' => now(),
-            ]
-        );
+            ];
 
-        // Update camera statuses if provided
-        if ($request->has('cameras_status') && is_array($request->cameras_status)) {
-            foreach ($request->cameras_status as $cameraStatus) {
-                if (isset($cameraStatus['camera_id']) && isset($cameraStatus['status'])) {
-                    $camera = \App\Models\Camera::where('camera_id', $cameraStatus['camera_id'])
-                        ->where('edge_server_id', $edge->id)
-                        ->first();
-                    
-                    if ($camera) {
-                        $oldStatus = $camera->status;
-                        $camera->status = $cameraStatus['status'];
-                        $camera->save();
-                        
-                        // CameraObserver will handle offline notification if status changed to offline
+            // Handle license_id
+            if ($request->has('license_id') && $request->license_id) {
+                // Verify license exists and belongs to organization
+                $license = License::find($request->license_id);
+                if ($license && $license->organization_id == $organizationId) {
+                    $updateData['license_id'] = $request->license_id;
+                } else {
+                    // If license doesn't match, use existing or null
+                    $updateData['license_id'] = $existingEdge?->license_id;
+                }
+            } else {
+                // Keep existing license_id if not provided
+                $updateData['license_id'] = $existingEdge?->license_id;
+            }
+
+            // Handle system_info
+            if ($request->has('system_info') && is_array($request->system_info)) {
+                $updateData['system_info'] = $request->system_info;
+            }
+
+            // Create or update edge server
+            $edge = EdgeServer::updateOrCreate(
+                ['edge_id' => $request->edge_id],
+                $updateData
+            );
+
+            // Update camera statuses if provided
+            if ($request->has('cameras_status') && is_array($request->cameras_status)) {
+                foreach ($request->cameras_status as $cameraStatus) {
+                    if (isset($cameraStatus['camera_id']) && isset($cameraStatus['status'])) {
+                        try {
+                            $camera = \App\Models\Camera::where('camera_id', $cameraStatus['camera_id'])
+                                ->where('edge_server_id', $edge->id)
+                                ->first();
+                            
+                            if ($camera) {
+                                $oldStatus = $camera->status;
+                                $camera->status = $cameraStatus['status'];
+                                $camera->save();
+                                
+                                // CameraObserver will handle offline notification if status changed to offline
+                            }
+                        } catch (\Exception $e) {
+                            // Log but don't fail the heartbeat
+                            \Illuminate\Support\Facades\Log::warning('Failed to update camera status', [
+                                'camera_id' => $cameraStatus['camera_id'] ?? 'unknown',
+                                'error' => $e->getMessage()
+                            ]);
+                        }
                     }
                 }
             }
-        }
 
-        return response()->json(['ok' => true, 'edge' => $edge]);
+            return response()->json([
+                'ok' => true,
+                'edge' => [
+                    'id' => $edge->id,
+                    'edge_id' => $edge->edge_id,
+                    'organization_id' => $edge->organization_id,
+                    'license_id' => $edge->license_id,
+                    'online' => $edge->online,
+                    'version' => $edge->version,
+                ]
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Edge heartbeat error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            
+            return response()->json([
+                'ok' => false,
+                'message' => 'An error occurred processing heartbeat'
+            ], 500);
+        }
     }
 }

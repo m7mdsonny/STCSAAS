@@ -41,13 +41,14 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
+    // Public Edge Server endpoints (must be accessible before authentication)
+    Route::post('/licensing/validate', [LicenseController::class, 'validateKey']);
+    Route::post('/edges/heartbeat', [EdgeController::class, 'heartbeat']);
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
         Route::put('/auth/password', [AuthController::class, 'changePassword']);
-
-        Route::post('/licensing/validate', [LicenseController::class, 'validateKey']);
-        Route::post('/edges/heartbeat', [EdgeController::class, 'heartbeat']);
         Route::post('/edges/events', [EventController::class, 'ingest']);
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/register-device', [NotificationController::class, 'registerDevice']);

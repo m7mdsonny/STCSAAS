@@ -130,30 +130,83 @@ class LicenseController extends Controller
 
     public function validateKey(Request $request): JsonResponse
     {
-        $request->validate([
-            'license_key' => 'required|string',
-            'edge_id' => 'required|string',
-        ]);
+        try {
+            $request->validate([
+                'license_key' => 'required|string',
+                'edge_id' => 'required|string',
+            ]);
 
-        $license = License::where('license_key', $request->license_key)->first();
-        if (!$license) {
-            return response()->json(['valid' => false, 'reason' => 'not_found'], 404);
+            $license = License::where('license_key', $request->license_key)->first();
+            if (!$license) {
+                return response()->json([
+                    'valid' => false, 
+                    'reason' => 'not_found',
+                    'message' => 'License key not found'
+                ], 404);
+            }
+
+            // Check if license is active
+            if ($license->status !== 'active') {
+                return response()->json([
+                    'valid' => false,
+                    'reason' => 'inactive',
+                    'message' => 'License is not active',
+                    'status' => $license->status
+                ], 403);
+            }
+
+            $now = Carbon::now();
+            $expires = $license->expires_at ? Carbon::parse($license->expires_at) : null;
+            $graceDays = (int) config('app.license_grace', 14);
+
+            // Check expiration (with grace period)
+            if ($expires && $expires->lt($now)) {
+                $daysPastExpiry = $now->diffInDays($expires);
+                if ($daysPastExpiry > $graceDays) {
+                    return response()->json([
+                        'valid' => false,
+                        'reason' => 'expired',
+                        'message' => 'License has expired beyond grace period',
+                        'expires_at' => $license->expires_at,
+                        'grace_days' => $graceDays
+                    ], 403);
+                }
+            }
+
+            // Get license modules if available
+            $modules = [];
+            if ($license->modules) {
+                $modules = is_array($license->modules) ? $license->modules : json_decode($license->modules, true) ?? [];
+            }
+
+            return response()->json([
+                'valid' => true,
+                'edge_id' => $request->edge_id,
+                'organization_id' => $license->organization_id,
+                'license_id' => $license->id,
+                'expires_at' => $license->expires_at?->toIso8601String(),
+                'grace_days' => $graceDays,
+                'modules' => $modules,
+                'max_cameras' => $license->max_cameras ?? null,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'valid' => false,
+                'reason' => 'validation_error',
+                'message' => 'Invalid request parameters',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('License validation error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'valid' => false,
+                'reason' => 'server_error',
+                'message' => 'An error occurred during license validation'
+            ], 500);
         }
-
-        $now = Carbon::now();
-        $expires = $license->expires_at ? Carbon::parse($license->expires_at) : $now;
-        $graceDays = (int) config('app.license_grace', 14);
-
-        if ($expires->lt($now) && $now->diffInDays($expires) > $graceDays) {
-            return response()->json(['valid' => false, 'reason' => 'expired'], 403);
-        }
-
-        return response()->json([
-            'valid' => true,
-            'edge_id' => $request->edge_id,
-            'organization_id' => $license->organization_id,
-            'expires_at' => $license->expires_at,
-            'grace_days' => $graceDays,
-        ]);
     }
 }
