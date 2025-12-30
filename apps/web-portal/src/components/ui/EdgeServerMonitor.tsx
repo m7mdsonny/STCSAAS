@@ -239,7 +239,9 @@ export function EdgeServerMonitor() {
                 </div>
                 <div>
                   <p className="text-xs text-white/60 mb-1">المعرف</p>
-                  <p className="font-medium text-xs truncate">{server.hardware_id.slice(0, 8)}...</p>
+                  <p className="font-medium text-xs truncate">
+                    {server.hardware_id ? `${server.hardware_id.slice(0, 8)}...` : 'غير متوفر'}
+                  </p>
                 </div>
               </div>
 

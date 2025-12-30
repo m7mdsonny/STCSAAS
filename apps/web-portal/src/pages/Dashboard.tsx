@@ -174,9 +174,9 @@ export function Dashboard() {
               </div>
             </div>
           </div>
-          <div className="h-52">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyData}>
+          <div className="h-52 min-h-[208px]">
+            <ResponsiveContainer width="100%" height="100%" minHeight={208}>
+              <BarChart data={weeklyData || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="day" stroke="rgba(255,255,255,0.5)" fontSize={11} />
                 <YAxis stroke="rgba(255,255,255,0.5)" fontSize={11} />

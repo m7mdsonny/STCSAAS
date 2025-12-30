@@ -15,8 +15,10 @@ use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-    public function admin(): JsonResponse
+    public function admin(Request $request): JsonResponse
     {
+        $this->ensureSuperAdmin($request);
+        
         $totalOrganizations = Organization::count();
         $activeOrganizations = Organization::where('is_active', true)->count();
         $totalEdgeServers = EdgeServer::count();
@@ -39,6 +41,11 @@ class DashboardController extends Controller
     public function organization(Request $request): JsonResponse
     {
         $user = $request->user();
+        
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        
         $organizationId = $user->organization_id;
 
         if (!$organizationId) {
@@ -66,14 +73,18 @@ class DashboardController extends Controller
             ->limit(10)
             ->get()
             ->map(function ($event) {
+                $meta = $event->meta ?? [];
+                if (!is_array($meta)) {
+                    $meta = is_string($meta) ? json_decode($meta, true) : [];
+                }
                 return [
-                    'id' => $event->id,
-                    'module' => $event->meta['module'] ?? 'unknown',
-                    'event_type' => $event->event_type,
-                    'severity' => $event->severity,
-                    'title' => $event->meta['title'] ?? $event->event_type,
-                    'created_at' => $event->occurred_at->toISOString(),
-                    'status' => $event->resolved_at ? 'resolved' : 'new',
+                    'id' => (string) $event->id,
+                    'module' => $meta['module'] ?? 'unknown',
+                    'event_type' => $event->event_type ?? 'unknown',
+                    'severity' => $event->severity ?? 'medium',
+                    'title' => $meta['title'] ?? $event->event_type ?? 'تنبيه',
+                    'created_at' => $event->occurred_at ? $event->occurred_at->toISOString() : now()->toISOString(),
+                    'status' => $event->resolved_at ? 'resolved' : ($event->acknowledged_at ? 'acknowledged' : 'new'),
                 ];
             });
 
