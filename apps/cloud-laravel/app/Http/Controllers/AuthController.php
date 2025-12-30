@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
@@ -20,11 +21,33 @@ class AuthController extends Controller
 
         $identifier = strtolower(trim($request->email));
 
-        $user = User::whereRaw('LOWER(email) = ?', [$identifier])
-            ->orWhere('phone', $identifier)
+        // Query user by email or phone (case-insensitive)
+        // Use whereNull('deleted_at') to exclude soft-deleted users
+        $user = User::whereNull('deleted_at')
+            ->where(function($query) use ($identifier) {
+                $query->whereRaw('LOWER(email) = ?', [$identifier])
+                      ->orWhereRaw('LOWER(phone) = ?', [$identifier]);
+            })
             ->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
+            Log::warning('Login attempt failed - user not found', [
+                'identifier' => $identifier,
+                'ip' => $request->ip(),
+            ]);
+            return response()->json([
+                'message' => 'Invalid credentials provided.',
+                'status' => 401,
+            ], 401);
+        }
+
+        // Check password
+        if (!Hash::check($request->password, $user->password)) {
+            Log::warning('Login attempt failed - invalid password', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'ip' => $request->ip(),
+            ]);
             return response()->json([
                 'message' => 'Invalid credentials provided.',
                 'status' => 401,
@@ -42,15 +65,12 @@ class AuthController extends Controller
         $normalizedRole = \App\Helpers\RoleHelper::normalize($user->role);
         $isSuperAdmin = ($normalizedRole === \App\Helpers\RoleHelper::SUPER_ADMIN);
         
-        // Sync is_super_admin with role if needed
+        // Update user fields without using forceFill (which might cause issues)
+        $user->last_login_at = now();
         if ($user->is_super_admin !== $isSuperAdmin) {
             $user->is_super_admin = $isSuperAdmin;
         }
-
-        $user->forceFill([
-            'last_login_at' => now(),
-            'is_super_admin' => $isSuperAdmin
-        ])->save();
+        $user->save();
 
         // Refresh user to get updated attributes
         $user->refresh();
