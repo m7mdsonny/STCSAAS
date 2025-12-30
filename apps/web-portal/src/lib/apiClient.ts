@@ -86,11 +86,20 @@ class ApiClient {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${activeToken}`;
     }
 
+    const fullUrl = this.resolveEndpoint(endpoint);
+    
+    // Create AbortController for timeout (compatible with all browsers)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
+
     try {
-      const response = await fetch(this.resolveEndpoint(endpoint), {
+      const response = await fetch(fullUrl, {
         ...fetchOptions,
         headers,
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       const responseText = await response.text();
       let data: unknown = null;
@@ -136,6 +145,8 @@ class ApiClient {
 
       return { data: data as T, status: logicalStatus || response.status, httpStatus: response.status };
     } catch (error) {
+      clearTimeout(timeoutId);
+      
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       
       // Provide more specific error messages
@@ -143,7 +154,7 @@ class ApiClient {
           errorMessage.includes('NetworkError') || 
           errorMessage.includes('Network request failed') ||
           errorMessage.includes('AbortError') ||
-          errorMessage.includes('timeout')) {
+          errorMessage.includes('aborted')) {
         console.error('Network error details:', {
           endpoint: fullUrl,
           baseUrl: this.baseUrl,
@@ -152,7 +163,7 @@ class ApiClient {
         });
         
         // Check if it's a timeout
-        if (errorMessage.includes('timeout') || errorMessage.includes('AbortError')) {
+        if (errorMessage.includes('aborted') || errorMessage.includes('AbortError')) {
           return { 
             error: 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.',
             status: 408,
