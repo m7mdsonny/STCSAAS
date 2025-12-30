@@ -44,6 +44,10 @@ Route::prefix('v1')->group(function () {
     // Public Edge Server endpoints (must be accessible before authentication)
     Route::post('/licensing/validate', [LicenseController::class, 'validateKey']);
     Route::post('/edges/heartbeat', [EdgeController::class, 'heartbeat']);
+    Route::post('/edges/events', [EventController::class, 'ingest']);
+    
+    // Public Edge Server data endpoints (for sync - requires organization_id in request)
+    Route::get('/edges/cameras', [EdgeController::class, 'getCamerasForEdge']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);

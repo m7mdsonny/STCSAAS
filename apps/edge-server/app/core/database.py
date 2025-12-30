@@ -279,23 +279,25 @@ class CloudDatabase:
         return result
 
     async def get_cameras(self, organization_id: str) -> List[Dict]:
-        """Get cameras for organization"""
-        # Note: This endpoint requires authentication, but we'll try without API key first
-        # If it fails with 401, we'll log a warning but not fail completely
+        """Get cameras for organization using public Edge endpoint"""
+        # Use public endpoint that doesn't require authentication
         success, data = await self._request(
             "GET",
-            "/api/v1/cameras",
+            "/api/v1/edges/cameras",
             params={"organization_id": organization_id},
             retry=False
         )
         
         if not success:
-            # If authentication fails, log warning but return empty list (non-blocking)
-            logger.warning(f"Could not fetch cameras (may require authentication): {data}")
+            # If request fails, log warning but return empty list (non-blocking)
+            logger.warning(f"Could not fetch cameras: {data}")
             return []
         
         if success and isinstance(data, dict):
-            # Handle paginated response
+            # Handle response format: { cameras: [...], count: N }
+            if 'cameras' in data:
+                return data['cameras']
+            # Fallback for other formats
             if 'data' in data:
                 return data['data']
             return data if isinstance(data, list) else []
