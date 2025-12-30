@@ -14,72 +14,100 @@ class AuthController extends Controller
 {
     public function login(Request $request): JsonResponse
     {
-        $request->validate([
-            'email' => 'required|string',
-            'password' => 'required|string'
-        ]);
+        try {
+            $request->validate([
+                'email' => 'required|string',
+                'password' => 'required|string'
+            ]);
 
-        $identifier = strtolower(trim($request->email));
+            $identifier = strtolower(trim($request->email));
 
-        // Query user by email or phone (case-insensitive)
-        // Use whereNull('deleted_at') to exclude soft-deleted users
-        $user = User::whereNull('deleted_at')
-            ->where(function($query) use ($identifier) {
-                $query->whereRaw('LOWER(email) = ?', [$identifier])
-                      ->orWhereRaw('LOWER(phone) = ?', [$identifier]);
-            })
-            ->first();
+            // Query user by email or phone (case-insensitive)
+            // Use whereNull('deleted_at') to exclude soft-deleted users
+            $user = User::whereNull('deleted_at')
+                ->where(function($query) use ($identifier) {
+                    $query->whereRaw('LOWER(email) = ?', [$identifier])
+                          ->orWhereRaw('LOWER(phone) = ?', [$identifier]);
+                })
+                ->first();
 
-        if (!$user) {
-            Log::warning('Login attempt failed - user not found', [
-                'identifier' => $identifier,
+            if (!$user) {
+                Log::warning('Login attempt failed - user not found', [
+                    'identifier' => $identifier,
+                    'ip' => $request->ip(),
+                ]);
+                return response()->json([
+                    'message' => 'Invalid credentials provided.',
+                    'status' => 401,
+                ], 401);
+            }
+
+            // Check password
+            if (!Hash::check($request->password, $user->password)) {
+                Log::warning('Login attempt failed - invalid password', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'ip' => $request->ip(),
+                ]);
+                return response()->json([
+                    'message' => 'Invalid credentials provided.',
+                    'status' => 401,
+                ], 401);
+            }
+
+            if (!$user->is_active) {
+                return response()->json([
+                    'message' => 'Account is disabled. Contact an administrator.',
+                    'status' => 403,
+                ], 403);
+            }
+
+            // Ensure role is normalized and is_super_admin is synced
+            // Get raw role value to avoid accessor recursion
+            $rawRole = $user->getAttributes()['role'] ?? 'viewer';
+            $normalizedRole = \App\Helpers\RoleHelper::normalize($rawRole);
+            $isSuperAdmin = ($normalizedRole === \App\Helpers\RoleHelper::SUPER_ADMIN);
+            
+            // Update user fields without using forceFill (which might cause issues)
+            $user->last_login_at = now();
+            if ($user->is_super_admin !== $isSuperAdmin) {
+                $user->is_super_admin = $isSuperAdmin;
+            }
+            
+            // Update role if it needs normalization
+            if ($rawRole !== $normalizedRole) {
+                $user->role = $normalizedRole;
+            }
+            
+            $user->save();
+
+            // Refresh user to get updated attributes
+            $user->refresh();
+            
+            // Ensure role is normalized in response (use accessor)
+            $user->makeVisible(['role']);
+
+            // Create token
+            $token = $user->createToken('api')->plainTextToken;
+            
+            return response()->json([
+                'token' => $token,
+                'user' => $user
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Login error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
                 'ip' => $request->ip(),
             ]);
+            
             return response()->json([
-                'message' => 'Invalid credentials provided.',
-                'status' => 401,
-            ], 401);
+                'message' => 'An error occurred during login. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+                'status' => 500,
+            ], 500);
         }
-
-        // Check password
-        if (!Hash::check($request->password, $user->password)) {
-            Log::warning('Login attempt failed - invalid password', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'ip' => $request->ip(),
-            ]);
-            return response()->json([
-                'message' => 'Invalid credentials provided.',
-                'status' => 401,
-            ], 401);
-        }
-
-        if (!$user->is_active) {
-            return response()->json([
-                'message' => 'Account is disabled. Contact an administrator.',
-                'status' => 403,
-            ], 403);
-        }
-
-        // Ensure role is normalized and is_super_admin is synced
-        $normalizedRole = \App\Helpers\RoleHelper::normalize($user->role);
-        $isSuperAdmin = ($normalizedRole === \App\Helpers\RoleHelper::SUPER_ADMIN);
-        
-        // Update user fields without using forceFill (which might cause issues)
-        $user->last_login_at = now();
-        if ($user->is_super_admin !== $isSuperAdmin) {
-            $user->is_super_admin = $isSuperAdmin;
-        }
-        $user->save();
-
-        // Refresh user to get updated attributes
-        $user->refresh();
-        
-        // Ensure role is normalized in response
-        $user->role = $normalizedRole;
-
-        $token = $user->createToken('api')->plainTextToken;
-        return response()->json(['token' => $token, 'user' => $user]);
     }
 
     public function logout(Request $request): JsonResponse
