@@ -130,6 +130,20 @@ class EdgeServerService
                 return false;
             }
 
+            // SECURITY: L1-H1 - STRICT HTTPS ENFORCEMENT
+            // HTTPS MUST be mandatory - validate before any request
+            try {
+                $this->validateHttpsUrl($edgeUrl, 'camera sync');
+            } catch (\Exception $e) {
+                Log::error("Camera sync blocked: HTTPS required", [
+                    'edge_server_id' => $edgeServer->id,
+                    'camera_id' => $camera->id,
+                    'error' => $e->getMessage()
+                ]);
+                $camera->update(['status' => 'error']);
+                return false;
+            }
+
             // SECURITY: Generate HMAC signature for camera sync request
             $body = json_encode($payload);
             $hmacHeaders = $this->generateHmacHeaders($edgeServer, 'POST', '/api/v1/cameras', $body);
@@ -212,6 +226,19 @@ class EdgeServerService
                 return false;
             }
 
+            // SECURITY: L1-H1 - STRICT HTTPS ENFORCEMENT
+            // HTTPS MUST be mandatory - validate before any request
+            try {
+                $this->validateHttpsUrl($edgeUrl, 'camera removal');
+            } catch (\Exception $e) {
+                Log::error("Camera removal blocked: HTTPS required", [
+                    'edge_server_id' => $edgeServer->id,
+                    'camera_id' => $camera->id,
+                    'error' => $e->getMessage()
+                ]);
+                return false;
+            }
+
             // SECURITY: Generate HMAC signature for delete request
             $path = "/api/v1/cameras/{$camera->camera_id}";
             $hmacHeaders = $this->generateHmacHeaders($edgeServer, 'DELETE', $path, '');
@@ -261,6 +288,18 @@ class EdgeServerService
         try {
             $edgeUrl = $this->getEdgeServerUrl($edgeServer);
             if (!$edgeUrl) {
+                return null;
+            }
+
+            // SECURITY: L1-H1 - STRICT HTTPS ENFORCEMENT
+            // HTTPS MUST be mandatory - validate before any request
+            try {
+                $this->validateHttpsUrl($edgeUrl, 'AI command');
+            } catch (\Exception $e) {
+                Log::error("AI command blocked: HTTPS required", [
+                    'edge_server_id' => $edgeServer->id,
+                    'error' => $e->getMessage()
+                ]);
                 return null;
             }
 
@@ -324,6 +363,19 @@ class EdgeServerService
         try {
             $edgeUrl = $this->getEdgeServerUrl($edgeServer);
             if (!$edgeUrl) {
+                return null;
+            }
+
+            // SECURITY: L1-H1 - STRICT HTTPS ENFORCEMENT
+            // HTTPS MUST be mandatory - validate before any request
+            try {
+                $this->validateHttpsUrl($edgeUrl, 'camera snapshot');
+            } catch (\Exception $e) {
+                Log::error("Camera snapshot blocked: HTTPS required", [
+                    'edge_server_id' => $edgeServer->id,
+                    'camera_id' => $camera->id,
+                    'error' => $e->getMessage()
+                ]);
                 return null;
             }
 
@@ -425,6 +477,28 @@ class EdgeServerService
         $url = "{$protocol}://{$edgeServer->ip_address}:{$port}";
         Log::debug("Edge Server URL: {$url}");
         return $url;
+    }
+
+    /**
+     * Validate that Edge Server URL uses HTTPS (SECURITY: L1-H1)
+     * 
+     * @param string $edgeUrl
+     * @param string $operation Operation name for logging
+     * @return bool
+     * @throws \Exception If URL is not HTTPS
+     */
+    private function validateHttpsUrl(string $edgeUrl, string $operation = 'request'): bool
+    {
+        // SECURITY: L1-H1 - STRICT HTTPS ENFORCEMENT
+        // HTTPS MUST be mandatory, not optional
+        if (!str_starts_with($edgeUrl, 'https://')) {
+            Log::error("SECURITY VIOLATION: Edge Server URL is not HTTPS", [
+                'url' => $edgeUrl,
+                'operation' => $operation
+            ]);
+            throw new \Exception("Security violation: Edge Server communication requires HTTPS. URL must start with https://");
+        }
+        return true;
     }
 
     /**
