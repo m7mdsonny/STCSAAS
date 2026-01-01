@@ -10,6 +10,7 @@ import {
   Activity,
   PieChart,
   ShieldAlert,
+  ShoppingBag,
   ChevronLeft,
   Check,
   Zap,
@@ -41,6 +42,7 @@ const modules = [
   { icon: Activity, title: 'مراقبة الانتاجية', description: 'تحليل نشاط العمال والانتاجية' },
   { icon: PieChart, title: 'تحليل الجمهور', description: 'تحليل العمر والجنس للزوار' },
   { icon: ShieldAlert, title: 'كشف التسلل', description: 'كشف الدخول غير المصرح به' },
+  { icon: ShoppingBag, title: 'Market - سلوك مشبوه', description: 'كشف السلوك المشبوه ومنع الخسائر في المتاجر بدون استخدام التعرف على الوجوه' },
 ];
 
 const plans = [
@@ -171,7 +173,7 @@ export function Landing() {
             {settings?.hero_title || 'منصة تحليل الفيديو بالذكاء الاصطناعي'}
           </h1>
           <p className="text-xl text-white/70 max-w-2xl mx-auto mb-10">
-            {settings?.hero_subtitle || 'حول كاميرات المراقبة الى عيون ذكية تحمي منشاتك وتحلل بياناتك في الوقت الفعلي مع 9 موديولات متخصصة'}
+            {settings?.hero_subtitle || 'حول كاميرات المراقبة الى عيون ذكية تحمي منشاتك وتحلل بياناتك في الوقت الفعلي مع 10 موديولات متخصصة'}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/login" className="btn-primary text-lg px-8 py-4">
@@ -205,7 +207,7 @@ export function Landing() {
       <section id="modules" className="py-20 px-4 bg-stc-navy/30">
         <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">9 موديولات ذكية</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">10 موديولات ذكية</h2>
             <p className="text-white/60 max-w-xl mx-auto">
               كل موديول مصمم لحل مشكلة محددة مع امكانية تفعيل اوامر تلقائية لكل حدث
             </p>

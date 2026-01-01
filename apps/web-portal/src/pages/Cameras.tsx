@@ -108,12 +108,31 @@ export function Cameras() {
     };
 
     try {
+      // Check if Edge Server is online before creating/updating camera
+      const selectedServer = servers.find(s => s.id === formData.edge_server_id);
+      if (selectedServer && !selectedServer.online) {
+        const proceed = confirm(
+          `تحذير: السيرفر ${selectedServer.name} غير متصل حالياً.\n` +
+          `سيتم حفظ الكاميرا في قاعدة البيانات، لكن لن يتم مزامنتها مع Edge Server حتى يعود الاتصال.\n\n` +
+          `هل تريد المتابعة؟`
+        );
+        if (!proceed) return;
+      }
+
       if (editingCamera) {
-        await camerasApi.updateCamera(editingCamera.id, payload);
+        const response = await camerasApi.updateCamera(editingCamera.id, payload);
         showSuccess('تم التحديث بنجاح', `تم تحديث بيانات الكاميرا ${formData.name} بنجاح`);
       } else {
-        await camerasApi.createCamera(payload);
+        const response = await camerasApi.createCamera(payload);
         showSuccess('تم الإضافة بنجاح', `تم إضافة الكاميرا ${formData.name} وربطها بالسيرفر المحلي بنجاح`);
+        
+        // Warn if Edge Server is offline
+        if (selectedServer && !selectedServer.online) {
+          showError(
+            'تحذير: السيرفر غير متصل',
+            `تم حفظ الكاميرا في قاعدة البيانات، لكن لن يتم مزامنتها مع Edge Server حتى يعود الاتصال.`
+          );
+        }
       }
 
       setShowModal(false);

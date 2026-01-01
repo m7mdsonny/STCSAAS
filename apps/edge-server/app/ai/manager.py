@@ -33,6 +33,7 @@ class AIModuleManager:
             from app.ai.modules.loitering import LoiteringDetectionModule
             from app.ai.modules.crowd_detection import CrowdDetectionModule
             from app.ai.modules.object_detection import ObjectDetectionModule
+            from app.ai.modules.market import MarketModule
 
             # Register modules
             self.modules['face'] = FaceRecognitionModule(
@@ -60,6 +61,9 @@ class AIModuleManager:
                 confidence_threshold=settings.OBJECT_CONFIDENCE
             )
             self.modules['object'] = ObjectDetectionModule(
+                confidence_threshold=settings.OBJECT_CONFIDENCE
+            )
+            self.modules['market'] = MarketModule(
                 confidence_threshold=settings.OBJECT_CONFIDENCE
             )
 

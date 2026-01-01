@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\RoleHelper;
+use App\Http\Requests\LicenseStoreRequest;
+use App\Http\Requests\LicenseUpdateRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
@@ -46,26 +48,16 @@ class LicenseController extends Controller
 
     public function show(License $license): JsonResponse
     {
-        $user = request()->user();
-        
-        // Super admin can see all, others only their org's licenses
-        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
-            $this->ensureOrganizationAccess(request(), $license->organization_id);
-        }
+        // Use Policy for authorization
+        $this->authorize('view', $license);
         
         return response()->json($license);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(LicenseStoreRequest $request): JsonResponse
     {
-        $this->ensureSuperAdmin($request);
-        $data = $request->validate([
-            'organization_id' => 'required|exists:organizations,id',
-            'plan' => 'required|string',
-            'max_cameras' => 'required|integer|min:1',
-            'modules' => 'nullable|array',
-            'expires_at' => 'nullable|date',
-        ]);
+        // Authorization is handled by LicenseStoreRequest
+        $data = $request->validated();
 
         $license = License::create([
             ...$data,
@@ -76,16 +68,10 @@ class LicenseController extends Controller
         return response()->json($license, 201);
     }
 
-    public function update(Request $request, License $license): JsonResponse
+    public function update(LicenseUpdateRequest $request, License $license): JsonResponse
     {
-        $this->ensureSuperAdmin($request);
-        $data = $request->validate([
-            'plan' => 'sometimes|string',
-            'max_cameras' => 'sometimes|integer|min:1',
-            'modules' => 'nullable|array',
-            'expires_at' => 'nullable|date',
-            'status' => 'sometimes|string',
-        ]);
+        // Authorization is handled by LicenseUpdateRequest
+        $data = $request->validated();
 
         $license->update($data);
 
@@ -94,7 +80,9 @@ class LicenseController extends Controller
 
     public function destroy(License $license): JsonResponse
     {
-        $this->ensureSuperAdmin(request());
+        // Use Policy for authorization
+        $this->authorize('delete', $license);
+        
         $license->delete();
         return response()->json(['message' => 'License deleted']);
     }
@@ -179,6 +167,17 @@ class LicenseController extends Controller
                 $modules = is_array($license->modules) ? $license->modules : json_decode($license->modules, true) ?? [];
             }
 
+            // Verify organization exists
+            $organization = \App\Models\Organization::find($license->organization_id);
+            if (!$organization) {
+                \Illuminate\Support\Facades\Log::warning("License validation: Organization {$license->organization_id} not found for license {$license->id}");
+                return response()->json([
+                    'valid' => false,
+                    'reason' => 'organization_not_found',
+                    'message' => 'License organization not found'
+                ], 404);
+            }
+
             return response()->json([
                 'valid' => true,
                 'edge_id' => $request->edge_id,
@@ -186,6 +185,7 @@ class LicenseController extends Controller
                 'license_id' => $license->id,
                 'expires_at' => $license->expires_at?->toIso8601String(),
                 'grace_days' => $graceDays,
+                'plan' => $license->plan,
                 'modules' => $modules,
                 'max_cameras' => $license->max_cameras ?? null,
             ]);

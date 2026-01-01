@@ -7,6 +7,9 @@ use App\Models\License;
 use App\Models\Organization;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Http\Requests\OrganizationStoreRequest;
+use App\Http\Requests\OrganizationUpdateRequest;
+use App\Helpers\RoleHelper;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +18,19 @@ class OrganizationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
         $query = Organization::query();
+
+        // SECURITY FIX: Tenant isolation - only super admin can see all organizations
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            // Non-super-admin users can only see their own organization
+            if ($user->organization_id) {
+                $query->where('id', $user->organization_id);
+            } else {
+                // User without organization can't see any organizations
+                return response()->json(['data' => [], 'total' => 0, 'per_page' => 15, 'current_page' => 1, 'last_page' => 1]);
+            }
+        }
 
         if ($request->filled('is_active')) {
             $query->where('is_active', filter_var($request->get('is_active'), FILTER_VALIDATE_BOOLEAN));
@@ -40,26 +55,16 @@ class OrganizationController extends Controller
 
     public function show(Organization $organization): JsonResponse
     {
+        // Use Policy for authorization
+        $this->authorize('view', $organization);
+        
         return response()->json($organization);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(OrganizationStoreRequest $request): JsonResponse
     {
-        $this->ensureSuperAdmin($request);
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'name_en' => 'nullable|string|max:255',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string|max:50',
-            'address' => 'nullable|string|max:500',
-            'city' => 'nullable|string|max:255',
-            'tax_number' => 'nullable|string|max:255',
-            'subscription_plan' => 'required|string',
-            'max_cameras' => 'nullable|integer|min:1',
-            'max_edge_servers' => 'nullable|integer|min:1',
-            'reseller_id' => 'nullable|exists:resellers,id',
-            'distributor_id' => 'nullable|exists:distributors,id',
-        ]);
+        // Authorization is handled by OrganizationStoreRequest
+        $data = $request->validated();
 
         $plan = SubscriptionPlan::where('name', $data['subscription_plan'])->first();
         if (!$plan) {
@@ -82,25 +87,10 @@ class OrganizationController extends Controller
         return response()->json($organization, 201);
     }
 
-    public function update(Request $request, Organization $organization): JsonResponse
+    public function update(OrganizationUpdateRequest $request, Organization $organization): JsonResponse
     {
-        $this->ensureSuperAdmin($request);
-        $data = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'name_en' => 'nullable|string|max:255',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string|max:50',
-            'address' => 'nullable|string|max:500',
-            'city' => 'nullable|string|max:255',
-            'tax_number' => 'nullable|string|max:255',
-            'subscription_plan' => 'sometimes|string',
-            'max_cameras' => 'nullable|integer|min:1',
-            'max_edge_servers' => 'nullable|integer|min:1',
-            'is_active' => 'nullable|boolean',
-            'reseller_id' => 'nullable|exists:resellers,id',
-            'distributor_id' => 'nullable|exists:distributors,id',
-            'logo_url' => 'nullable|string|max:500',
-        ]);
+        // Authorization is handled by OrganizationUpdateRequest
+        $data = $request->validated();
 
         $organization->update($data);
 
@@ -109,14 +99,18 @@ class OrganizationController extends Controller
 
     public function destroy(Organization $organization): JsonResponse
     {
-        $this->ensureSuperAdmin(request());
+        // Use Policy for authorization
+        $this->authorize('delete', $organization);
+        
         $organization->delete();
         return response()->json(['message' => 'Organization deleted']);
     }
 
     public function toggleActive(Organization $organization): JsonResponse
     {
-        $this->ensureSuperAdmin(request());
+        // Use Policy for authorization
+        $this->authorize('toggleActive', $organization);
+        
         $organization->is_active = !$organization->is_active;
         $organization->save();
 
@@ -147,6 +141,9 @@ class OrganizationController extends Controller
 
     public function stats(Organization $organization): JsonResponse
     {
+        // Use Policy for authorization (same as view)
+        $this->authorize('view', $organization);
+        
         return response()->json([
             'users_count' => User::where('organization_id', $organization->id)->count(),
             'edge_servers_count' => EdgeServer::where('organization_id', $organization->id)->count(),

@@ -30,30 +30,44 @@ use App\Http\Controllers\AlertController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\AutomationRuleController;
+use App\Http\Controllers\MarketController;
+use App\Http\Controllers\OrganizationSubscriptionController;
 
 Route::prefix('v1')->group(function () {
+    // Public endpoints (no authentication required)
     Route::get('/public/landing', [PublicContentController::class, 'landing']);
-    Route::post('/public/contact', [PublicContentController::class, 'submitContact']);
+    Route::post('/public/contact', [PublicContentController::class, 'submitContact'])->middleware('throttle:10,1');
     Route::get('/public/updates', [UpdateAnnouncementController::class, 'publicIndex']);
     Route::get('/branding', [BrandingController::class, 'showPublic']);
 
-    Route::post('/auth/login', [AuthController::class, 'login']);
-    Route::post('/auth/register', [AuthController::class, 'register']);
+    // Auth endpoints with throttling
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // 5 attempts per minute
+    Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:3,1'); // 3 attempts per minute
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
-    // Public Edge Server endpoints (must be accessible before authentication)
-    Route::post('/licensing/validate', [LicenseController::class, 'validateKey']);
-    Route::post('/edges/heartbeat', [EdgeController::class, 'heartbeat']);
-    Route::post('/edges/events', [EventController::class, 'ingest']);
-    
-    // Public Edge Server data endpoints (for sync - requires organization_id in request)
-    Route::get('/edges/cameras', [EdgeController::class, 'getCamerasForEdge']);
+    // Public licensing endpoint (rate-limited)
+    Route::post(
+        '/licensing/validate',
+        [LicenseController::class, 'validateKey']
+    )->middleware('throttle:100,1');
+
+    // Heartbeat endpoint: public for first registration (generates edge_key/edge_secret)
+    Route::post('/edges/heartbeat', [EdgeController::class, 'heartbeat'])->middleware('throttle:100,1');
+
+    // Edge Server endpoints (HMAC-secured ONLY - NO public access)
+    Route::middleware(['verify.edge.signature', 'throttle:100,1'])->group(function () {
+        Route::post('/edges/events', [EventController::class, 'ingest']);
+        Route::get('/edges/cameras', [EdgeController::class, 'getCamerasForEdge']);
+    });
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
         Route::put('/auth/password', [AuthController::class, 'changePassword']);
-        Route::post('/edges/events', [EventController::class, 'ingest']);
+        
+        // Subscription details (for clients - Mobile/Web)
+        Route::get('/subscription', [OrganizationSubscriptionController::class, 'showCurrent']);
+        
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/register-device', [NotificationController::class, 'registerDevice']);
         Route::post('/auth/register-fcm-token', [NotificationController::class, 'registerDevice']); // Alias for mobile app compatibility
@@ -80,8 +94,14 @@ Route::prefix('v1')->group(function () {
         Route::put('/organizations/{organization}', [OrganizationController::class, 'update']);
         Route::delete('/organizations/{organization}', [OrganizationController::class, 'destroy']);
         Route::post('/organizations/{organization}/toggle-active', [OrganizationController::class, 'toggleActive']);
-        Route::put('/organizations/{organization}/plan', [OrganizationController::class, 'updatePlan']);
-        Route::get('/organizations/{organization}/stats', [OrganizationController::class, 'stats']);
+                Route::put('/organizations/{organization}/plan', [OrganizationController::class, 'updatePlan']);
+                Route::get('/organizations/{organization}/stats', [OrganizationController::class, 'stats']);
+                
+                // Organization Subscriptions
+                Route::get('/organizations/{organization}/subscription', [OrganizationSubscriptionController::class, 'show']);
+                Route::post('/organizations/{organization}/subscription/assign', [OrganizationSubscriptionController::class, 'assign']);
+                Route::get('/organizations/{organization}/subscriptions', [OrganizationSubscriptionController::class, 'index']);
+                Route::post('/subscriptions/{organizationSubscription}/cancel', [OrganizationSubscriptionController::class, 'cancel']);
         Route::post('/organizations/{organization}/upload-logo', [OrganizationController::class, 'uploadLogo']);
         Route::post('/organizations/{organization}/sms-quota/consume', [SmsQuotaController::class, 'consume']);
 
@@ -90,8 +110,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/users/{user}', [UserController::class, 'show']);
         Route::put('/users/{user}', [UserController::class, 'update']);
         Route::delete('/users/{user}', [UserController::class, 'destroy']);
-        Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword']);
-        Route::post('/users/{user}/toggle-active', [UserController::class, 'toggleActive']);
+        // SECURITY FIX: reset-password endpoint deprecated - use Laravel password reset flow
+        // Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword']);
+        Route::post('/users/{user}/toggle-active', [UserController::class, 'toggleActive'])->middleware('role:super_admin,admin');
 
         Route::get('/licenses', [LicenseController::class, 'index']);
         Route::post('/licenses', [LicenseController::class, 'store']);
@@ -110,9 +131,10 @@ Route::prefix('v1')->group(function () {
         Route::delete('/subscription-plans/{subscriptionPlan}', [SubscriptionPlanController::class, 'destroy']);
 
         Route::get('/edge-servers', [EdgeController::class, 'index']);
-        Route::post('/edge-servers', [EdgeController::class, 'store']);
+        Route::get('/edge-servers/stats', [EdgeController::class, 'stats']); // Mobile app endpoint
+        Route::post('/edge-servers', [EdgeController::class, 'store'])->middleware('active.subscription');
         Route::get('/edge-servers/{edgeServer}', [EdgeController::class, 'show']);
-        Route::put('/edge-servers/{edgeServer}', [EdgeController::class, 'update']);
+        Route::put('/edge-servers/{edgeServer}', [EdgeController::class, 'update'])->middleware('active.subscription');
         Route::delete('/edge-servers/{edgeServer}', [EdgeController::class, 'destroy']);
         Route::get('/edge-servers/{edgeServer}/logs', [EdgeController::class, 'logs']);
         Route::post('/edge-servers/{edgeServer}/restart', [EdgeController::class, 'restart']);
@@ -120,7 +142,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/edge-servers/{edgeServer}/config', [EdgeController::class, 'config']);
 
         Route::get('/cameras', [CameraController::class, 'index']);
-        Route::post('/cameras', [CameraController::class, 'store']);
+        Route::get('/cameras/stats', [CameraController::class, 'stats']); // Mobile app endpoint
+        Route::post('/cameras', [CameraController::class, 'store'])->middleware('active.subscription');
         Route::get('/cameras/{camera}', [CameraController::class, 'show']);
         Route::put('/cameras/{camera}', [CameraController::class, 'update']);
         Route::delete('/cameras/{camera}', [CameraController::class, 'destroy']);
@@ -129,12 +152,21 @@ Route::prefix('v1')->group(function () {
         Route::post('/cameras/test-connection', [CameraController::class, 'testConnection']);
 
         Route::get('/alerts', [AlertController::class, 'index']);
+        Route::get('/alerts/stats', [AlertController::class, 'stats']); // Mobile app endpoint
         Route::get('/alerts/{alert}', [AlertController::class, 'show']);
         Route::post('/alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);
         Route::post('/alerts/{alert}/resolve', [AlertController::class, 'resolve']);
         Route::post('/alerts/{alert}/false-alarm', [AlertController::class, 'markFalseAlarm']);
         Route::post('/alerts/bulk-acknowledge', [AlertController::class, 'bulkAcknowledge']);
         Route::post('/alerts/bulk-resolve', [AlertController::class, 'bulkResolve']);
+
+        // Market Module endpoints
+        Route::get('/market/dashboard', [MarketController::class, 'dashboard']);
+        Route::get('/market/events', [MarketController::class, 'events']);
+        Route::get('/market/events/{id}', [MarketController::class, 'show']);
+
+        // Subscription details (for clients - Mobile/Web)
+        Route::get('/subscription', [OrganizationSubscriptionController::class, 'showCurrent']);
 
         Route::get('/people', [PersonController::class, 'index']);
         Route::post('/people', [PersonController::class, 'store']);

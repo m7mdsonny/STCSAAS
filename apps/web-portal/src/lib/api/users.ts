@@ -67,13 +67,14 @@ export const usersApi = {
     }
   },
 
-  async resetPassword(id: string): Promise<{ message: string }> {
-    const { data, error } = await apiClient.post<{ message: string }>(`/users/${id}/reset-password`);
-    if (error || !data) {
-      throw new Error(error || 'Failed to reset password');
-    }
-    return data;
-  },
+  // resetPassword endpoint removed - use Laravel password reset flow instead
+  // async resetPassword(id: string): Promise<{ message: string }> {
+  //   const { data, error } = await apiClient.post<{ message: string }>(`/users/${id}/reset-password`);
+  //   if (error || !data) {
+  //     throw new Error(error || 'Failed to reset password');
+  //   }
+  //   return data;
+  // },
 
   async toggleActive(id: string): Promise<User> {
     const { data, error } = await apiClient.post<User>(`/users/${id}/toggle-active`);

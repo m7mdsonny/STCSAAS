@@ -146,44 +146,71 @@ export function Settings() {
   };
 
   const testServerConnection = async (server: EdgeServer) => {
-    if (!server.ip_address) return;
+    if (!server.ip_address) {
+      showError('خطأ', 'عنوان IP غير محدد لهذا السيرفر');
+      return;
+    }
+    
     setTestingServer(server.id);
     try {
+      // Try to connect to Edge Server directly
       const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-      await edgeServerService.setServerUrl(`${protocol}//${server.ip_address}:8000`);
+      await edgeServerService.setServerUrl(`${protocol}//${server.ip_address}:8080`);
       const status = await edgeServerService.getStatus();
       setServerStatuses(prev => ({ ...prev, [server.id]: status }));
 
-      // The status update should be handled by the edge server itself via heartbeat
-      // but we can trigger a sync if needed
       if (status) {
-        await edgeServersApi.syncConfig(server.id);
-        showSuccess('اتصال ناجح', `تم الاتصال بسيرفر ${server.name} بنجاح`);
+        // Connection successful, trigger a config sync
+        try {
+          await edgeServersApi.syncConfig(server.id);
+          showSuccess('اتصال ناجح', `تم الاتصال بسيرفر ${server.name} بنجاح وتم طلب مزامنة الإعدادات`);
+        } catch (syncError) {
+          // Connection works but sync failed - still show success for connection
+          showSuccess('اتصال ناجح', `تم الاتصال بسيرفر ${server.name} بنجاح`);
+        }
       } else {
-        showError('فشل الاتصال', `فشل الاتصال بسيرفر ${server.name}. تأكد من تشغيل Edge Server`);
+        showError('فشل الاتصال', `فشل الاتصال بسيرفر ${server.name}. تأكد من تشغيل Edge Server وأنه متصل بالشبكة`);
       }
 
       fetchData();
     } catch (error) {
       console.error('Failed to test server connection:', error);
-      const { title, message } = getDetailedErrorMessage(error, 'اختبار الاتصال', 'فشل اختبار الاتصال بالسيرفر');
+      const { title, message } = getDetailedErrorMessage(error, 'اختبار الاتصال', 'فشل اختبار الاتصال بالسيرفر. تأكد من أن Edge Server يعمل وأن عنوان IP صحيح');
       showError(title, message);
+    } finally {
+      setTestingServer(null);
     }
-    setTestingServer(null);
   };
 
   const forceSync = async (server: EdgeServer) => {
-    if (!server.ip_address) return;
+    if (!server.ip_address) {
+      showError('خطأ', 'عنوان IP غير محدد لهذا السيرفر');
+      return;
+    }
+    
     setSyncingServer(server.id);
     try {
-      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-      await edgeServerService.setServerUrl(`${protocol}//${server.ip_address}:8000`);
-      await edgeServerService.forceSync();
-      await edgeServersApi.syncConfig(server.id);
-    } catch (error) {
+      // Call Cloud API to sync config (this will also sync cameras)
+      const result = await edgeServersApi.syncConfig(server.id);
+      
+      if (result.cameras_synced !== undefined) {
+        showSuccess(
+          'تمت المزامنة بنجاح',
+          `تمت مزامنة ${result.cameras_synced} من ${result.total_cameras} كاميرا بنجاح`
+        );
+      } else {
+        showSuccess('تمت المزامنة', result.message || 'تم تسجيل طلب المزامنة. سيتم معالجته قريباً.');
+      }
+      
+      // Refresh data after sync
+      fetchData();
+    } catch (error: any) {
       console.error('Failed to sync server:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'مزامنة السيرفر', 'حدث خطأ في مزامنة السيرفر');
+      showError(title, message);
+    } finally {
+      setSyncingServer(null);
     }
-    setSyncingServer(null);
   };
 
   return (

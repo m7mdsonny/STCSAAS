@@ -4,11 +4,24 @@ Handles all communication with the Cloud Laravel API
 """
 import httpx
 import asyncio
+import json
+import sys
+from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
 from datetime import datetime
 from loguru import logger
 
 from config.settings import settings
+
+# Import HMACSigner from edge/app/signer.py
+edge_dir = Path(__file__).parent.parent.parent / "edge" / "app"
+if str(edge_dir) not in sys.path:
+    sys.path.insert(0, str(edge_dir))
+try:
+    from signer import HMACSigner
+except ImportError:
+    HMACSigner = None
+    logger.warning("HMACSigner not found - HMAC authentication will not work")
 
 
 class CloudDatabase:
@@ -20,6 +33,9 @@ class CloudDatabase:
         self._headers = {}
         self._retry_count = 3
         self._retry_delay = 2
+        self._edge_key: Optional[str] = None
+        self._edge_secret: Optional[str] = None
+        self._load_edge_credentials()
 
     async def connect(self) -> bool:
         """Establish connection to Cloud API"""
@@ -64,6 +80,35 @@ class CloudDatabase:
             self.client = None
         self.connected = False
 
+    def _load_edge_credentials(self) -> Tuple[Optional[str], Optional[str]]:
+        """Load edge_key and edge_secret from storage"""
+        creds_file = Path(settings.DATA_DIR) / "edge_credentials.json"
+        if creds_file.exists():
+            try:
+                with creds_file.open('r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self._edge_key = data.get('edge_key')
+                    self._edge_secret = data.get('edge_secret')
+                    if self._edge_key and self._edge_secret:
+                        logger.info("Edge credentials loaded from storage")
+                        return self._edge_key, self._edge_secret
+            except Exception as e:
+                logger.warning(f"Failed to load edge credentials: {e}")
+        return None, None
+
+    def _save_edge_credentials(self, edge_key: str, edge_secret: str):
+        """Save edge_key and edge_secret to storage (secrets are NOT logged)"""
+        creds_file = Path(settings.DATA_DIR) / "edge_credentials.json"
+        creds_file.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with creds_file.open('w', encoding='utf-8') as f:
+                json.dump({'edge_key': edge_key, 'edge_secret': edge_secret}, f)
+            self._edge_key = edge_key
+            self._edge_secret = edge_secret
+            logger.info("Edge credentials saved successfully")
+        except Exception as e:
+            logger.error(f"Failed to save edge credentials: {e}")
+
     async def _request(
         self, 
         method: str, 
@@ -71,27 +116,91 @@ class CloudDatabase:
         retry: bool = True, 
         **kwargs
     ) -> Tuple[bool, Any]:
-        """Make HTTP request with retry logic"""
+        """
+        Make HTTP request with retry logic and HMAC signing for Edge endpoints
+        
+        For /api/v1/edges/* endpoints, uses HMAC authentication instead of Bearer token.
+        For other endpoints, uses Bearer token if available.
+        """
         if not self.client:
             return False, "Not connected"
+
+        # Check if this is an Edge endpoint requiring HMAC
+        is_edge_endpoint = endpoint.startswith('/api/v1/edges/')
+        
+        # Prepare headers (start with base headers)
+        headers = dict(self._headers)
+        
+        # Prepare body for signing
+        body_bytes = b""
+        if 'json' in kwargs:
+            body_bytes = json.dumps(kwargs['json'], ensure_ascii=False).encode('utf-8')
+        elif 'data' in kwargs:
+            if isinstance(kwargs['data'], (str, bytes)):
+                body_bytes = kwargs['data'].encode('utf-8') if isinstance(kwargs['data'], str) else kwargs['data']
+            else:
+                body_bytes = json.dumps(kwargs['data'], ensure_ascii=False).encode('utf-8')
+        
+        # Use HMAC signing for Edge endpoints
+        if is_edge_endpoint:
+            if not HMACSigner:
+                logger.error("HMACSigner not available - cannot authenticate Edge requests")
+                return False, "HMAC authentication not available"
+            
+            # Load credentials if not already loaded
+            if not self._edge_key or not self._edge_secret:
+                self._load_edge_credentials()
+            
+            if not self._edge_key or not self._edge_secret:
+                logger.error("Edge credentials not found - cannot sign request")
+                logger.error("Please ensure Edge Server is registered and credentials are stored")
+                return False, "Edge credentials not configured"
+            
+            # Generate HMAC signature
+            signer = HMACSigner(self._edge_key, self._edge_secret)
+            # Use full path including /api/v1/edges/...
+            path = endpoint
+            sig_headers = signer.generate_signature(method.upper(), path, body_bytes)
+            
+            # Add HMAC headers and remove Bearer token
+            headers.update(sig_headers)
+            headers.pop('Authorization', None)  # Remove Bearer token for Edge endpoints
+            
+            logger.debug(f"Using HMAC authentication for {endpoint}")
+        # For non-Edge endpoints, keep Bearer token if available
+
+        # Update kwargs with signed headers
+        request_kwargs = dict(kwargs)
+        request_kwargs['headers'] = headers
 
         attempts = self._retry_count if retry else 1
         last_error = None
 
         for attempt in range(attempts):
             try:
-                response = await self.client.request(method, endpoint, **kwargs)
+                response = await self.client.request(method, endpoint, **request_kwargs)
 
                 if response.status_code in (200, 201):
                     data = response.json() if response.text else None
                     return True, data
                 elif response.status_code == 401:
-                    # For public endpoints, 401 might be expected if API key is optional
-                    # Only log as warning, not error, for public endpoints
-                    if endpoint in ['/api/v1/licensing/validate', '/api/v1/edges/heartbeat']:
-                        logger.warning(f"Authentication may be required for {endpoint} - check API key configuration")
+                    # Log authentication failures with context
+                    if is_edge_endpoint:
+                        error_data = {}
+                        try:
+                            if response.text:
+                                error_data = response.json()
+                        except:
+                            pass
+                        error_msg = error_data.get('message', 'Authentication failed')
+                        logger.error(f"HMAC authentication failed for {endpoint}: {error_msg}")
+                        logger.error("Check that edge_key and edge_secret are correct and stored")
                     else:
-                        logger.warning(f"Authentication failed for {endpoint} - API key may be required")
+                        # For public endpoints, 401 might be expected if API key is optional
+                        if endpoint in ['/api/v1/licensing/validate']:
+                            logger.warning(f"Authentication may be required for {endpoint} - check API key configuration")
+                        else:
+                            logger.warning(f"Authentication failed for {endpoint} - API key may be required")
                     return False, "Unauthorized"
                 elif response.status_code == 403:
                     logger.error("Access forbidden - check permissions")
@@ -207,10 +316,37 @@ class CloudDatabase:
             retry=False
         )
         
-        if success:
-            logger.debug(f"Heartbeat successful: {result}")
+        if success and isinstance(result, dict):
+            # Extract and store edge credentials from response
+            edge_data = result.get('edge') or result
+            edge_key = edge_data.get('edge_key')
+            edge_secret = edge_data.get('edge_secret')
+            
+            # Also check top-level response
+            if not edge_key:
+                edge_key = result.get('edge_key')
+            if not edge_secret:
+                edge_secret = result.get('edge_secret')
+            
+            # Store credentials if provided (only if we don't have them or they changed)
+            if edge_key and edge_secret:
+                if not self._edge_key or not self._edge_secret or self._edge_key != edge_key:
+                    self._save_edge_credentials(edge_key, edge_secret)
+                    logger.info("Edge credentials updated from heartbeat response")
+                else:
+                    logger.debug("Edge credentials already stored")
+            elif not self._edge_key or not self._edge_secret:
+                logger.warning("Heartbeat successful but edge credentials not provided in response")
+            
+            logger.debug(f"Heartbeat successful: edge_id={edge_data.get('edge_id', 'unknown')}")
+        elif success:
+            logger.debug(f"Heartbeat successful")
         else:
             logger.warning(f"Heartbeat failed: {result}")
+            # Log specific error if available
+            if isinstance(result, dict):
+                error_msg = result.get('message', 'Unknown error')
+                logger.error(f"Heartbeat error: {error_msg}")
         
         return success
 

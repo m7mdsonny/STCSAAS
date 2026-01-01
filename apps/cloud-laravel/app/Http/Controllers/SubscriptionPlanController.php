@@ -33,6 +33,7 @@ class SubscriptionPlanController extends Controller
             'price_yearly' => 'nullable|numeric|min:0',
             'is_active' => 'nullable|boolean',
             'sms_quota' => 'nullable|integer|min:0',
+            'retention_days' => 'nullable|integer|min:1',
         ]);
 
         $plan = SubscriptionPlan::create($data);
@@ -54,6 +55,7 @@ class SubscriptionPlanController extends Controller
             'price_yearly' => 'nullable|numeric|min:0',
             'is_active' => 'nullable|boolean',
             'sms_quota' => 'nullable|integer|min:0',
+            'retention_days' => 'nullable|integer|min:1',
         ]);
 
         $subscriptionPlan->update($data);

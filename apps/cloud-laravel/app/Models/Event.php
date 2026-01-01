@@ -7,9 +7,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Event extends BaseModel
 {
     protected $table = 'events';
+    
+    protected $fillable = [
+        'organization_id',
+        'edge_server_id',
+        'edge_id',
+        'event_type',
+        'severity',
+        'occurred_at',
+        'title',
+        'description',
+        'camera_id',
+        'meta',
+        'acknowledged_at',
+        'resolved_at',
+    ];
+    
     protected $casts = [
         'meta' => 'array',
         'occurred_at' => 'datetime',
+        'acknowledged_at' => 'datetime',
+        'resolved_at' => 'datetime',
     ];
 
     /**

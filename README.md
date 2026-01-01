@@ -79,10 +79,25 @@ python main.py
 
 ---
 
-## 📚 الدوكومنتات
+## 📚 Documentation
 
-- [دليل النشر على MySQL](MYSQL_DEPLOYMENT_GUIDE.md)
-- [دليل تثبيت السيرفر المحلي](LOCAL_SERVER_INSTALLATION_GUIDE.md)
+### Installation Guides
+- **[Cloud Backend Installation](docs/INSTALL_CLOUD.md)** - Laravel backend setup
+- **[Web Portal Installation](docs/INSTALL_WEB.md)** - React frontend setup
+- **[Edge Server Installation](docs/INSTALL_EDGE.md)** - Python edge server setup
+
+### Deployment & Operations
+- **[Production Runbook](docs/RUNBOOK.md)** - Complete production deployment guide
+- **[Quick Start Guide](docs/QUICK_START.md)** - 5-minute setup guide
+
+### System Documentation
+- **[System Map](docs/SYSTEM_MAP.md)** - Complete API route mapping
+- **[Flow Map](docs/FLOW_MAP.md)** - Core business flows
+- **[Reality Matrix](docs/REALITY_MATRIX.md)** - UI to backend mapping
+
+### Development
+- **[Final Code Review](docs/FINAL_CODE_REVIEW.md)** - Pre-release code review
+- **[Completion Report](docs/FINAL_COMPLETION_REPORT.md)** - Overall completion status
 
 ---
 

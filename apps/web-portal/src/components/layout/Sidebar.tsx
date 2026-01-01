@@ -30,7 +30,8 @@ import {
   Database,
   UploadCloud,
   Type,
-  BookOpen
+  BookOpen,
+  ShoppingBag
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { canManageOrganization, canEdit, normalizeRole } from '../../lib/rbac';
@@ -80,6 +81,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/people', icon: Users, label: 'الاشخاص', roles: ['owner', 'admin', 'editor', 'viewer'] },
     { to: '/vehicles', icon: Car, label: 'المركبات', roles: ['owner', 'admin', 'editor', 'viewer'] },
     { to: '/attendance', icon: UserCheck, label: 'الحضور', roles: ['owner', 'admin', 'editor', 'viewer'] },
+    { to: '/market', icon: ShoppingBag, label: 'Market', roles: ['owner', 'admin', 'editor', 'viewer'] },
     { to: '/automation', icon: Zap, label: 'اوامر الذكاء الاصطناعي', roles: ['owner', 'admin', 'editor', 'viewer'] },
     { to: '/team', icon: UserCog, label: 'فريق العمل', roles: ['owner', 'admin'] }, // Only owners and admins
     { to: '/guide', icon: BookOpen, label: 'دليل المالك', roles: ['owner', 'admin'] },

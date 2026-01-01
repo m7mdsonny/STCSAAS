@@ -4,6 +4,23 @@ namespace App\Models;
 
 class Organization extends BaseModel
 {
+    protected $fillable = [
+        'distributor_id',
+        'reseller_id',
+        'name',
+        'name_en',
+        'logo_url',
+        'address',
+        'city',
+        'phone',
+        'email',
+        'tax_number',
+        'subscription_plan',
+        'max_cameras',
+        'max_edge_servers',
+        'is_active',
+    ];
+
     protected $casts = [
         'is_active' => 'boolean',
     ];
@@ -21,6 +38,32 @@ class Organization extends BaseModel
     public function subscriptionPlan()
     {
         return $this->belongsTo(SubscriptionPlan::class, 'subscription_plan', 'name');
+    }
+
+    /**
+     * Get the active subscription for this organization
+     */
+    public function activeSubscription()
+    {
+        return $this->hasOne(OrganizationSubscription::class)
+            ->where('status', 'active')
+            ->where(function ($query) {
+                $query->whereNull('starts_at')
+                    ->orWhere('starts_at', '<=', now());
+            })
+            ->where(function ($query) {
+                $query->whereNull('ends_at')
+                    ->orWhere('ends_at', '>', now());
+            })
+            ->latest();
+    }
+
+    /**
+     * Get all subscriptions for this organization
+     */
+    public function subscriptions()
+    {
+        return $this->hasMany(OrganizationSubscription::class);
     }
 
     public function branding()
