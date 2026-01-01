@@ -11,6 +11,36 @@ use Illuminate\Support\Facades\Crypt;
 class EdgeServerService
 {
     /**
+     * Generate HMAC signature for Edge Server requests
+     * 
+     * @param EdgeServer $edgeServer
+     * @param string $method HTTP method (GET, POST, DELETE, etc.)
+     * @param string $path Request path
+     * @param string $body Request body (JSON encoded)
+     * @return array Headers with HMAC authentication
+     */
+    private function generateHmacHeaders(EdgeServer $edgeServer, string $method, string $path, string $body = ''): array
+    {
+        if (!$edgeServer->edge_key || !$edgeServer->edge_secret) {
+            Log::error("Cannot generate HMAC signature: Edge Server missing authentication keys", [
+                'edge_server_id' => $edgeServer->id
+            ]);
+            return [];
+        }
+
+        $timestamp = time();
+        $bodyHash = hash('sha256', $body ?: '');
+        $signatureString = "{$method}|{$path}|{$timestamp}|{$bodyHash}";
+        $signature = hash_hmac('sha256', $signatureString, $edgeServer->edge_secret);
+
+        return [
+            'X-EDGE-KEY' => $edgeServer->edge_key,
+            'X-EDGE-TIMESTAMP' => (string) $timestamp,
+            'X-EDGE-SIGNATURE' => $signature,
+        ];
+    }
+
+    /**
      * Send camera configuration to Edge Server
      * 
      * @param Camera $camera
@@ -36,17 +66,32 @@ class EdgeServerService
             return false;
         }
 
+        // SECURITY: Require edge_key and edge_secret for HMAC authentication
+        if (!$edgeServer->edge_key || !$edgeServer->edge_secret) {
+            Log::error("Cannot sync camera: Edge Server missing authentication keys", [
+                'edge_server_id' => $edgeServer->id,
+                'camera_id' => $camera->id
+            ]);
+            return false;
+        }
+
         try {
             $config = $camera->config ?? [];
             $password = null;
             
-            // Decrypt password if exists
-            if (isset($config['password'])) {
+            // SECURITY: Only decrypt and include password if HTTPS is enabled
+            $useHttps = $edgeServer->use_https ?? false;
+            if ($useHttps && isset($config['password'])) {
                 try {
                     $password = Crypt::decryptString($config['password']);
                 } catch (\Exception $e) {
                     Log::warning("Failed to decrypt camera password: {$e->getMessage()}");
                 }
+            } else if (isset($config['password']) && !$useHttps) {
+                Log::warning("Camera password cannot be sent: Edge Server does not use HTTPS", [
+                    'edge_server_id' => $edgeServer->id,
+                    'camera_id' => $camera->id
+                ]);
             }
 
             // Map module IDs to Edge Server module names if needed
@@ -74,7 +119,7 @@ class EdgeServerService
                 'rtsp_url' => $camera->rtsp_url,
                 'location' => $camera->location,
                 'username' => $config['username'] ?? null,
-                'password' => $password,
+                'password' => $password, // Only included if HTTPS is enabled
                 'resolution' => $config['resolution'] ?? '1920x1080',
                 'fps' => $config['fps'] ?? 15,
                 'enabled_modules' => $edgeModules, // Send mapped module names
@@ -85,13 +130,23 @@ class EdgeServerService
                 return false;
             }
 
+            // SECURITY: Generate HMAC signature for camera sync request
+            $body = json_encode($payload);
+            $hmacHeaders = $this->generateHmacHeaders($edgeServer, 'POST', '/api/v1/cameras', $body);
+            if (empty($hmacHeaders)) {
+                Log::error("Failed to generate HMAC headers for camera sync");
+                return false;
+            }
+
             Log::info("Syncing camera to Edge Server", [
                 'camera_id' => $camera->camera_id,
                 'edge_url' => $edgeUrl,
-                'modules' => $edgeModules
+                'modules' => $edgeModules,
+                'use_https' => $useHttps
             ]);
 
             $response = Http::timeout(10)
+                ->withHeaders($hmacHeaders)
                 ->retry(2, 100)
                 ->post("{$edgeUrl}/api/v1/cameras", $payload);
 
@@ -142,14 +197,32 @@ class EdgeServerService
             return false;
         }
 
+        // SECURITY: Require edge_key and edge_secret for HMAC authentication
+        if (!$edgeServer->edge_key || !$edgeServer->edge_secret) {
+            Log::error("Cannot remove camera: Edge Server missing authentication keys", [
+                'edge_server_id' => $edgeServer->id,
+                'camera_id' => $camera->id
+            ]);
+            return false;
+        }
+
         try {
             $edgeUrl = $this->getEdgeServerUrl($edgeServer);
             if (!$edgeUrl) {
                 return false;
             }
 
+            // SECURITY: Generate HMAC signature for delete request
+            $path = "/api/v1/cameras/{$camera->camera_id}";
+            $hmacHeaders = $this->generateHmacHeaders($edgeServer, 'DELETE', $path, '');
+            if (empty($hmacHeaders)) {
+                Log::error("Failed to generate HMAC headers for camera removal");
+                return false;
+            }
+
             $response = Http::timeout(5)
-                ->delete("{$edgeUrl}/api/v1/cameras/{$camera->camera_id}");
+                ->withHeaders($hmacHeaders)
+                ->delete("{$edgeUrl}{$path}");
 
             if ($response->successful()) {
                 Log::info("Camera {$camera->id} removed from Edge Server {$edgeServer->id}");
@@ -177,6 +250,14 @@ class EdgeServerService
             return null;
         }
 
+        // SECURITY: Require edge_key and edge_secret for HMAC authentication
+        if (!$edgeServer->edge_key || !$edgeServer->edge_secret) {
+            Log::error("Cannot send AI command: Edge Server missing authentication keys", [
+                'edge_server_id' => $edgeServer->id
+            ]);
+            return null;
+        }
+
         try {
             $edgeUrl = $this->getEdgeServerUrl($edgeServer);
             if (!$edgeUrl) {
@@ -193,7 +274,16 @@ class EdgeServerService
                 'image_reference' => $commandData['image_reference'] ?? null, // Reference to image stored on Edge
             ];
 
+            // SECURITY: Generate HMAC signature for command request
+            $body = json_encode($payload);
+            $hmacHeaders = $this->generateHmacHeaders($edgeServer, 'POST', '/api/v1/commands', $body);
+            if (empty($hmacHeaders)) {
+                Log::error("Failed to generate HMAC headers for AI command");
+                return null;
+            }
+
             $response = Http::timeout(30)
+                ->withHeaders($hmacHeaders)
                 ->post("{$edgeUrl}/api/v1/commands", $payload);
 
             if ($response->successful()) {
@@ -222,14 +312,32 @@ class EdgeServerService
             return null;
         }
 
+        // SECURITY: Require edge_key and edge_secret for HMAC authentication
+        if (!$edgeServer->edge_key || !$edgeServer->edge_secret) {
+            Log::error("Cannot get camera snapshot: Edge Server missing authentication keys", [
+                'edge_server_id' => $edgeServer->id,
+                'camera_id' => $camera->id
+            ]);
+            return null;
+        }
+
         try {
             $edgeUrl = $this->getEdgeServerUrl($edgeServer);
             if (!$edgeUrl) {
                 return null;
             }
 
+            // SECURITY: Generate HMAC signature for snapshot request (GET with empty body)
+            $path = "/api/v1/cameras/{$camera->camera_id}/snapshot";
+            $hmacHeaders = $this->generateHmacHeaders($edgeServer, 'GET', $path, '');
+            if (empty($hmacHeaders)) {
+                Log::error("Failed to generate HMAC headers for camera snapshot");
+                return null;
+            }
+
             $response = Http::timeout(5)
-                ->get("{$edgeUrl}/api/v1/cameras/{$camera->camera_id}/snapshot");
+                ->withHeaders($hmacHeaders)
+                ->get("{$edgeUrl}{$path}");
 
             if ($response->successful()) {
                 // If response is an image, return base64 encoded

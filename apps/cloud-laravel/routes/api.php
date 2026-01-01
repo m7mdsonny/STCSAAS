@@ -45,11 +45,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:3,1'); // 3 attempts per minute
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
-    // Public licensing endpoint (rate-limited)
+    // Public licensing endpoint (rate-limited for security)
     Route::post(
         '/licensing/validate',
         [LicenseController::class, 'validateKey']
-    )->middleware('throttle:100,1');
+    )->middleware('throttle:10,1'); // Reduced from 100/min to 10/min for security
 
     // Heartbeat endpoint: public for first registration (generates edge_key/edge_secret)
     Route::post('/edges/heartbeat', [EdgeController::class, 'heartbeat'])->middleware('throttle:100,1');

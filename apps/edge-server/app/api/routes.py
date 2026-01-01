@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response, Depends
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
@@ -6,6 +6,7 @@ from datetime import datetime
 import io
 
 from config.settings import settings
+from app.api.security import verify_hmac_signature, verify_internal_auth
 
 router = APIRouter(tags=["API"])
 
@@ -64,7 +65,7 @@ async def get_status(request: Request):
 
 
 @router.get("/cameras")
-async def list_cameras(request: Request):
+async def list_cameras(request: Request, _: None = Depends(verify_internal_auth)):
     from main import state
 
     if not state.db or not state.is_licensed:
@@ -79,7 +80,11 @@ async def list_cameras(request: Request):
 
 
 @router.post("/cameras")
-async def add_camera(camera: CameraConfig, request: Request):
+async def add_camera(camera: CameraConfig, request: Request, _: None = Depends(verify_hmac_signature)):
+    """
+    Add camera configuration from Cloud
+    SECURITY: Requires HMAC authentication (Cloud → Edge sync)
+    """
     from main import state
 
     if len(state.cameras) >= settings.MAX_CAMERAS:
@@ -90,7 +95,11 @@ async def add_camera(camera: CameraConfig, request: Request):
 
 
 @router.delete("/cameras/{camera_id}")
-async def remove_camera(camera_id: str, request: Request):
+async def remove_camera(camera_id: str, request: Request, _: None = Depends(verify_hmac_signature)):
+    """
+    Remove camera configuration
+    SECURITY: Requires HMAC authentication (Cloud → Edge sync)
+    """
     from main import state
 
     if camera_id not in state.cameras:
@@ -101,7 +110,7 @@ async def remove_camera(camera_id: str, request: Request):
 
 
 @router.get("/alerts")
-async def list_alerts(request: Request, limit: int = 50):
+async def list_alerts(request: Request, limit: int = 50, _: None = Depends(verify_internal_auth)):
     from main import state
 
     if not state.db or not state.is_licensed:
@@ -111,7 +120,7 @@ async def list_alerts(request: Request, limit: int = 50):
 
 
 @router.post("/alerts")
-async def create_alert(alert: AlertCreate, request: Request):
+async def create_alert(alert: AlertCreate, request: Request, _: None = Depends(verify_internal_auth)):
     from main import state
 
     if not state.db or not state.is_licensed:
@@ -141,7 +150,7 @@ async def create_alert(alert: AlertCreate, request: Request):
 
 
 @router.get("/modules")
-async def list_modules(request: Request):
+async def list_modules(request: Request, _: None = Depends(verify_internal_auth)):
     from main import state
 
     available_modules = [
@@ -244,8 +253,11 @@ async def generate_api_key(request: Request):
 
 # AI Command execution
 @router.post("/commands")
-async def execute_command(command: CommandRequest, request: Request):
-    """Execute AI command from Cloud"""
+async def execute_command(command: CommandRequest, request: Request, _: None = Depends(verify_hmac_signature)):
+    """
+    Execute AI command from Cloud
+    SECURITY: Requires HMAC authentication (Cloud → Edge sync)
+    """
     from main import state
     from app.ai.manager import AIModuleManager
     from app.services.camera import CameraService
@@ -312,8 +324,8 @@ async def execute_command(command: CommandRequest, request: Request):
 
 # Snapshot endpoint
 @router.get("/cameras/{camera_id}/snapshot")
-async def get_snapshot(camera_id: str, request: Request):
-    """Get camera snapshot"""
+async def get_snapshot(camera_id: str, request: Request, _: None = Depends(verify_internal_auth)):
+    """Get camera snapshot - SECURITY: Requires authentication"""
     from main import state
     from app.services.camera import CameraService
     
@@ -338,8 +350,8 @@ async def get_snapshot(camera_id: str, request: Request):
 
 # Stream endpoint
 @router.get("/cameras/{camera_id}/stream")
-async def get_stream(camera_id: str, request: Request):
-    """Get camera stream URL"""
+async def get_stream(camera_id: str, request: Request, _: None = Depends(verify_internal_auth)):
+    """Get camera stream URL - SECURITY: Requires authentication"""
     from main import state
     
     if camera_id not in state.cameras:
