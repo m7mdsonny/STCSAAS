@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Helpers\RoleHelper;
 use App\Models\User;
+use App\Models\Organization;
+use App\Services\PlanEnforcementService;
+use App\Http\Requests\UserStoreRequest;
+use App\Http\Requests\UserUpdateRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -54,59 +58,37 @@ class UserController extends Controller
 
     public function show(User $user): JsonResponse
     {
-        $currentUser = request()->user();
-        
-        // Check access
-        if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
-            $this->ensureOrganizationAccess(request(), $user->organization_id);
-        }
+        // Use Policy for authorization
+        $this->authorize('view', $user);
 
         $user->role = RoleHelper::normalize($user->role);
         return response()->json($user);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(UserStoreRequest $request): JsonResponse
     {
-        $currentUser = $request->user();
-        
-        // Only super admin or organization managers can create users
-        if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
-            $this->ensureCanManage($request);
-        }
-
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
-            'phone' => 'nullable|string|max:50',
-            'role' => 'required|string|in:' . implode(',', RoleHelper::VALID_ROLES),
-            'organization_id' => 'nullable|exists:organizations,id',
-        ]);
+        // Authorization is handled by UserStoreRequest
+        $data = $request->validated();
 
         // Normalize role
         $data['role'] = RoleHelper::normalize($data['role']);
 
-        // Non-super-admin users can only create users for their organization
-        if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
-            // Use provided organization_id if valid, otherwise use current user's organization
-            if (empty($data['organization_id']) || $data['organization_id'] != $currentUser->organization_id) {
-                $data['organization_id'] = $currentUser->organization_id;
-            }
-            
-            // Non-super-admin cannot create super_admin users
-            if ($data['role'] === RoleHelper::SUPER_ADMIN) {
-                return response()->json(['message' => 'Cannot create super admin users'], 403);
-            }
-        } else {
-            // Super admin: if role is super_admin, remove organization_id
-            if ($data['role'] === RoleHelper::SUPER_ADMIN) {
-                $data['organization_id'] = null;
-            }
-        }
-        
         // Ensure organization_id is set for non-super-admin roles
         if ($data['role'] !== RoleHelper::SUPER_ADMIN && empty($data['organization_id'])) {
             return response()->json(['message' => 'Organization is required for this role'], 422);
+        }
+
+        // Check quota enforcement for organization users
+        if ($data['role'] !== RoleHelper::SUPER_ADMIN && !empty($data['organization_id'])) {
+            try {
+                $org = Organization::findOrFail($data['organization_id']);
+                $enforcementService = app(PlanEnforcementService::class);
+                $enforcementService->assertCanCreateUser($org);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'message' => $e->getMessage()
+                ], 403);
+            }
         }
 
         $user = User::create([
@@ -118,45 +100,14 @@ class UserController extends Controller
         return response()->json($user, 201);
     }
 
-    public function update(Request $request, User $user): JsonResponse
+    public function update(UserUpdateRequest $request, User $user): JsonResponse
     {
-        $currentUser = $request->user();
-        
-        // Check access
-        if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
-            $this->ensureOrganizationAccess($request, $user->organization_id);
-            $this->ensureCanManage($request);
-        }
-
-        $data = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:users,email,' . $user->id,
-            'phone' => 'nullable|string|max:50',
-            'role' => 'sometimes|string|in:' . implode(',', RoleHelper::VALID_ROLES),
-            'is_active' => 'nullable|boolean',
-            'organization_id' => 'nullable|exists:organizations,id',
-        ]);
+        // Authorization is handled by UserUpdateRequest
+        $data = $request->validated();
 
         // Normalize role if provided
         if (isset($data['role'])) {
             $data['role'] = RoleHelper::normalize($data['role']);
-            
-            // Non-super-admin cannot assign super_admin role
-            if ($data['role'] === RoleHelper::SUPER_ADMIN && 
-                !RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
-                return response()->json(['message' => 'Cannot assign super admin role'], 403);
-            }
-            
-            // Super admin users should not have organization_id
-            if ($data['role'] === RoleHelper::SUPER_ADMIN) {
-                $data['organization_id'] = null;
-            }
-        }
-
-        // Only super admin can change organization_id
-        if (isset($data['organization_id']) && 
-            !RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
-            unset($data['organization_id']);
         }
 
         $user->update($data);
@@ -167,18 +118,8 @@ class UserController extends Controller
 
     public function destroy(User $user): JsonResponse
     {
-        $currentUser = request()->user();
-        
-        // Check access
-        if (!RoleHelper::isSuperAdmin($currentUser->role, $currentUser->is_super_admin ?? false)) {
-            $this->ensureOrganizationAccess(request(), $user->organization_id);
-            $this->ensureCanManage(request());
-        }
-
-        // Prevent self-deletion
-        if ($user->id === $currentUser->id) {
-            return response()->json(['message' => 'Cannot delete your own account'], 403);
-        }
+        // Use Policy for authorization (prevents self-deletion)
+        $this->authorize('delete', $user);
 
         $user->delete();
         return response()->json(['message' => 'User deleted']);
@@ -186,17 +127,16 @@ class UserController extends Controller
 
     public function toggleActive(User $user): JsonResponse
     {
+        // Use Policy for authorization (prevents self-toggle)
+        $this->authorize('toggleActive', $user);
+
         $user->is_active = !$user->is_active;
         $user->save();
 
         return response()->json($user);
     }
 
-    public function resetPassword(User $user): JsonResponse
-    {
-        $newPassword = str()->random(12);
-        $user->update(['password' => Hash::make($newPassword)]);
-
-        return response()->json(['message' => 'Password reset', 'new_password' => $newPassword]);
-    }
+    // SECURITY FIX: resetPassword method removed - use Laravel password reset flow instead
+    // This method was a security risk as it returned plaintext passwords in responses
+    // Use Laravel's built-in password reset functionality: php artisan make:notification ResetPasswordNotification
 }

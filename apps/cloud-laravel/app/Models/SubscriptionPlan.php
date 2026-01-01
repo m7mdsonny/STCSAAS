@@ -15,4 +15,19 @@ class SubscriptionPlan extends BaseModel
     {
         return $this->hasMany(SubscriptionPlanLimit::class);
     }
+
+    /**
+     * Get organizations subscribed to this plan
+     */
+    public function organizations()
+    {
+        return $this->hasManyThrough(
+            Organization::class,
+            OrganizationSubscription::class,
+            'subscription_plan_id',
+            'id',
+            'id',
+            'organization_id'
+        );
+    }
 }

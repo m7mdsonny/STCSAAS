@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Users, Plus, Search, Trash2, Edit2, CheckCircle, Eye, EyeOff, Loader2, Shield, UserCog } from 'lucide-react';
 import { usersApi } from '../lib/api/users';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { getDetailedErrorMessage } from '../lib/errorMessages';
 import { Modal } from '../components/ui/Modal';
 import { canManageOrganization, getRoleLabel, getRoleBadgeClass, normalizeRole } from '../lib/rbac';
 import type { User, UserRole } from '../types/database';
@@ -15,6 +17,7 @@ const ORG_ROLES: { value: UserRole; label: string; description: string }[] = [
 
 export function Team() {
   const { profile, organization } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -83,30 +86,47 @@ export function Team() {
 
       setShowModal(false);
       resetForm();
+      showSuccess(
+        editingUser ? 'تم التحديث بنجاح' : 'تم الإضافة بنجاح',
+        editingUser ? `تم تحديث بيانات ${formData.name} بنجاح` : `تم إضافة ${formData.name} إلى الفريق بنجاح`
+      );
       fetchUsers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ');
+      const { title, message } = getDetailedErrorMessage(err, editingUser ? 'تحديث العضو' : 'إضافة العضو', 'حدث خطأ في حفظ العضو');
+      setError(message);
+      showError(title, message);
     } finally {
       setSubmitting(false);
     }
   };
 
   const deleteUser = async (id: string) => {
-    if (!confirm('هل انت متاكد من حذف هذا المستخدم؟')) return;
+    const user = users.find(u => u.id === id);
+    if (!confirm(`هل أنت متأكد من حذف المستخدم ${user?.name || ''}؟`)) return;
     try {
       await usersApi.deleteUser(id);
+      showSuccess('تم الحذف بنجاح', `تم حذف المستخدم ${user?.name || ''} من الفريق`);
       fetchUsers();
     } catch (error) {
       console.error('Failed to delete user:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'حذف المستخدم', 'حدث خطأ في حذف المستخدم');
+      showError(title, message);
     }
   };
 
   const toggleUserStatus = async (id: string, currentStatus: boolean) => {
+    const user = users.find(u => u.id === id);
     try {
       await usersApi.toggleActive(id);
+      showSuccess(
+        'تم التحديث',
+        `تم ${currentStatus ? 'تعطيل' : 'تفعيل'} المستخدم ${user?.name || ''} بنجاح`
+      );
       fetchUsers();
     } catch (error) {
       console.error('Failed to toggle user status:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'تغيير حالة المستخدم', 'حدث خطأ في تغيير حالة المستخدم');
+      showError(title, message);
     }
   };
 

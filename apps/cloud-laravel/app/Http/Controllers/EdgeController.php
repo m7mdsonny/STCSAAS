@@ -3,15 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\RoleHelper;
+use App\Http\Requests\EdgeServerStoreRequest;
+use App\Http\Requests\EdgeServerUpdateRequest;
+use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\EdgeServer;
 use App\Models\EdgeServerLog;
 use App\Models\License;
+use App\Models\Organization;
 use Illuminate\Support\Str;
 
 class EdgeController extends Controller
 {
+    protected SubscriptionService $subscriptionService;
+
+    public function __construct(SubscriptionService $subscriptionService)
+    {
+        $this->subscriptionService = $subscriptionService;
+    }
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -42,72 +52,67 @@ class EdgeController extends Controller
 
     public function show(EdgeServer $edgeServer): JsonResponse
     {
+        // Use Policy for authorization
+        $this->authorize('view', $edgeServer);
+        
         return response()->json($edgeServer);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(EdgeServerStoreRequest $request): JsonResponse
     {
+        // Authorization is handled by EdgeServerStoreRequest
+        $data = $request->validated();
+        
         $user = $request->user();
+        $organizationId = $data['organization_id'] ?? $user->organization_id;
         
-        // Auto-set organization_id for non-super-admin users
-        $organizationId = $user->organization_id;
-        if (RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false) && $request->filled('organization_id')) {
-            $organizationId = $request->get('organization_id');
-        }
-        
-        if (!$organizationId) {
-            return response()->json(['message' => 'Organization ID is required'], 422);
-        }
-        
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'organization_id' => 'sometimes|exists:organizations,id',
-            'license_id' => 'nullable|exists:licenses,id',
-            'edge_id' => 'nullable|string|unique:edge_servers,edge_id',
-            'location' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-        ]);
-
-        // Override organization_id with auto-detected value
-        $data['organization_id'] = $organizationId;
-
-        // Organization users can only create edge servers for their organization
+        // Auto-set organization_id for non-super-admin users (FormRequest handles this, but keep for safety)
         if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
-            if (!$user->organization_id) {
-                return response()->json(['message' => 'User must belong to an organization'], 403);
-            }
-            if ((int) $organizationId !== (int) $user->organization_id) {
-                return response()->json(['message' => 'You can only create edge servers for your organization'], 403);
-            }
-            // Only owners and admins can create edge servers
-            if (!RoleHelper::canManageOrganization($user->role)) {
-                return response()->json(['message' => 'Insufficient permissions to create edge servers'], 403);
-            }
+            $data['organization_id'] = $user->organization_id;
+            $organizationId = $user->organization_id;
+        }
+
+        // Check subscription limit enforcement
+        try {
+            $org = Organization::findOrFail($organizationId);
+            $subscriptionService = app(\App\Services\SubscriptionService::class);
+            $subscriptionService->assertCanCreateEdge($org);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 403);
         }
 
         // If license_id provided, verify it belongs to the organization
         if (!empty($data['license_id'])) {
-            $license = \App\Models\License::findOrFail($data['license_id']);
+            $license = License::findOrFail($data['license_id']);
             if ($license->organization_id !== (int) $organizationId) {
                 return response()->json(['message' => 'License does not belong to the specified organization'], 403);
             }
 
             // Check if license is already bound to another edge server
-            $existingEdge = EdgeServer::where('license_id', $data['license_id'])
-                ->where('id', '!=', $request->get('edge_id')) // Exclude current if updating
-                ->first();
+            $existingEdge = EdgeServer::where('license_id', $data['license_id'])->first();
             if ($existingEdge) {
                 return response()->json(['message' => 'License is already bound to another edge server'], 409);
             }
         }
+
+        // Generate edge_key and edge_secret for HMAC authentication
+        $edgeKey = 'edge_' . Str::random(32);
+        $edgeSecret = Str::random(64);
 
         $edgeServer = EdgeServer::create([
             'name' => $data['name'],
             'organization_id' => $organizationId,
             'license_id' => $data['license_id'] ?? null,
             'edge_id' => $data['edge_id'] ?? Str::uuid()->toString(),
+            'edge_key' => $edgeKey,
+            'edge_secret' => $edgeSecret,
             'location' => $data['location'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'internal_ip' => $data['internal_ip'] ?? null,
+            'public_ip' => $data['public_ip'] ?? null,
+            'hostname' => $data['hostname'] ?? null,
             'online' => false,
         ]);
 
@@ -128,30 +133,18 @@ class EdgeController extends Controller
             }
         }
 
-        return response()->json($edgeServer->load(['organization', 'license']), 201);
+        // Return edge server with keys (only on creation, never on update)
+        $response = $edgeServer->load(['organization', 'license'])->toArray();
+        $response['edge_key'] = $edgeKey;
+        $response['edge_secret'] = $edgeSecret; // Only returned once on creation
+        
+        return response()->json($response, 201);
     }
 
-    public function update(Request $request, EdgeServer $edgeServer): JsonResponse
+    public function update(EdgeServerUpdateRequest $request, EdgeServer $edgeServer): JsonResponse
     {
-        $user = $request->user();
-
-        // Check ownership and permissions
-        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
-            $this->ensureOrganizationAccess($request, $edgeServer->organization_id);
-            if (!RoleHelper::canManageOrganization($user->role)) {
-                return response()->json(['message' => 'Insufficient permissions to update edge servers'], 403);
-            }
-        }
-
-        $data = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'license_id' => 'nullable|exists:licenses,id',
-            'location' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-            'online' => 'nullable|boolean',
-            'system_info' => 'nullable|array',
-            'version' => 'nullable|string',
-        ]);
+        // Authorization is handled by EdgeServerUpdateRequest
+        $data = $request->validated();
 
         // If license_id is being updated, verify ownership and uniqueness
         if (isset($data['license_id'])) {
@@ -200,15 +193,8 @@ class EdgeController extends Controller
 
     public function destroy(EdgeServer $edgeServer): JsonResponse
     {
-        $user = request()->user();
-
-        // Check ownership and permissions
-        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
-            $this->ensureOrganizationAccess(request(), $edgeServer->organization_id);
-            if (!RoleHelper::canManageOrganization($user->role)) {
-                return response()->json(['message' => 'Insufficient permissions to delete edge servers'], 403);
-            }
-        }
+        // Use Policy for authorization
+        $this->authorize('delete', $edgeServer);
 
         $edgeServer->delete();
         return response()->json(['message' => 'Edge server deleted']);
@@ -216,6 +202,9 @@ class EdgeController extends Controller
 
     public function logs(Request $request, EdgeServer $edgeServer): JsonResponse
     {
+        // Use Policy for authorization
+        $this->authorize('viewLogs', $edgeServer);
+
         $query = EdgeServerLog::where('edge_server_id', $edgeServer->id);
 
         if ($request->filled('level')) {
@@ -227,110 +216,219 @@ class EdgeController extends Controller
 
     public function restart(EdgeServer $edgeServer): JsonResponse
     {
+        $user = request()->user();
+
+        // Check ownership and permissions
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            $this->ensureOrganizationAccess(request(), $edgeServer->organization_id);
+            if (!RoleHelper::canManageOrganization($user->role)) {
+                return response()->json(['message' => 'Insufficient permissions to restart edge servers'], 403);
+            }
+        }
+
+        // Log the request
         EdgeServerLog::create([
             'edge_server_id' => $edgeServer->id,
             'level' => 'info',
             'message' => 'Restart requested from control panel',
-            'meta' => ['requested_at' => now()->toIso8601String()],
+            'meta' => ['requested_at' => now()->toIso8601String(), 'requested_by' => $user->id],
         ]);
 
-        return response()->json(['message' => 'Restart signal queued']);
+        // Send restart command using EdgeCommandService with HMAC authentication
+        $commandService = app(EdgeCommandService::class);
+        $result = $commandService->restart($edgeServer);
+
+        if ($result['success']) {
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+                'data' => $result['data'] ?? null
+            ]);
+        } else {
+            // Return error with appropriate status code
+            $statusCode = $result['status_code'] ?? 500;
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+                'error' => $result['error'] ?? 'unknown_error'
+            ], $statusCode);
+        }
     }
 
     public function syncConfig(EdgeServer $edgeServer): JsonResponse
     {
+        $user = request()->user();
+
+        // Check ownership and permissions
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            $this->ensureOrganizationAccess(request(), $edgeServer->organization_id);
+            if (!RoleHelper::canManageOrganization($user->role)) {
+                return response()->json(['message' => 'Insufficient permissions to sync edge server config'], 403);
+            }
+        }
+
+        // Log the request
         EdgeServerLog::create([
             'edge_server_id' => $edgeServer->id,
             'level' => 'info',
             'message' => 'Configuration sync requested',
-            'meta' => ['requested_at' => now()->toIso8601String()],
+            'meta' => ['requested_at' => now()->toIso8601String(), 'requested_by' => $user->id],
         ]);
 
-        return response()->json(['message' => 'Sync request recorded']);
+        // Send sync command using EdgeCommandService with HMAC authentication
+        $commandService = app(EdgeCommandService::class);
+        $result = $commandService->syncConfig($edgeServer);
+
+        if ($result['success']) {
+            // Also sync all cameras for this edge server
+            $cameras = \App\Models\Camera::where('edge_server_id', $edgeServer->id)
+                ->where('status', '!=', 'deleted')
+                ->get();
+            
+            $edgeServerService = app(\App\Services\EdgeServerService::class);
+            $syncedCount = 0;
+            foreach ($cameras as $camera) {
+                if ($edgeServerService->syncCameraToEdge($camera)) {
+                    $syncedCount++;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+                'cameras_synced' => $syncedCount,
+                'total_cameras' => $cameras->count(),
+                'data' => $result['data'] ?? null
+            ]);
+        } else {
+            // Return error with appropriate status code
+            $statusCode = $result['status_code'] ?? 500;
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+                'error' => $result['error'] ?? 'unknown_error'
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Get Edge Server base URL
+     */
+    private function getEdgeServerUrl(EdgeServer $edgeServer): ?string
+    {
+        if (!$edgeServer->ip_address) {
+            return null;
+        }
+
+        $port = $edgeServer->port ?? 8080;
+        $protocol = ($edgeServer->use_https ?? false) ? 'https' : 'http';
+        
+        return "{$protocol}://{$edgeServer->ip_address}:{$port}";
     }
 
     public function config(EdgeServer $edgeServer): JsonResponse
     {
+        // Use Policy for authorization
+        $this->authorize('viewConfig', $edgeServer);
+        
         return response()->json($edgeServer->system_info ?? []);
     }
 
     public function heartbeat(Request $request): JsonResponse
     {
         try {
+            // Edge server is attached by VerifyEdgeSignature middleware
+            $edge = $request->get('edge_server');
+            
+            if (!$edge) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Edge server not authenticated',
+                ], 401);
+            }
+
             $request->validate([
-                'edge_id' => 'required|string',
                 'version' => 'required|string',
                 'online' => 'required|boolean',
-                'organization_id' => 'required|integer|exists:organizations,id',
                 'license_id' => 'sometimes|nullable|integer|exists:licenses,id',
                 'system_info' => 'sometimes|nullable|array',
                 'cameras_status' => 'nullable|array', // Array of {camera_id: string, status: 'online'|'offline'}
+                'internal_ip' => 'sometimes|nullable|ip',
+                'public_ip' => 'sometimes|nullable|ip',
+                'hostname' => 'sometimes|nullable|string|max:255',
             ]);
 
-            $existingEdge = EdgeServer::where('edge_id', $request->edge_id)->first();
+            $organizationId = $edge->organization_id;
 
-            $organizationId = $request->get('organization_id', $existingEdge?->organization_id);
-
-            if ($organizationId === null) {
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'organization_id is required for new edge registrations',
-                ], 422);
-            }
-
-            // Verify organization exists
-            $organization = \App\Models\Organization::find($organizationId);
-            if (!$organization) {
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'Organization not found',
-                ], 404);
-            }
-
-            // Prepare update data
+            // Prepare update data (organization_id is already set from authenticated edge)
             $updateData = [
-                'organization_id' => $organizationId,
                 'version' => $request->version,
                 'online' => $request->boolean('online'),
                 'last_seen_at' => now(),
             ];
 
-            // Handle license_id
+            // Handle IP addresses from request or system_info
+            if ($request->has('internal_ip')) {
+                $updateData['internal_ip'] = $request->internal_ip;
+            }
+            if ($request->has('public_ip')) {
+                $updateData['public_ip'] = $request->public_ip;
+            }
+            if ($request->has('hostname')) {
+                $updateData['hostname'] = $request->hostname;
+            }
+
+            // Extract IP info from system_info if available
+            if ($request->has('system_info') && is_array($request->system_info)) {
+                $updateData['system_info'] = $request->system_info;
+                
+                // Extract IP addresses from system_info if not provided directly
+                if (!isset($updateData['internal_ip']) && isset($request->system_info['internal_ip'])) {
+                    $updateData['internal_ip'] = $request->system_info['internal_ip'];
+                }
+                if (!isset($updateData['public_ip']) && isset($request->system_info['public_ip'])) {
+                    $updateData['public_ip'] = $request->system_info['public_ip'];
+                }
+                if (!isset($updateData['hostname']) && isset($request->system_info['hostname'])) {
+                    $updateData['hostname'] = $request->system_info['hostname'];
+                }
+            }
+
+            // Handle license_id - validate but don't link yet (edge doesn't exist)
+            $requestedLicenseId = null;
             if ($request->has('license_id') && $request->license_id) {
                 // Verify license exists and belongs to organization
                 $license = License::find($request->license_id);
                 if ($license && $license->organization_id == $organizationId) {
                     $updateData['license_id'] = $request->license_id;
-                    // Link license to edge server
-                    if ($license->edge_server_id != $edge->id) {
-                        // Unlink old edge server if exists
-                        if ($license->edge_server_id) {
-                            $oldEdge = EdgeServer::find($license->edge_server_id);
-                            if ($oldEdge && $oldEdge->id != $edge->id) {
-                                $oldEdge->update(['license_id' => null]);
-                            }
-                        }
-                        $license->update(['edge_server_id' => $edge->id]);
-                    }
+                    $requestedLicenseId = $request->license_id;
                 } else {
-                    // If license doesn't match, use existing or null
-                    $updateData['license_id'] = $existingEdge?->license_id;
+                    // If license doesn't match, keep existing
+                    $updateData['license_id'] = $edge->license_id;
                 }
             } else {
                 // Keep existing license_id if not provided
-                $updateData['license_id'] = $existingEdge?->license_id;
+                $updateData['license_id'] = $edge->license_id;
             }
 
-            // Handle system_info
-            if ($request->has('system_info') && is_array($request->system_info)) {
-                $updateData['system_info'] = $request->system_info;
-            }
+            // Update edge server (edge is already authenticated by middleware)
+            $edge->update($updateData);
 
-            // Create or update edge server
-            $edge = EdgeServer::updateOrCreate(
-                ['edge_id' => $request->edge_id],
-                $updateData
-            );
+            // Now that $edge exists, handle license linking
+            if ($requestedLicenseId) {
+                $license = License::find($requestedLicenseId);
+                if ($license && $license->organization_id == $organizationId) {
+                    // Unlink old edge server if license is bound to another edge
+                    if ($license->edge_server_id && $license->edge_server_id != $edge->id) {
+                        $oldEdge = EdgeServer::find($license->edge_server_id);
+                        if ($oldEdge) {
+                            $oldEdge->update(['license_id' => null]);
+                        }
+                    }
+                    // Link license to this edge server
+                    $license->update(['edge_server_id' => $edge->id]);
+                }
+            }
             
             // Auto-link first available license if edge doesn't have one
             if (!$edge->license_id) {
@@ -385,17 +483,24 @@ class EdgeController extends Controller
                 }
             }
 
-            return response()->json([
+            // Return edge credentials in response (Edge Server needs these for HMAC signing)
+            // Only return edge_secret if edge doesn't have it stored (first heartbeat or missing)
+            $edgeData = $edge->load(['organization', 'license'])->toArray();
+            
+            // Always return edge_key (it's the identifier)
+            $response = [
                 'ok' => true,
-                'edge' => [
-                    'id' => $edge->id,
-                    'edge_id' => $edge->edge_id,
-                    'organization_id' => $edge->organization_id,
-                    'license_id' => $edge->license_id,
-                    'online' => $edge->online,
-                    'version' => $edge->version,
-                ]
-            ]);
+                'edge' => $edgeData,
+                'edge_key' => $edge->edge_key,
+            ];
+            
+            // Return edge_secret only if it exists (Edge Server will store it)
+            // Security: This is safe because the request is already authenticated via HMAC middleware
+            if ($edge->edge_secret) {
+                $response['edge_secret'] = $edge->edge_secret;
+            }
+            
+            return response()->json($response);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'ok' => false,
@@ -404,42 +509,40 @@ class EdgeController extends Controller
             ], 422);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Edge heartbeat error', [
+                'edge_id' => $request->edge_id ?? 'unknown',
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request_data' => $request->except(['password', 'token'])
             ]);
             
             return response()->json([
                 'ok' => false,
-                'message' => 'An error occurred processing heartbeat'
+                'message' => 'An error occurred processing heartbeat',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
     }
 
     /**
-     * Get cameras for Edge Server (public endpoint - requires organization_id)
-     * This allows Edge Server to sync cameras without authentication
+     * Get cameras for Edge Server (HMAC authenticated)
+     * Edge server is authenticated by VerifyEdgeSignature middleware
      */
     public function getCamerasForEdge(Request $request): JsonResponse
     {
         try {
-            $request->validate([
-                'organization_id' => 'required|integer|exists:organizations,id',
-                'edge_id' => 'sometimes|string',
-            ]);
-
-            $organizationId = $request->get('organization_id');
-            $edgeId = $request->get('edge_id');
-
-            $query = \App\Models\Camera::where('organization_id', $organizationId);
-
-            // If edge_id provided, filter by edge server
-            if ($edgeId) {
-                $edgeServer = EdgeServer::where('edge_id', $edgeId)->first();
-                if ($edgeServer) {
-                    $query->where('edge_server_id', $edgeServer->id);
-                }
+            // Edge server is attached by VerifyEdgeSignature middleware
+            $edge = $request->get('edge_server');
+            
+            if (!$edge) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Edge server not authenticated',
+                ], 401);
             }
+
+            // Get cameras for this edge server's organization
+            $query = \App\Models\Camera::where('organization_id', $edge->organization_id)
+                ->where('edge_server_id', $edge->id);
 
             $cameras = $query->with(['edgeServer'])
                 ->where('status', '!=', 'deleted')
@@ -483,5 +586,44 @@ class EdgeController extends Controller
                 'error' => 'An error occurred fetching cameras'
             ], 500);
         }
+    }
+
+    /**
+     * Get edge server statistics
+     * Mobile app endpoint: GET /edge-servers/stats
+     */
+    public function stats(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $query = EdgeServer::query();
+
+        // Filter by organization
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            if ($user->organization_id) {
+                $query->where('organization_id', $user->organization_id);
+            } else {
+                // Return empty stats for non-admin users without organization
+                return response()->json([
+                    'total' => 0,
+                    'online' => 0,
+                    'offline' => 0,
+                ]);
+            }
+        }
+
+        // Super admin can filter by organization
+        if ($request->filled('organization_id') && RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            $query->where('organization_id', $request->get('organization_id'));
+        }
+
+        $total = (clone $query)->count();
+        $online = (clone $query)->where('online', true)->count();
+        $offline = $total - $online;
+
+        return response()->json([
+            'total' => $total,
+            'online' => $online,
+            'offline' => $offline,
+        ]);
     }
 }

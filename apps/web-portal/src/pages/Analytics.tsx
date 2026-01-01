@@ -202,6 +202,34 @@ export function Analytics() {
       const totalAlerts = alertsData.length;
       const totalVehicles = vehiclesData.length;
 
+      // Calculate detection rate (percentage of alerts that are not false positives)
+      const falsePositives = alertsData.filter(a => a.status === 'false_alarm' || a.false_positive).length;
+      const detectionRate = totalAlerts > 0 
+        ? Math.round(((totalAlerts - falsePositives) / totalAlerts) * 100 * 10) / 10
+        : 0;
+
+      // Calculate trends (compare with previous period)
+      // For now, we'll use a simple calculation based on data distribution
+      // In production, you'd fetch previous period data
+      const midPoint = Math.floor(audienceData.length / 2);
+      const currentVisitors = audienceData.slice(midPoint).reduce((sum, r) => sum + (r.total_count || 0), 0);
+      const previousVisitors = audienceData.slice(0, midPoint).reduce((sum, r) => sum + (r.total_count || 0), 0);
+      const visitorsChange = previousVisitors > 0 
+        ? Math.round(((currentVisitors - previousVisitors) / previousVisitors) * 100)
+        : 0;
+
+      const currentVehicles = Math.floor(vehiclesData.length / 2);
+      const previousVehicles = vehiclesData.length - currentVehicles;
+      const vehiclesChange = previousVehicles > 0
+        ? Math.round(((currentVehicles - previousVehicles) / previousVehicles) * 100)
+        : 0;
+
+      const currentAlerts = Math.floor(alertsData.length / 2);
+      const previousAlerts = alertsData.length - currentAlerts;
+      const alertsChange = previousAlerts > 0
+        ? Math.round(((currentAlerts - previousAlerts) / previousAlerts) * 100)
+        : 0;
+
       setData({
         visitorData,
         weeklyData,
@@ -212,10 +240,10 @@ export function Analytics() {
           totalVisitors,
           totalVehicles,
           totalAlerts,
-          detectionRate: 98.5,
-          visitorsChange: 12,
-          vehiclesChange: 8,
-          alertsChange: -5,
+          detectionRate,
+          visitorsChange,
+          vehiclesChange,
+          alertsChange,
         },
       });
     } catch (error) {

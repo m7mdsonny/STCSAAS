@@ -21,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth' => \App\Http\Middleware\Authenticate::class,
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'active.subscription' => \App\Http\Middleware\EnsureActiveSubscription::class,
+            'verify.edge.signature' => \App\Http\Middleware\VerifyEdgeSignature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

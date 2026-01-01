@@ -58,13 +58,16 @@ class DatabaseSeeder extends Seeder
         // 3. Create Users (Super Admin & Organization Admin) - only if not exists
         $usersToCreate = [];
         
-        // Super Admin
-        if (DB::table('users')->where('email', 'superadmin@demo.local')->doesntExist()) {
+        // Super Admin - Read from env or use default
+        $superAdminEmail = env('SUPER_ADMIN_EMAIL', 'superadmin@demo.local');
+        $superAdminPassword = env('SUPER_ADMIN_PASSWORD', 'Super@12345');
+        
+        if (DB::table('users')->where('email', $superAdminEmail)->doesntExist()) {
             $usersToCreate[] = [
                 'organization_id' => null,
                 'name' => 'Super Administrator',
-                'email' => 'superadmin@demo.local',
-                'password' => Hash::make('Super@12345'),
+                'email' => $superAdminEmail,
+                'password' => Hash::make($superAdminPassword),
                 'role' => 'super_admin',
                 'phone' => '+966 50 000 0001',
                 'is_active' => true,
@@ -228,12 +231,12 @@ class DatabaseSeeder extends Seeder
                 'description' => $eventType['description'],
                 'occurred_at' => now()->subDays($daysAgo)->subHours(rand(0, 23)),
                 'acknowledged_at' => rand(0, 1) ? now()->subDays($daysAgo)->addHours(1) : null,
-                'acknowledged_by' => rand(0, 1) ? 2 : null,
                 'resolved_at' => rand(0, 2) > 0 ? now()->subDays($daysAgo)->addHours(2) : null,
-                'resolved_by' => rand(0, 2) > 0 ? 2 : null,
                 'meta' => json_encode([
                     'confidence' => rand(85, 99) / 100,
                     'camera_location' => ['Entrance', 'Parking', 'Hallway', 'Storage'][rand(0, 3)],
+                    'acknowledged_by' => rand(0, 1) ? 2 : null,
+                    'resolved_by' => rand(0, 2) > 0 ? 2 : null,
                 ]),
                 'created_at' => now()->subDays($daysAgo),
             ];
@@ -268,8 +271,10 @@ class DatabaseSeeder extends Seeder
         echo "\n📝 Login Credentials:\n";
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
         echo "Super Admin:\n";
-        echo "  Email: superadmin@demo.local\n";
-        echo "  Password: Super@12345\n";
+        $superAdminEmail = env('SUPER_ADMIN_EMAIL', 'superadmin@demo.local');
+        $superAdminPassword = env('SUPER_ADMIN_PASSWORD', 'Super@12345');
+        echo "  Email: {$superAdminEmail}\n";
+        echo "  Password: {$superAdminPassword}\n";
         echo "\nOrganization Admin:\n";
         echo "  Email: admin@org1.local\n";
         echo "  Password: Admin@12345\n";

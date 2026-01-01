@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 
 class AlertController extends Controller
 {
@@ -234,6 +235,67 @@ class AlertController extends Controller
         return response()->json([
             'message' => "{$updated} alerts resolved",
             'count' => $updated,
+        ]);
+    }
+
+    public function stats(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $query = Event::query()->where('event_type', 'alert');
+
+        // Filter by organization
+        if ($user->organization_id) {
+            $query->where('organization_id', $user->organization_id);
+        } elseif (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            return response()->json([
+                'new' => 0,
+                'total' => 0,
+                'critical' => 0,
+                'high' => 0,
+                'today' => 0,
+            ]);
+        }
+
+        // Super admin can filter by organization
+        if ($request->filled('organization_id') && RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            $query->where('organization_id', $request->get('organization_id'));
+        }
+
+        // Count total alerts
+        $total = (clone $query)->count();
+        
+        // Count new alerts (not acknowledged, not resolved)
+        $new = (clone $query)
+            ->whereNull('acknowledged_at')
+            ->whereNull('resolved_at')
+            ->count();
+
+        // Count by severity for mobile app compatibility
+        $critical = (clone $query)
+            ->where(function ($q) {
+                $q->where('severity', 'critical')
+                  ->orWhere('meta->severity', 'critical');
+            })
+            ->count();
+
+        $high = (clone $query)
+            ->where(function ($q) {
+                $q->where('severity', 'high')
+                  ->orWhere('meta->severity', 'high');
+            })
+            ->count();
+
+        // Count today's alerts
+        $today = (clone $query)
+            ->whereDate('occurred_at', Carbon::today())
+            ->count();
+
+        return response()->json([
+            'new' => $new,
+            'total' => $total,
+            'critical' => $critical,
+            'high' => $high,
+            'today' => $today,
         ]);
     }
 }

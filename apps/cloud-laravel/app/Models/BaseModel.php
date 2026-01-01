@@ -9,7 +9,10 @@ class BaseModel extends Model
 {
     use SoftDeletes;
 
-    protected $guarded = [];
+    // CRITICAL SECURITY FIX: Removed $guarded = []
+    // Each model must define $fillable explicitly
+    protected $fillable = [];
+    
     protected $casts = [
         'meta' => 'array',
         'online' => 'boolean',

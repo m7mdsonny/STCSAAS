@@ -62,18 +62,20 @@ export const edgeServersApi = {
     return data;
   },
 
-  async restart(id: string): Promise<void> {
-    const { error } = await apiClient.post(`/edge-servers/${id}/restart`);
-    if (error) {
-      throw new Error(error);
+  async restart(id: string): Promise<{ message: string; edge_response?: any; warning?: string; note?: string }> {
+    const { data, error } = await apiClient.post<{ message: string; edge_response?: any; warning?: string; note?: string }>(`/edge-servers/${id}/restart`);
+    if (error || !data) {
+      throw new Error(error || 'Failed to restart edge server');
     }
+    return data;
   },
 
-  async syncConfig(id: string): Promise<void> {
-    const { error } = await apiClient.post(`/edge-servers/${id}/sync-config`);
-    if (error) {
-      throw new Error(error);
+  async syncConfig(id: string): Promise<{ message: string; cameras_synced?: number; total_cameras?: number; edge_response?: any; warning?: string; note?: string }> {
+    const { data, error } = await apiClient.post<{ message: string; cameras_synced?: number; total_cameras?: number; edge_response?: any; warning?: string; note?: string }>(`/edge-servers/${id}/sync-config`);
+    if (error || !data) {
+      throw new Error(error || 'Failed to sync edge server config');
     }
+    return data;
   },
 
   async getConfig(id: string): Promise<Record<string, unknown>> {

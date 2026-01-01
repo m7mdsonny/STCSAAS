@@ -5,7 +5,11 @@ namespace App\Http\Controllers;
 use App\Helpers\RoleHelper;
 use App\Models\Camera;
 use App\Models\EdgeServer;
+use App\Models\Organization;
 use App\Services\EdgeServerService;
+use App\Services\SubscriptionService;
+use App\Http\Requests\CameraStoreRequest;
+use App\Http\Requests\CameraUpdateRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -13,6 +17,12 @@ use Illuminate\Support\Str;
 
 class CameraController extends Controller
 {
+    protected SubscriptionService $subscriptionService;
+
+    public function __construct(SubscriptionService $subscriptionService)
+    {
+        $this->subscriptionService = $subscriptionService;
+    }
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -66,61 +76,53 @@ class CameraController extends Controller
 
     public function show(Camera $camera): JsonResponse
     {
-        $user = request()->user();
-        
-        // Check ownership
-        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
-            $this->ensureOrganizationAccess(request(), $camera->organization_id);
-        }
+        // Use Policy for authorization
+        $this->authorize('view', $camera);
 
         $camera->load(['organization', 'edgeServer']);
         return response()->json($camera);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(CameraStoreRequest $request): JsonResponse
     {
+        // Authorization is handled by CameraStoreRequest
+        $data = $request->validated();
+        
         $user = $request->user();
-        $organizationId = $user->organization_id;
-
-        // Super admin can specify organization
-        if (RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false) && $request->filled('organization_id')) {
-            $organizationId = $request->get('organization_id');
-        }
-        
-        // Non-super-admin users must have organization and can only create for their org
-        if (!$organizationId) {
-            return response()->json(['message' => 'Organization ID is required'], 422);
-        }
-        
-        // Check permissions - only editors and above can create cameras
-        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
-            if (!RoleHelper::canEdit($user->role)) {
-                return response()->json(['message' => 'Insufficient permissions to create cameras'], 403);
-            }
-            $this->ensureOrganizationAccess($request, $organizationId);
-        }
-
-        if (!$organizationId) {
-            return response()->json(['message' => 'Organization ID is required'], 422);
-        }
-
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'edge_server_id' => 'required|exists:edge_servers,id',
-            'rtsp_url' => 'required|string|max:500',
-            'location' => 'nullable|string|max:255',
-            'username' => 'nullable|string|max:255',
-            'password' => 'nullable|string|max:255',
-            'resolution' => 'nullable|string|max:50',
-            'fps' => 'nullable|integer|min:1|max:60',
-            'enabled_modules' => 'nullable|array',
-            'status' => 'nullable|string|in:online,offline,error',
-        ]);
+        $organizationId = $data['organization_id'] ?? $user->organization_id;
 
         // Verify edge server belongs to organization
         $edgeServer = EdgeServer::findOrFail($data['edge_server_id']);
         if ($edgeServer->organization_id !== (int) $organizationId) {
             return response()->json(['message' => 'Edge server does not belong to your organization'], 403);
+        }
+
+        // Check subscription limit (skip for super admin)
+        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            $organization = Organization::findOrFail($organizationId);
+            $currentCameraCount = Camera::where('organization_id', $organizationId)->count();
+            $limitCheck = $this->subscriptionService->checkLimit($organization, 'cameras', $currentCameraCount);
+            
+            if (!$limitCheck['allowed']) {
+                return response()->json([
+                    'message' => 'Camera limit exceeded',
+                    'error' => 'subscription_limit_exceeded',
+                    'limit_type' => 'cameras',
+                    'current' => $limitCheck['current'],
+                    'limit' => $limitCheck['limit'],
+                ], 403);
+            }
+        }
+
+        // Check subscription limit enforcement
+        try {
+            $org = Organization::findOrFail($organizationId);
+            $subscriptionService = app(SubscriptionService::class);
+            $subscriptionService->assertCanCreateCamera($org);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 403);
         }
 
         // Generate unique camera_id if not provided
@@ -178,30 +180,10 @@ class CameraController extends Controller
         return response()->json($camera, 201);
     }
 
-    public function update(Request $request, Camera $camera): JsonResponse
+    public function update(CameraUpdateRequest $request, Camera $camera): JsonResponse
     {
-        $user = $request->user();
-
-        // Check ownership and permissions
-        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
-            $this->ensureOrganizationAccess($request, $camera->organization_id);
-            if (!RoleHelper::canEdit($user->role)) {
-                return response()->json(['message' => 'Insufficient permissions to edit cameras'], 403);
-            }
-        }
-
-        $data = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'edge_server_id' => 'sometimes|exists:edge_servers,id',
-            'rtsp_url' => 'sometimes|string|max:500',
-            'location' => 'nullable|string|max:255',
-            'username' => 'nullable|string|max:255',
-            'password' => 'nullable|string|max:255',
-            'resolution' => 'nullable|string|max:50',
-            'fps' => 'nullable|integer|min:1|max:60',
-            'enabled_modules' => 'nullable|array',
-            'status' => 'nullable|string|in:online,offline,error',
-        ]);
+        // Authorization is handled by CameraUpdateRequest
+        $data = $request->validated();
 
         // Verify edge server belongs to organization if changed
         if (isset($data['edge_server_id'])) {
@@ -263,15 +245,8 @@ class CameraController extends Controller
 
     public function destroy(Camera $camera): JsonResponse
     {
-        $user = request()->user();
-
-        // Check ownership and permissions
-        if (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
-            $this->ensureOrganizationAccess(request(), $camera->organization_id);
-            if (!RoleHelper::canManageOrganization($user->role)) {
-                return response()->json(['message' => 'Insufficient permissions to delete cameras'], 403);
-            }
-        }
+        // Use Policy for authorization
+        $this->authorize('delete', $camera);
 
         // Remove camera from Edge Server before deleting
         try {
@@ -377,6 +352,43 @@ class CameraController extends Controller
                 'message' => 'Failed to validate RTSP URL: ' . $e->getMessage(),
             ], 422);
         }
+    }
+
+    /**
+     * Get camera statistics
+     * Mobile app endpoint: GET /cameras/stats
+     */
+    public function stats(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $query = Camera::query();
+
+        // Filter by organization
+        if ($user->organization_id) {
+            $query->where('organization_id', $user->organization_id);
+        } elseif (!RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            // Return empty stats for non-admin users without organization
+            return response()->json([
+                'total' => 0,
+                'online' => 0,
+                'offline' => 0,
+            ]);
+        }
+
+        // Super admin can filter by organization
+        if ($request->filled('organization_id') && RoleHelper::isSuperAdmin($user->role, $user->is_super_admin ?? false)) {
+            $query->where('organization_id', $request->get('organization_id'));
+        }
+
+        $total = (clone $query)->count();
+        $online = (clone $query)->where('status', 'online')->count();
+        $offline = $total - $online;
+
+        return response()->json([
+            'total' => $total,
+            'online' => $online,
+            'offline' => $offline,
+        ]);
     }
 }
 

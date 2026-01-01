@@ -14,6 +14,7 @@ import { People } from './pages/People';
 import { Vehicles } from './pages/Vehicles';
 import { Attendance } from './pages/Attendance';
 import { LiveView } from './pages/LiveView';
+import { Market } from './pages/Market';
 import { Settings } from './pages/Settings';
 import { Team } from './pages/Team';
 import { OwnerGuide } from './pages/OwnerGuide';
@@ -186,6 +187,7 @@ function AppRoutesWithToast() {
         <Route path="/people" element={<People />} />
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/attendance" element={<Attendance />} />
+        <Route path="/market" element={<Market />} />
         <Route path="/automation" element={<Automation />} />
         <Route 
           path="/team" 

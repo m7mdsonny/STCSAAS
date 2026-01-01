@@ -3,9 +3,12 @@ import { Plus, Search, Building2, Edit2, Pause } from 'lucide-react';
 import { organizationsApi, subscriptionPlansApi } from '../../lib/api';
 import { DataTable } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
+import { useToast } from '../../contexts/ToastContext';
+import { getDetailedErrorMessage } from '../../lib/errorMessages';
 import type { Organization, SubscriptionPlan } from '../../types/database';
 
 export function Organizations() {
+  const { showSuccess, showError } = useToast();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -61,7 +64,7 @@ export function Organizations() {
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      alert('يرجى إدخال اسم المؤسسة');
+      showError('بيانات غير مكتملة', 'يرجى إدخال اسم المؤسسة');
       return;
     }
 
@@ -74,17 +77,19 @@ export function Organizations() {
 
       if (editingOrg) {
         await organizationsApi.updateOrganization(editingOrg.id, submitData);
+        showSuccess('تم التحديث بنجاح', `تم تحديث بيانات المؤسسة ${formData.name} بنجاح`);
         setEditingOrg(null);
       } else {
         await organizationsApi.createOrganization(submitData);
+        showSuccess('تم الإضافة بنجاح', `تم إضافة المؤسسة ${formData.name} بنجاح`);
       }
       await fetchOrganizations();
       setShowModal(false);
       resetForm();
     } catch (error) {
       console.error('Error saving organization:', error);
-      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ في حفظ المؤسسة';
-      alert(errorMessage);
+      const { title, message } = getDetailedErrorMessage(error, editingOrg ? 'تحديث المؤسسة' : 'إضافة المؤسسة', 'حدث خطأ في حفظ المؤسسة');
+      showError(title, message);
     }
   };
 
@@ -119,9 +124,15 @@ export function Organizations() {
   const handleToggleStatus = async (org: Organization) => {
     try {
       await organizationsApi.toggleActive(org.id);
+      showSuccess(
+        'تم التحديث',
+        `تم ${org.is_active ? 'تعطيل' : 'تفعيل'} المؤسسة ${org.name} بنجاح`
+      );
       fetchOrganizations();
     } catch (error) {
       console.error('Error toggling status:', error);
+      const { title, message } = getDetailedErrorMessage(error, 'تغيير حالة المؤسسة', 'حدث خطأ في تغيير حالة المؤسسة');
+      showError(title, message);
     }
   };
 
