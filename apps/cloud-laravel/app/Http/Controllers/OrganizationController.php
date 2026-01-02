@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Camera;
 use App\Models\EdgeServer;
+use App\Models\Event;
 use App\Models\License;
 use App\Models\Organization;
 use App\Models\SubscriptionPlan;
